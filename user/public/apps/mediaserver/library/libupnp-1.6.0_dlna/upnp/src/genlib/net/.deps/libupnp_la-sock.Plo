@@ -1,0 +1,50 @@
+src/genlib/net/libupnp_la-sock.lo: src/genlib/net/sock.c src/inc/config.h \
+ ../autoconfig.h src/inc/sock.h src/inc/util.h ../upnp/inc/upnp.h \
+ ../ixml/inc/ixml.h ../upnp/inc/upnpconfig.h ../upnp/inc/upnpdebug.h \
+ ../upnp/inc/upnp.h src/inc/upnpapi.h src/inc/client_table.h \
+ src/inc/uri.h src/inc/service_table.h src/inc/config.h \
+ ../threadutil/inc/TimerThread.h ../threadutil/inc/ithread.h \
+ ../threadutil/inc/LinkedList.h ../threadutil/inc/FreeList.h \
+ ../threadutil/inc/ThreadPool.h src/inc/upnp_timeout.h src/inc/unixutil.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/sock.h:
+
+src/inc/util.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+../upnp/inc/upnp.h:
+
+src/inc/upnpapi.h:
+
+src/inc/client_table.h:
+
+src/inc/uri.h:
+
+src/inc/service_table.h:
+
+src/inc/config.h:
+
+../threadutil/inc/TimerThread.h:
+
+../threadutil/inc/ithread.h:
+
+../threadutil/inc/LinkedList.h:
+
+../threadutil/inc/FreeList.h:
+
+../threadutil/inc/ThreadPool.h:
+
+src/inc/upnp_timeout.h:
+
+src/inc/unixutil.h:

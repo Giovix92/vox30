@@ -1,0 +1,726 @@
+Index: libntfs/index.c
+===================================================================
+--- libntfs/index.c	(revision 236)
++++ libntfs/index.c	(working copy)
+@@ -777,8 +777,11 @@
+ 	free(ib);
+ 	if (!err)
+ 		err = EIO;
+-	if (actx)
++	if (actx) {
+ 		ntfs_attr_put_search_ctx(actx);
++		/* Set it to NULL, so we will not free it again. */
++		icx->actx = NULL;
++	}
+ 	errno = err;
+ 	return -1;
+ done:
+Index: libntfs/volume.c
+===================================================================
+--- libntfs/volume.c	(revision 236)
++++ libntfs/volume.c	(working copy)
+@@ -899,6 +899,9 @@
+ 	ntfschar *vname;
+ 	int i, j, eo;
+ 	u32 u;
++#ifdef SC_FASTMNT
++	int log_reset = !(flags & NTFS_MNT_FASTMNT);
++#endif
+ 
+ 	vol = ntfs_volume_startup(dev, flags);
+ 	if (!vol) {
+@@ -1264,19 +1267,16 @@
+ 					"forced to continue.\n");
+ 			NVolSetWasDirty(vol); /* Leave volume dirty since we
+ 						 empted logfile. */
+-						 
+-			/* also do this for ForensicMount */
+-			if (ntfs_logfile_reset(vol) < 0)
+-				goto error_exit;
+-			if (!(vol->flags & VOLUME_IS_DIRTY)) {
+-				vol->flags |= VOLUME_IS_DIRTY;
+-				if (ntfs_volume_write_flags(vol, vol->flags) <
+-						0)
+-					goto error_exit;
+-			}
++#ifdef SC_FASTMNT
++			log_reset = 1;
++#endif
+ 			
+ 		}
+-		if (!NVolForensicMount(vol)) {
++		if (!NVolForensicMount(vol)
++#ifdef SC_FASTMNT
++			&& log_reset
++#endif		
++			) {
+ 			if (ntfs_logfile_reset(vol) < 0)
+ 				goto error_exit;
+ 			if (!(vol->flags & VOLUME_IS_DIRTY)) {
+Index: libntfs/attrib.c
+===================================================================
+--- libntfs/attrib.c	(revision 236)
++++ libntfs/attrib.c	(working copy)
+@@ -485,6 +485,11 @@
+ 	/* Don't release if using an internal constant. */
+ 	if (na->name != AT_UNNAMED && na->name != NTFS_INDEX_I30)
+ 		free(na->name);
++#ifdef SC_CACHE
++	if (na->write_cache) {
++		free(na->write_cache);
++	}
++#endif
+ 	free(na);
+ }
+ 
+@@ -594,12 +599,15 @@
+ 			goto err_out;
+ 		na->rl = rl;
+ 	}
+-
+-	ntfs_attr_put_search_ctx(ctx);
++	if (ctx) {
++		ntfs_attr_put_search_ctx(ctx);
++	}
+ 	ntfs_log_trace("Done.\n");
+ 	return 0;
+ err_out:
+-	ntfs_attr_put_search_ctx(ctx);
++	if (ctx) {
++		ntfs_attr_put_search_ctx(ctx);
++	}
+ 	ntfs_log_trace("Failed.\n");
+ 	return -1;
+ }
+@@ -1321,6 +1329,11 @@
+ 				errno = EIO;
+ 				goto err_out;
+ 			}
++			/* Clear non-sparse region from @cur_vcn to @ofs. */
++			if (ofs && ntfs_rl_fill_zero(vol, na->rl, cur_vcn <<
++					vol->cluster_size_bits, ofs)) {
++				goto err_out;
++			}
+ 			if (rl->vcn < cur_vcn) {
+ 				/*
+ 				 * Clusters that replaced hole are merged with
+@@ -1337,13 +1350,6 @@
+ 				ofs -= (rl->vcn - cur_vcn) <<
+ 					vol->cluster_size_bits;
+ 			}
+-			/*
+-			 * Clear region between start of @rl->vcn cluster and
+-			 * @ofs if necessary.
+-			 */
+-			if (ofs && ntfs_rl_fill_zero(vol, na->rl, rl->vcn <<
+-					vol->cluster_size_bits, ofs))
+-				goto err_out;
+ 		}
+ 		/* It is a real lcn, write it to the volume. */
+ 		to_write = min(count, (rl->length << vol->cluster_size_bits) -
+@@ -2398,7 +2404,7 @@
+ 		ntfs_log_trace("inode <%p> ctx_cache <%p> found \n", ni, ctx);
+ 	} else {
+ 		ctx = ntfs_malloc(sizeof(ntfs_attr_search_ctx));
+-		ntfs_log_trace("ctx_cache inused, malloc one. \n");
++		ntfs_log_trace("ctx_cache inused, malloc one <%p>. \n", ctx);
+ 	}
+ 	if (ctx)
+ 		ntfs_attr_init_search_ctx(ctx, ni, mrec);
+Index: libntfs/Makefile
+===================================================================
+--- libntfs/Makefile	(revision 236)
++++ libntfs/Makefile	(working copy)
+@@ -13,6 +13,7 @@
+ ifeq ($(HAVE_SC_CACHE), y)
+ CFLAGS += -DSC_CACHE
+ endif
++CFLAGS += -DSC_FASTMNT #-DDEBUG
+ 
+ LDFLAGS  := -shared -L$(LIBICONV_DIR)/lib -liconv
+ 
+Index: include/ntfs/volume.h
+===================================================================
+--- include/ntfs/volume.h	(revision 236)
++++ include/ntfs/volume.h	(working copy)
+@@ -63,6 +63,9 @@
+ 	NTFS_MNT_NOT_EXCLUSIVE	= 8,
+ 	NTFS_MNT_FORCE		= 16,
+ 	NTFS_MNT_INTERIX	= 32,
++#ifdef SC_FASTMNT
++	NTFS_MNT_FASTMNT	= 64,
++#endif
+ } ntfs_mount_flags;
+ 
+ /**
+Index: include/ntfs/sc_cache.h
+===================================================================
+--- include/ntfs/sc_cache.h	(revision 236)
++++ include/ntfs/sc_cache.h	(working copy)
+@@ -20,5 +20,6 @@
+ int sc_cache_create(struct list_head *free_list, int cache_nr, size_t cachesize);
+ struct sc_cache_s* sc_cache_get(struct list_head *free_list);
+ void sc_cache_put(struct list_head *free_list, struct sc_cache_s *cachep);
++void sc_cache_put_list(struct list_head *free_list, struct list_head *to_free);
+ 
+ #endif
+Index: ntfsprogs/sc_cache.c
+===================================================================
+--- ntfsprogs/sc_cache.c	(revision 236)
++++ ntfsprogs/sc_cache.c	(working copy)
+@@ -71,3 +71,16 @@
+ 	ntfs_log_trace("put cache <%d> \n", cachep->id);
+ #endif
+ }
++
++void sc_cache_put_list(struct list_head *free_list, struct list_head *to_free)
++{
++#ifdef CACHE_DBG
++	struct list_head *item;
++	struct sc_cache_s *cachep;
++	list_for_each(item, to_free) {
++		cachep = list_entry(item, struct sc_cache_s, list);
++		ntfs_log_trace("put cache <%d> \n", cachep->id);
++	}
++#endif
++	list_splice(to_free, free_list);
++}
+Index: ntfsprogs/Makefile
+===================================================================
+--- ntfsprogs/Makefile	(revision 239)
++++ ntfsprogs/Makefile	(working copy)
+@@ -15,6 +15,8 @@
+ CFLAGS += -DSC_CACHE
+ SRC += sc_cache.c
+ endif
++# fast mount 
++CFLAGS += -DSC_FASTMNT
+ 
+ OBJS := $(patsubst %.c,%.o,$(SRC))
+ 
+Index: ntfsprogs/ntfsmount.c
+===================================================================
+--- ntfsprogs/ntfsmount.c	(revision 236)
++++ ntfsprogs/ntfsmount.c	(working copy)
+@@ -200,33 +200,32 @@
+ #define CACHE_SIZE       4096
+ #define CACHE_NR         32
+ 
+-#define WC_TYPE(__na)       ( (struct ntfs_cache_s*)(__na)->write_cache )
+-
+ struct list_head  ntfs_free_cache;           /* cache pool. */
+ struct list_head  ntfs_cached_list;          /* all cached data list. */
+ 
+ static int ntfs_cache_create(void);
+ static void ntfs_cache_destory(void);
+-static inline void ntfs_cache_init1(struct ntfs_cache_s *cachep);
+-static inline void ntfs_cache_init2(struct ntfs_cache_s *cachep, ntfs_attr *na);
+-static inline void ntfs_cache_free(struct ntfs_cache_s *cachep);
+-static int ntfs_cache_do(struct ntfs_cache_s *cachep, 
+-		const char *buf, size_t size, off_t offset);
+-static s64 ntfs_cache_flush(struct ntfs_cache_s *cachep);
+-static void ntfs_cache_release(struct ntfs_cache_s *cachep);
+-static s64 ntfs_cache_attr_write(struct ntfs_cache_s *cachep);
++static inline void ntfs_cache_init1(void *ch);
++static inline void ntfs_cache_init2(void *ch, ntfs_attr *na);
++static int ntfs_cache_do(void *ch, const char *buf, size_t size, off_t offset);
++static s64 ntfs_cache_flush(void *ch);
++static void ntfs_cache_release(void *ch);
++static s64 ntfs_cache_attr_write(void *ch);
+ static int ntfs_cache_fuse_write(const char *path, const char *buf, size_t size,
+ 		off_t offset, struct fuse_file_info *fi);
+ static int ntfs_cache_flush_cached_list(int thresh);
+-static int ntfs_cache_idle(void);
+ 
++/*
++ * Before do new action to this file, we should flush (finish) 
++ * the write cache. 
++ */
+ static inline ntfs_attr* ntfs_cache_attr_open(ntfs_inode *ni, const ATTR_TYPES type,
+ 		ntfschar *name, u32 name_len)
+ {
+ 	ntfs_attr *na;
+ 	na = ntfs_attr_open(ni, type, name, name_len);
+-	if ( na && na->write_cache && WC_TYPE(na)->size > 0 ) {
+-		ntfs_cache_flush(WC_TYPE(na));
++	if ( na && na->write_cache ) {
++		ntfs_cache_flush(na->write_cache);
+ 	}
+ 	return na;
+ }
+@@ -533,8 +532,8 @@
+ 	ntfs_inode *ni = na->ni;
+ 
+ #ifdef SC_CACHE
+-	if ( na->write_cache && WC_TYPE(na)->size > 0 ) {
+-		ntfs_cache_flush(WC_TYPE(na));
++	if ( na->write_cache ) {
++		ntfs_cache_flush(na->write_cache);
+ 	}
+ #endif
+ 
+@@ -730,8 +729,8 @@
+ #ifdef SC_CACHE
+ 	/* flush cached data. I don't know if is the cache owner flushing
+ 	 * the file, but flush cache do no harm. */
+-	if ( na->write_cache && WC_TYPE(na)->size > 0 ) {
+-		ntfs_cache_flush(WC_TYPE(na));
++	if ( na->write_cache ) {
++		ntfs_cache_flush(na->write_cache);
+ 	}
+ #endif
+ 	if (ntfs_inode_sync(na->ni))
+@@ -747,13 +746,9 @@
+ 
+ #ifdef SC_CACHE
+ 	if ( na->write_cache ) {
+-		/* flush cached data. I don't know if is the cache owner releasing(close) 
+-		 * the file, but flush cache should do no harm. */
+-		ntfs_cache_flush(WC_TYPE(na));
+-		/* na will be free by `ntfs_attr_close', it's time to free write_cache. */
+-		if ( na->nr_references == 1 ) {
+-			ntfs_cache_free(WC_TYPE(na));
+-		}
++		/* flush cached data. I don't know if is the cache owner 
++		 * releasing(close) the file, but flush cache should do no harm. */
++		ntfs_cache_flush(na->write_cache);
+ 	}
+ #endif
+ 
+@@ -772,8 +767,8 @@
+ 		return 0;
+ 
+ #ifdef SC_CACHE
+-	if ( na->write_cache && WC_TYPE(na)->size > 0 ) {
+-		ntfs_cache_flush(WC_TYPE(na));
++	if ( na->write_cache ) {
++		ntfs_cache_flush(na->write_cache);
+ 	}
+ #endif
+ 
+@@ -878,8 +873,8 @@
+ 	NTFS_FUSE_GET_NA(fi);
+ 
+ #ifdef SC_CACHE
+-	if ( na->write_cache && WC_TYPE(na)->size > 0 ) {
+-		ntfs_cache_flush(WC_TYPE(na));
++	if ( na->write_cache ) {
++		ntfs_cache_flush(na->write_cache);
+ 	}
+ #endif
+ 
+@@ -1647,7 +1642,11 @@
+ 	.flush		= ntfs_fuse_flush,
+ 	.release	= ntfs_fuse_release,
+ 	.read		= ntfs_fuse_read,
++#ifdef SC_CACHE
+ 	.write		= ntfs_cache_fuse_write,
++#else
++	.write		= ntfs_fuse_write,
++#endif
+ 	.truncate	= ntfs_fuse_truncate,
+ 	.ftruncate	= ntfs_fuse_ftruncate,
+ 	.statfs		= ntfs_fuse_statfs,
+@@ -1889,8 +1888,11 @@
+ 			(ctx->blkdev ? NTFS_MNT_NOT_EXCLUSIVE : 0) |
+ 			(ctx->force ? NTFS_MNT_FORCE : 0) |
+ 			(ctx->ro ? NTFS_MNT_RDONLY : 0) |
+-			NTFS_MNT_INTERIX |
+-			NTFS_MNT_FORENSIC); /* DON'T empty $logfile */
++			NTFS_MNT_INTERIX
++#ifdef SC_FASTMNT
++			|NTFS_MNT_FASTMNT  /* DON'T empty $logfile */
++#endif
++			);
+ 	if (!vol) {
+ 		ntfs_log_error("Mount failed.\n");
+ 		return -1;
+@@ -2017,19 +2019,19 @@
+ 	if ( sc_cache_create(&ntfs_free_cache, CACHE_NR, CACHE_SIZE) < 0 ) {
+ 		return -1;
+ 	}
+-	/* it is safe to call ntfs_cache_idle now. */
+-	fuse_setup_idle(&ntfs_cache_idle);
+ 	return 0;
+ }
+ 
+ static void ntfs_cache_destory(void)
+ {
++	ntfs_cache_flush_cached_list(0);
+ 	sc_cache_free(&ntfs_free_cache);
+ }
+ 
+ /* init part1(basic) */
+-static inline void ntfs_cache_init1(struct ntfs_cache_s *cachep)
++static inline void ntfs_cache_init1(void *ch)
+ {
++	struct ntfs_cache_s *cachep = ch;
+ 	INIT_LIST_HEAD(&cachep->head);
+ 	cachep->size = 0;
+ 	cachep->s_off = 0;
+@@ -2037,37 +2039,35 @@
+ }
+ 
+ /* init part2(special) */
+-static inline void ntfs_cache_init2(struct ntfs_cache_s *cachep, ntfs_attr *na)
++static inline void ntfs_cache_init2(void *ch, ntfs_attr *na)
+ {
++	struct ntfs_cache_s *cachep = ch;
+ 	cachep->na = na;
+ 	INIT_LIST_HEAD(&cachep->cachelist);
+ }
+ 
+-/* cache(cachelist) will be added to `ntfs_cached_list' when its size > 0, 
++/* Cache(cachelist) will be added to `ntfs_cached_list' when its size > 0,
+  * and will be deleted from `ntfs_cached_list' when its size drop to 0 
+- * (be flushed) again. */
+-static void ntfs_cache_release(struct ntfs_cache_s *cachep)
++ * (flushed) again. 
++ */
++static void ntfs_cache_release(void *ch)
+ {
+-	list_splice(&cachep->head, &ntfs_free_cache);
++	struct ntfs_cache_s *cachep = ch;
++	sc_cache_put_list(&ntfs_free_cache, &cachep->head);
+ 	ntfs_cache_init1(cachep);
+ 	list_del_init(&cachep->cachelist);
+ }
+ 
+-/* cache will be free only when `na' will be really closed. */
+-static inline void ntfs_cache_free(struct ntfs_cache_s *cachep)
++static s64 ntfs_cache_flush(void *ch)
+ {
+-	cachep->na->write_cache = NULL;
+-	free(cachep);
+-}
+-
+-static s64 ntfs_cache_flush(struct ntfs_cache_s *cachep)
+-{
++	struct ntfs_cache_s *cachep = ch;
+ 	s64 res = 0;
+ 	int eo = 0;
+ 
+ 	if ( cachep && cachep->size > 0 ) {
+ 		res = ntfs_cache_attr_write(cachep);
+ 		if ( res > 0 ) {
++			/* FIXME: update times when do cache. */
+ 			ntfs_fuse_update_times(cachep->na->ni, NTFS_UPDATE_MTIME |
+ 				NTFS_UPDATE_CTIME);
+ 		} else {
+@@ -2080,13 +2080,17 @@
+ 	return res;
+ }
+ 
+-/* @thresh == 0 means flush all. 
+- * flush cached data in list, and remove it. */
++/* 
++ * @thresh == 0 means flush all. 
++ * flush cached data in list, and remove it. 
++ */
+ static int ntfs_cache_flush_cached_list(int thresh)
+ {
+ 	struct list_head *item, *n;
+ 	struct ntfs_cache_s *cachep;
+-
++	s64  res;
++	int  i = 0;
++	
+ 	list_for_each_safe(item, n, &ntfs_cached_list) {
+ 		cachep = list_entry(item, struct ntfs_cache_s, cachelist);
+ 		if ( cachep->size == 0 ) {
+@@ -2095,22 +2099,26 @@
+ 			continue;
+ 		}
+ 		/* flush will do remove cache from this list(ntfs_cached_list) */
+-		ntfs_cache_flush(cachep);
+-		if ( thresh > 0 && --thresh == 0 ) {
++		res = ntfs_cache_flush(cachep);
++		if ( res < 0 ) {
++			return -errno;
++		}
++		if ( ++i == thresh ) {
+ 			break;
+ 		}
+ 	}
+-	return (list_empty(&ntfs_cached_list));
++	return i;
+ }
+ 
+-static int ntfs_cache_do(struct ntfs_cache_s *cachep, 
+-			const char *buf, size_t size, off_t offset)
++static int ntfs_cache_do(void *ch, const char *buf, size_t size, off_t offset)
+ {
++	struct ntfs_cache_s *cachep = ch;
+ 	struct sc_cache_s *newcachep = NULL, *first = NULL;
+ 	struct sc_cache_s *last;
+ 	size_t lastw = 0, w = 0;
+ 
+-	ntfs_log_trace("do cachep <%p>, size <%u> offset <0x%llx> \n", cachep, size, offset);
++	ntfs_log_trace("do cachep <%p>, size <%u> offset <0x%llx> \n", 
++			cachep, size, offset);
+ 
+ 	if ( !size ) {
+ 		return 0;
+@@ -2170,8 +2178,15 @@
+ 	return -2;
+ }
+ 
+-static s64 ntfs_cache_attr_write(struct ntfs_cache_s *cachep)
++/*
++ * This function is similiar to `ntfs_attr_pwrite', but it forces on dealing  
++ * with scatter cached buffer. We do this so that more than one users can
++ * share the cache pool. 
++ * Hope it will work well.
++ */
++static s64 ntfs_cache_attr_write(void *ch)
+ {
++	struct ntfs_cache_s *cachep = ch;
+ 	s64 written, to_write, ofs, total, old_initialized_size, old_data_size;
+ 	VCN update_from = -1;
+ 	ntfs_volume *vol;
+@@ -2180,8 +2195,7 @@
+ 	runlist_element *rl;
+ 	int eo;
+ 	s64 pos, total_count, this_count;
+-	struct list_head *head;
+-	struct list_head *cur_item;
++	struct list_head *head, *cur_item;
+ 	struct sc_cache_s* cur_cache;
+ 	const u8 *b;
+ 
+@@ -2219,7 +2233,7 @@
+ 		errno = EOPNOTSUPP;
+ 		return -1;
+ 	}
+-	
++
+ 	if ( !total_count || list_empty(head) ) {
+ 		return 0;
+ 	}
+@@ -2240,8 +2254,7 @@
+ 	/* If it is a resident attribute, write the data to the mft record. */
+ 	if (!NAttrNonResident(na)) {
+ 		char *val;
+-		s64  count;
+-		
++
+ 		ctx = ntfs_attr_get_search_ctx(na->ni, NULL);
+ 		if (!ctx)
+ 			goto err_out;
+@@ -2255,15 +2268,14 @@
+ 			errno = EIO;
+ 			goto err_out;
+ 		}
+-		
+-		count = 0;
++
+ 		/* handle cache linearize */
+ 		list_for_each(cur_item, head) {
+ 			cur_cache = list_entry(cur_item, struct sc_cache_s, list);
+ 			this_count = min(cur_cache->size, total_count);
+-			memcpy(val + count, cur_cache->data, this_count);
++			memcpy(val + pos, cur_cache->data, this_count);
+ 			total_count -= this_count;
+-			count += this_count;
++			pos += this_count; /* `pos' Adjusted ! */
+ 			if (total_count == 0) {
+ 				break;
+ 			}
+@@ -2281,9 +2293,10 @@
+ 			goto err_out;
+ 		}
+ 		ntfs_attr_put_search_ctx(ctx);
+-		return count;
++		/* return total count just written. */
++		return (cachep->size);
+ 	}
+-	
++
+ 	total = 0;
+ 
+ 	/* Handle writes beyond initialized_size. */
+@@ -2333,7 +2346,7 @@
+ 		 */
+ 		need_to.undo_initialized_size = 1;
+ 	}
+-	
++
+ 	/* Find the runlist element containing the vcn. */
+ 	rl = ntfs_attr_find_vcn(na, pos >> vol->cluster_size_bits);
+ 	if (!rl) {
+@@ -2346,9 +2359,9 @@
+ 			errno = EIO;
+ 		goto err_out;
+ 	}
+-	
++
+ 	/* iterate all caches from head */
+-	cur_item = head->next;
++	cur_item = head;
+ 	b = NULL;
+ 	this_count = 0;
+ 
+@@ -2376,7 +2389,7 @@
+ 		if (rl->lcn < (LCN)0) {
+ 			LCN lcn_seek_from = -1;
+ 			runlist *rlc;
+-			VCN cur_vcn, from_vcn;		
++			VCN cur_vcn, from_vcn;	
+ 			if (rl->lcn != (LCN)LCN_HOLE) {
+ 				errno = EIO;
+ 				goto rl_err_out;
+@@ -2493,6 +2506,11 @@
+ 				errno = EIO;
+ 				goto err_out;
+ 			}
++			/* Clear non-sparse region from @cur_vcn to @ofs. */
++			if (ofs && ntfs_rl_fill_zero(vol, na->rl, cur_vcn <<
++					vol->cluster_size_bits, ofs)) {
++				goto err_out;
++			}
+ 			if (rl->vcn < cur_vcn) {
+ 				/*
+ 				 * Clusters that replaced hole are merged with
+@@ -2509,19 +2527,16 @@
+ 				ofs -= (rl->vcn - cur_vcn) <<
+ 					vol->cluster_size_bits;
+ 			}
+-			/*
+-			 * Clear region between start of @rl->vcn cluster and
+-			 * @ofs if necessary.
+-			 */
+-			if (ofs && ntfs_rl_fill_zero(vol, na->rl, rl->vcn <<
+-					vol->cluster_size_bits, ofs))
+-				goto err_out;
+ 		}
+-		
++
+ _next_cache:
+ 		if ( this_count == 0 ) {
++			cur_item = cur_item->next;
++			if ( cur_item == head ) {
++				goto done;
++			}
+ 			cur_cache = list_entry(cur_item, struct sc_cache_s, list);
+-			/* make sure `cur_cache->size > 0 & total_count > 0' elsewhere. */
++			/* make sure `cur_cache->size > 0 && total_count > 0' elsewhere. */
+ 			this_count = min(cur_cache->size, total_count);
+ 			b = (const u8*)cur_cache->data;
+ 		}
+@@ -2529,7 +2544,7 @@
+ 		/* It is a real lcn, write it to the volume. */
+ 		to_write = min(this_count, (rl->length << vol->cluster_size_bits) -
+ 				ofs);
+-	
++
+ 		/* Should only rl exhausted result in to_write == 0, or BUG. */
+ 		if ( to_write == 0 ) {
+ 			continue;
+@@ -2541,7 +2556,7 @@
+ 				ofs);
+ 
+ 		if (!NVolReadOnly(vol)) {
+-			s64 pos = (rl->lcn << vol->cluster_size_bits) + ofs;
++			s64 wpos = (rl->lcn << vol->cluster_size_bits) + ofs;
+ 			int bsize = 4096; /* FIXME: Test whether we need
+ 					     PAGE_SIZE here. Eg., on IA64. */
+ 			/*
+@@ -2562,13 +2577,12 @@
+ 					goto err_out;
+ 				memcpy(cb, b, to_write);
+ 				memset(cb + to_write, 0, rounded - to_write);
+-				written = ntfs_pwrite(vol->dev, pos, rounded, cb);
++				written = ntfs_pwrite(vol->dev, wpos, rounded, cb);
+ 				if (written > to_write)
+ 					written = to_write;
+ 				free(cb);
+ 			} else {
+-				written = ntfs_pwrite(vol->dev, pos, 
+-						to_write, b);
++				written = ntfs_pwrite(vol->dev, wpos, to_write, b);
+ 			}
+ 		} else {
+ 			written = to_write;
+@@ -2578,13 +2592,11 @@
+ 			total += written;
+ 			this_count -= written;
+ 			total_count -= written;
++			if ( total_count == 0 ) {
++				goto done;
++			}
++			/* this runlist may still have space available ... */
+ 			if ( this_count == 0 ) {
+-				/* this runlist may still have space available, 
+-				 * so try next cache. */
+-				cur_item = cur_item->next;
+-				if ( cur_item == head || total_count == 0 ) {
+-					goto done;
+-				}
+ 				/* adjust `ofs' in this runlist. */
+ 				ofs += written;
+ 				goto _next_cache;
+@@ -2692,21 +2704,41 @@
+ 		if ( !na->write_cache ) {
+ 			goto _ori_path; 
+ 		}
+-		ntfs_cache_init1(WC_TYPE(na));
+-		ntfs_cache_init2(WC_TYPE(na), na);
++		ntfs_cache_init1(na->write_cache);
++		ntfs_cache_init2(na->write_cache, na);
+ 	}
+-	if ( ntfs_cache_do(WC_TYPE(na), buf, size, offset) == 0  ) {
++	if ( (res = ntfs_cache_do(na->write_cache, buf, size, offset)) == 0  ) {
+ 		return size;
+ 	}
+-	res = ntfs_cache_flush(WC_TYPE(na));
++	if ( res == -1 ) {
++		/* 
++		 * current buffer can not fit into cache, simplily flush 
++		 * current cache and accept new cache. 
++		 */
++		res = ntfs_cache_flush(na->write_cache);
++	} else {
++		/* 
++		 * there are no more caches available now. it's time to 
++		 * reclaim some caches. the cache to flush can be any cache
++		 * in cached list. And so we can prevent somebody from grabing
++		 * caches but never release even if all other caches were exhaust. 
++		 */
++		res = ntfs_cache_flush_cached_list(1);
++	}
++	/*
++	 * However, this error may be not the error occured when write this na,
++	 * but it is during writing this na. so we'd better to tell user 
++	 * something wrong happened :( 
++	 * we have to face something un-perfect when using write cache.
++	 */
+ 	if ( res < 0 ) {
+ 		goto _err;
+ 	}
+-	if ( ntfs_cache_do(WC_TYPE(na), buf, size, offset) == 0 ) {
++	if ( ntfs_cache_do(na->write_cache, buf, size, offset) == 0 ) {
+ 		return size;
+ 	}
+-	/* reclaim some cache so that next write can cached. */
+-	ntfs_cache_flush_cached_list(1);
++	/* reclaim ALL caches so that next write can cached. */
++	ntfs_cache_flush_cached_list(0);
+ _ori_path:
+ 	/* original way. */
+ 	return ( ntfs_fuse_write(path, buf, size, offset, fi) );
+@@ -2714,15 +2746,4 @@
+ 	return -errno;
+ }
+ 
+-/* Do something at idle time.
+- * it will no more be called again if you return 1(really idle).
+- * Good place to FLUSH our cached data.
+- */
+-static int ntfs_cache_idle(void)
+-{
+-	int ret;
+-	ret = ntfs_cache_flush_cached_list(2);
+-	return ret;
+-}
+-
+ #endif /* SC_CACHE */

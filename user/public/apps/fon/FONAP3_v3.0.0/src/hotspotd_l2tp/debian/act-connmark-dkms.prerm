@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -e
+
+package=act-connmark-dkms
+name=act-connmark
+version=0.1
+
+dkms remove -m "$name" -v "$version" --all || true
+
+#DEBHELPER#
+
+exit 0

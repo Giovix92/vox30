@@ -1,0 +1,23 @@
+src/genlib/net/http/libupnp_la-statcodes.lo: \
+ src/genlib/net/http/statcodes.c src/inc/config.h ../autoconfig.h \
+ src/inc/util.h ../upnp/inc/upnp.h ../ixml/inc/ixml.h \
+ ../upnp/inc/upnpconfig.h ../upnp/inc/upnpdebug.h ../upnp/inc/upnp.h \
+ src/inc/statcodes.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/util.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+../upnp/inc/upnp.h:
+
+src/inc/statcodes.h:

@@ -1,0 +1,12 @@
+hotspotd (0.5) UNRELEASED; urgency=low
+
+  * Added extended EAP support
+  * Added IPv6 support 
+
+ --  <steven@localhost>  Fri, 28 Sep 2012 11:38:28 +0200
+
+hotspotd (0.4) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Steven Barth <steven@midlink.org>  Mon, 25 Jul 2011 08:29:26 +0200

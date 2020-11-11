@@ -1,0 +1,11 @@
+bitmath.lo: bitmath.c ../../config.h include/private/bitmath.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/ordinals.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/assert.h
+
+../../config.h:
+
+include/private/bitmath.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/ordinals.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/assert.h:

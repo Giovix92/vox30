@@ -1,0 +1,4 @@
+#!/bin/sh
+
+/usr/sbin/rc wanip_service stop $WANID&
+

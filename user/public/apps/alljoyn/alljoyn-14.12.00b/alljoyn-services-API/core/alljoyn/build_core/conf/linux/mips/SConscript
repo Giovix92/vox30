@@ -1,0 +1,41 @@
+# Copyright (c) 2010 - 2011, 2014, AllSeen Alliance. All rights reserved.
+#
+#    Permission to use, copy, modify, and/or distribute this software for any
+#    purpose with or without fee is hereby granted, provided that the above
+#    copyright notice and this permission notice appear in all copies.
+#
+#    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+#    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+#    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+#    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+#    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+#    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+#    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+# 
+
+Import('env')
+import os
+import platform
+
+# Linux specific flags
+env.Append(CPPDEFINES=['QCC_CPU_MIPS'])
+
+# Use the OpenEmbedded cross-compilation environment
+vars = Variables()
+vars.Add('CROSS_COMPILE', 'Cross compile toolchain prefix', os.environ.get('CROSS_COMPILE'))
+#vars.Add('OPENSSL_LIBPATH','Vox2.5 openssl libs',os.environ.get('OPENSSL_LIBPATH'))
+#vars.Add('OPENSSL_CPPPATH','Vox2.5 openssl include',os.environ.get('OPENSSL_CPPPATH'))
+vars.Update(env)
+Help(vars.GenerateHelpText(env))
+if '' == env.subst('$CROSS_COMPILE'):
+   print 'CROSS_COMPILE variable is required for Linux/MIPS builds'
+   if not GetOption('help'):
+      Exit(1)
+env['CC']   = env['CROSS_COMPILE'] + 'gcc'
+env['CXX']  = env['CROSS_COMPILE'] + 'g++'
+env['LINK'] = env['CROSS_COMPILE'] + 'gcc'
+#env.Append(CPPPATH=env['OPENSSL_CPPPATH'])
+#env.Append(LIBPATH=env['OPENSSL_LIBPATH'])
+#for item in env.Dictionary(): print'(%s:%s)'%('LIBPATH',env['LIBPATH'])
+
+

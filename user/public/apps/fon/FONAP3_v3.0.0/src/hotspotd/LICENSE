@@ -1,0 +1,55 @@
+hotspotd - A speedy hotspot solution
+All rights reserved by Fon Wireless Ltd.
+
+Authors:
+Steven Barth <steven.barth@fon.com>
+John Crispin <john.crispin@fon.com>
+
+
+This software contains third-party components:
+
+
+Base32 implementation
+	Copyright 2010 Google Inc.
+	Author: Markus Gutschke
+
+	Licensed under Apache License, Version 2.0
+
+	Modified for FON proprietary base32 encoding
+	2011 Steven Barth <steven@midlink.org>
+
+
+
+FIPS-197 compliant AES implementation
+Multi-precision integer library
+The RSA public-key cryptosystem
+RFC 1521 base64 encoding/decoding
+	Based on XySSL: Copyright (C) 2006-2008  Christophe Devine
+	Copyright (C) 2009  Paul Bakker <polarssl_maintainer at polarssl dot org>
+
+	Licensed under 3-clause BSD-license
+
+
+
+BSD-compatible linked-list implementation
+	Copyright (c) 2012 Steven Barth <steven@midlink.org>
+	Copyright (c) 2011 Felix Fietkau <nbd@openwrt.org>
+	Copyright (c) 2010 Isilon Systems, Inc.
+	Copyright (c) 2010 iX Systems, Inc.
+	Copyright (c) 2010 Panasas, Inc.
+
+	Licensed under 2-clause BSD-license
+
+
+
+MD5-implementation
+	Copyright (C) 1999, 2000, 2002 Aladdin Enterprises.  All rights reserved.
+
+	Licensed under a custom license. See source file for licensing details.
+
+
+
+UCI Unified Configuration Interface
+	Copyright (C) 2008 Felix Fietkau <nbd@openwrt.org>
+
+	Licensed under GNU Lesser General Public License version 2.1

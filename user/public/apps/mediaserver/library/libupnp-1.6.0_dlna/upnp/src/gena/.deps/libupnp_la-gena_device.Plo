@@ -1,0 +1,90 @@
+src/gena/libupnp_la-gena_device.lo: src/gena/gena_device.c \
+ src/inc/config.h ../autoconfig.h src/inc/gena.h src/inc/config.h \
+ src/inc/service_table.h src/inc/uri.h ../upnp/inc/upnp.h \
+ ../ixml/inc/ixml.h ../upnp/inc/upnpconfig.h ../upnp/inc/upnpdebug.h \
+ ../upnp/inc/upnp.h src/inc/miniserver.h src/inc/sock.h src/inc/util.h \
+ src/inc/httpparser.h src/inc/membuffer.h ../threadutil/inc/LinkedList.h \
+ ../threadutil/inc/FreeList.h ../threadutil/inc/ithread.h \
+ ../threadutil/inc/ThreadPool.h ../threadutil/inc/LinkedList.h \
+ src/inc/client_table.h ../threadutil/inc/TimerThread.h \
+ ../threadutil/inc/ThreadPool.h src/inc/upnp_timeout.h src/inc/sysdep.h \
+ ../threadutil/inc/ithread.h src/inc/global.h src/inc/md5.h \
+ src/inc/uuid.h src/inc/upnpapi.h src/inc/parsetools.h \
+ src/inc/statcodes.h src/inc/httpparser.h src/inc/httpreadwrite.h \
+ src/inc/ssdplib.h src/inc/httpreadwrite.h src/inc/unixutil.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/gena.h:
+
+src/inc/config.h:
+
+src/inc/service_table.h:
+
+src/inc/uri.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+../upnp/inc/upnp.h:
+
+src/inc/miniserver.h:
+
+src/inc/sock.h:
+
+src/inc/util.h:
+
+src/inc/httpparser.h:
+
+src/inc/membuffer.h:
+
+../threadutil/inc/LinkedList.h:
+
+../threadutil/inc/FreeList.h:
+
+../threadutil/inc/ithread.h:
+
+../threadutil/inc/ThreadPool.h:
+
+../threadutil/inc/LinkedList.h:
+
+src/inc/client_table.h:
+
+../threadutil/inc/TimerThread.h:
+
+../threadutil/inc/ThreadPool.h:
+
+src/inc/upnp_timeout.h:
+
+src/inc/sysdep.h:
+
+../threadutil/inc/ithread.h:
+
+src/inc/global.h:
+
+src/inc/md5.h:
+
+src/inc/uuid.h:
+
+src/inc/upnpapi.h:
+
+src/inc/parsetools.h:
+
+src/inc/statcodes.h:
+
+src/inc/httpparser.h:
+
+src/inc/httpreadwrite.h:
+
+src/inc/ssdplib.h:
+
+src/inc/httpreadwrite.h:
+
+src/inc/unixutil.h:

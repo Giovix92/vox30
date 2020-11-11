@@ -1,0 +1,94 @@
+#!/bin/sh
+# mkimage-pc
+# (c) 2011 Steven Barth <steven@midlink.org>
+
+
+# Configuration
+IMAGESIZE=${IMAGESIZE:-512M}
+IMAGENAME=${IMAGENAME:-hotspotd}
+ARCH=${ARCH:+--arch=$ARCH}
+SUITE=${SUITE:-squeeze}
+MIRROR=${MIRROR:-http://ftp.de.debian.org/debian}
+KARCH=${ARCH:-2.6-amd64}
+PACKAGES=${PACKAGES:-grub-pc,ppp,iptables,dkms,openssh-server}
+ADMINPWD=${ADMINPWD:-admin}
+
+# Internals
+LOOPDEV=/dev/loop7
+IMAGEFILE=$IMAGENAME.loop
+TEMPDIR=`dirname $0`/staging
+SKELETON=`dirname $0`/skeleton
+
+clean() {
+	umount $TEMPDIR/mnt
+	umount $TEMPDIR/dev
+	umount $TEMPDIR
+	rmdir $TEMPDIR
+	losetup -d $LOOPDEV || losetup -d ${LOOPDEV}p1
+}
+
+[ `id -u` = "0" ] || { echo "You must have superuser rights to create an image!"; exit 1; }
+which debootstrap > /dev/null || { echo "debootstrap is missing!"; exit 2; }
+which parted > /dev/null || { echo "parted is missing!"; exit 2; }
+
+clean 2>/dev/null
+[ "$1" = "clean" ] && exit 0
+
+# Detect configuration of loop module
+PART_MAX=$(cat /sys/module/loop/parameters/max_part 2>/dev/null || echo 0)
+[ "$PART_MAX" -eq "0" ] && {
+	set -ex
+	modprobe -r loop
+	modprobe --first-time loop max_part=63
+}
+
+set -ex
+
+# Create Image
+truncate -s $IMAGESIZE $IMAGEFILE
+parted -s -- $IMAGEFILE mklabel gpt mkpart $IMAGENAME 1MiB -1 mkpart biosgrub 512kiB 1MiB set 2 bios_grub on
+
+# Loop, format and mount partition
+losetup $LOOPDEV $IMAGEFILE
+mkfs.ext4 -qO ^has_journal ${LOOPDEV}p1
+mkdir -p $TEMPDIR
+mount ${LOOPDEV}p1 $TEMPDIR
+
+# Bootstrap system
+debootstrap $ARCH --foreign --variant=minbase --include=linux-image-$KARCH,linux-headers-$KARCH,$PACKAGES $SUITE $TEMPDIR $MIRROR
+cp -a $SKELETON/* $TEMPDIR
+
+# Preconfigure
+mkdir -p $TEMPDIR/etc/apt/sources.list.d
+echo "deb $MIRROR $SUITE main contrib non-free" > $TEMPDIR/etc/apt/sources.list.d/$SUITE.list
+echo $IMGNAME > $TEMPDIR/etc/hostname
+
+mount -t proc none $TEMPDIR/proc
+
+chroot $TEMPDIR /debootstrap/debootstrap --second-stage
+chroot $TEMPDIR apt-get clean
+chroot $TEMPDIR /bin/sh -c "(echo \"$ADMINPWD\"; sleep 1; echo \"$ADMINPWD\") | passwd root"
+
+# Setup grub config
+KERNELIMG=`basename $TEMPDIR/boot/vmlinu*`
+KERNELRD=`basename $TEMPDIR/boot/initrd*`
+cp $TEMPDIR/usr/lib/grub/i386-pc/* $TEMPDIR/boot/grub/
+echo '(hd0) /dev/sda' > $TEMPDIR/boot/grub/device.map
+echo "set root=(hd0,gpt1)" > $TEMPDIR/boot/grub/load.cfg
+echo 'set prefix=($root)/boot/grub' >> $TEMPDIR/boot/grub/load.cfg
+echo "linux /boot/$KERNELIMG root=/dev/sda1 ro quiet" > $TEMPDIR/boot/grub/grub.cfg
+echo "initrd /boot/$KERNELRD" >> $TEMPDIR/boot/grub/grub.cfg
+echo "boot" >> $TEMPDIR/boot/grub/grub.cfg
+
+# Install grub
+mount -o bind `dirname $IMAGEFILE` $TEMPDIR/mnt
+mount -o bind /dev $TEMPDIR/dev
+chroot $TEMPDIR grub-mkimage -O i386-pc -o /boot/grub/core.img -c /boot/grub/load.cfg biosdisk part_gpt linux ext2 configfile normal
+chroot $TEMPDIR grub-setup --root-device='(hd0)' /mnt/`basename $IMAGEFILE`
+
+# Postinstall packages
+if [ "$INSTALL" != "" ]; then
+	cp $INSTALL $TEMPDIR/tmp/
+	chroot $TEMPDIR /bin/sh -c "dpkg -i /tmp/*.deb"
+fi
+clean

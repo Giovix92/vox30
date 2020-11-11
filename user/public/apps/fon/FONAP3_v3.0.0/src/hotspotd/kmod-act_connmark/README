@@ -1,0 +1,9 @@
+act_connmark allows the use of the new and improved IFB interface
+for QoS ingress traffic replacing the IMQ set of patches.
+
+hotspotd can use either IFB or IMQ to handle incoming traffic with QoS
+so if you do not have or do not want to use IMQ you have to either
+patch your kernel with the given patch or build a kernel module using
+the Makefile provided.
+
+act_connmark is developed and maintained by Felix Fietkau <nbd@openwrt.org>

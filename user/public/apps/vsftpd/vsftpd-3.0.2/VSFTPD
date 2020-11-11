@@ -1,0 +1,22 @@
+#!/bin/sh /etc/rc.common
+START=6
+USE_PROCD=1
+SERVICE_DAEMONIZE=1
+
+service_triggers() {
+        procd_open_trigger
+       	procd_add_event_name_trigger Services.Local.Media.FTP 100 SERVICES_LOCAL_MEDIA_FTP_DISABLED /etc/init.d/ftp stop
+       	procd_add_event_name_trigger Services.Local.Media.FTP 100 SERVICES_LOCAL_MEDIA_FTP_MODIFIED /etc/init.d/ftp restart
+       	procd_add_event_name_trigger Services.Local.Media.FTP 100 SERVICES_LOCAL_MEDIA_FTP_ENABLED /etc/init.d/ftp restart
+#procd_add_event_trigger Interfaces.Physical.Data.USB 100 /etc/init.d/ftp restart
+       	procd_close_trigger
+}
+                        
+start_service() {
+    /usr/sbin/rc ftpd start;
+}
+
+stop_service() {
+    /usr/sbin/rc ftpd stop;
+}
+

@@ -1,0 +1,6 @@
+.project
+.cproject
+*.o
+*.so
+hotspotd
+fonctl

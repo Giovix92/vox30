@@ -1,0 +1,13 @@
+#!/bin/sh
+
+if [ -e "/usr/sbin/asense" ] ; then
+    /usr/sbin/asense -i $WANID 
+fi
+/usr/sbin/iproute2_config -w $WANID -i $IFNAME -d
+/usr/sbin/iproute2_config -w $WANID -i $IFNAME -u
+
+/usr/sbin/rc fw_wan restart $WANID dns
+/usr/sbin/rc dnrd restart wid $WANID 
+/usr/sbin/rc wanip_service restart $WANID&
+
+

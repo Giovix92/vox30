@@ -1,0 +1,22 @@
+#!/bin/sh
+
+set -e
+
+package=act-connmark-dkms
+name=act-connmark
+version=0.1
+
+isadded=`dkms status -m "$name" -v "$version"`
+
+if [ "x${isadded}" = "x" ] ; then
+        dkms add -m "$name" -v "$version"
+fi
+
+if [ "$1" = 'configure' ] ; then
+        dkms build -m "$name" -v "$version" && dkms install -m "$name" -v "$version" || true
+fi
+
+#DEBHELPER#
+
+exit 0
+

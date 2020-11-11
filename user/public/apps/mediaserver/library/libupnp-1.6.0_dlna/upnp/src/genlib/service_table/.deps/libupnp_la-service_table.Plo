@@ -1,0 +1,25 @@
+src/genlib/service_table/libupnp_la-service_table.lo: \
+ src/genlib/service_table/service_table.c src/inc/config.h \
+ ../autoconfig.h src/inc/service_table.h src/inc/config.h src/inc/uri.h \
+ ../upnp/inc/upnp.h ../ixml/inc/ixml.h ../upnp/inc/upnpconfig.h \
+ ../upnp/inc/upnpdebug.h ../upnp/inc/upnp.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/service_table.h:
+
+src/inc/config.h:
+
+src/inc/uri.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+../upnp/inc/upnp.h:

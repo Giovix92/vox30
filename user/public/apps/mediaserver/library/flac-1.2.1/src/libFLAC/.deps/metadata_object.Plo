@@ -1,0 +1,27 @@
+metadata_object.lo: metadata_object.c ../../config.h \
+ include/private/metadata.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/metadata.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/export.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/callback.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/ordinals.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/format.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/assert.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/share/alloc.h
+
+../../config.h:
+
+include/private/metadata.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/metadata.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/export.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/callback.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/ordinals.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/format.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/assert.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/share/alloc.h:

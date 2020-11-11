@@ -1,0 +1,11 @@
+#!/bin/sh /etc/rc.common
+
+START=1
+SERVICE_DAEMONIZE=y
+start() {
+	service_start /mnt/rootfs/bin/opkg-ubus
+}
+
+stop() {
+	service_stop /mnt/rootfs/bin/opkg-ubus
+}

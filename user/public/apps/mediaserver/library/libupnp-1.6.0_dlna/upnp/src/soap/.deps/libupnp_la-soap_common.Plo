@@ -1,0 +1,39 @@
+src/soap/libupnp_la-soap_common.lo: src/soap/soap_common.c \
+ src/inc/config.h ../autoconfig.h src/inc/httpparser.h src/inc/util.h \
+ ../upnp/inc/upnp.h ../ixml/inc/ixml.h ../upnp/inc/upnpconfig.h \
+ ../upnp/inc/upnpdebug.h ../upnp/inc/upnp.h src/inc/membuffer.h \
+ src/inc/uri.h ../threadutil/inc/LinkedList.h \
+ ../threadutil/inc/FreeList.h ../threadutil/inc/ithread.h src/inc/sock.h \
+ src/inc/soaplib.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/httpparser.h:
+
+src/inc/util.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+../upnp/inc/upnp.h:
+
+src/inc/membuffer.h:
+
+src/inc/uri.h:
+
+../threadutil/inc/LinkedList.h:
+
+../threadutil/inc/FreeList.h:
+
+../threadutil/inc/ithread.h:
+
+src/inc/sock.h:
+
+src/inc/soaplib.h:

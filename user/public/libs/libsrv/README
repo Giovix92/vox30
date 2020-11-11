@@ -1,0 +1,63 @@
+#!/usr/bin/env less
+
+
+SRV library version 1.0
+=======================
+
+(c) 2001 Rick van Rein
+
+This library makes it easy to connect to a server for a specified Internet
+protocol under a specified domain, either as a networking client or server.
+
+Connection-making is extremely reliable, and implements load balancing and
+fallback (prioritised) servers as defined in SRV records. There is even a
+fallback program to old-style (A and CNAME) records if there are no SRV
+records for the requested domain. This ensures backward compatibility with
+older domains.
+
+This code implements RFC 2782, "A DNS RR for specifying the location of
+services (DNS SRV)" by Gulbrandsen, Vixie and Esibov. The fallback to
+old-style (A and CNAME) records are a non-interfering extension to the RFC.
+
+This code is available under a FreeBSD styled license (twisted to make it
+fall under my company, and not the Berkeley uni of course).  This makes
+it explicitly possible to include this code in commercial applications without
+providing the code.  In order of my preference though, your style would be
+ 1. Write SRV-aware code and publish it
+ 2. Write SRV-aware code
+ 3. Do the blunt old IN A thing
+
+
+Differences with prior practices
+--------------------------------
+
+ * This library uses SRV records when they are available. There is a fallback
+   program to old-style records.
+
+ * The level is a lot higher than the abstract socket programming interface.
+   You simply receive an already-connected socket for a client, or an
+   already-bound-and-listening socket for a server.
+
+ * Connections are made very failsafe, as more information is available to
+   the library than the common socket routines ever get.
+
+ * If multiple IP numbers and/or ports exist under a name, they are all tried
+   until one accepts the requested connection.
+
+
+What this package contains
+--------------------------
+
+doc    -> a website on SRV records, and why, and how, and...
+netana -> manually decomposed query, as a DIG query and as annotated hexdump
+src    -> the source code, with include/... as include directory section.
+
+The stuff that currently works is in src.  Build it, perhaps after twisting the
+Makefile a bit, and install it to have a libsrv running.  Then, look at the
+other modules under the libsrv CVS; it contains apps based on the library.
+
+
+Enjoy,
+
+Rick van Rein,
+rick@vanrein.org

@@ -1,0 +1,22 @@
+src/api/libupnp_la-upnptools.lo: src/api/upnptools.c src/inc/config.h \
+ ../autoconfig.h ../upnp/inc/upnptools.h ../upnp/inc/upnp.h \
+ ../ixml/inc/ixml.h ../upnp/inc/upnpconfig.h ../upnp/inc/upnpdebug.h \
+ src/inc/uri.h ../upnp/inc/upnp.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+../upnp/inc/upnptools.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+src/inc/uri.h:
+
+../upnp/inc/upnp.h:

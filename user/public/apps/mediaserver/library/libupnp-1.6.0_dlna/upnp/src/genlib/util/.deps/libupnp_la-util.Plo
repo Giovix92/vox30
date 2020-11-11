@@ -1,0 +1,20 @@
+src/genlib/util/libupnp_la-util.lo: src/genlib/util/util.c \
+ src/inc/config.h ../autoconfig.h ../upnp/inc/upnp.h ../ixml/inc/ixml.h \
+ ../upnp/inc/upnpconfig.h ../upnp/inc/upnpdebug.h ../upnp/inc/upnp.h \
+ src/inc/util.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+../upnp/inc/upnp.h:
+
+src/inc/util.h:

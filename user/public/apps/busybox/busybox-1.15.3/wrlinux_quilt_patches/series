@@ -1,0 +1,8 @@
+patches_links/home/WRL4/wrlinux-4/layers/wrll-userspace/core/dist/busybox/patches/busybox-1.11.1-wgetSEGV.patch
+patches_links/home/WRL4/wrlinux-4/layers/wrll-userspace/core/dist/busybox/patches/dhcp_script.patch
+patches_links/home/WRL4/wrlinux-4/layers/wrll-userspace/core/dist/busybox/patches/busybox_scantree.patch
+patches_links/home/WRL4/wrlinux-4/layers/wrll-userspace/core/dist/busybox/patches/tar_compiler_fix.patch
+patches_links/home/WRL4/wrlinux-4/layers/wrll-userspace/core/dist/busybox/patches/busybox-fcntl-include-fixes.patch
+patches_links/home/WRL4/wrlinux-4/layers/wrll-userspace/core/dist/busybox/patches/Makefile_SUBARCH.patch
+patches_links/home/WRL4/wrlinux-4/layers/wrll-userspace/core/dist/busybox/patches/busybox-config-choice.patch
+patches_links/home/WRL4/wrlinux-4/layers/wrll-userspace/core/dist/busybox/patches/ignore_rpc_h.patch

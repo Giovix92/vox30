@@ -1,0 +1,9 @@
+#!/bin/sh
+
+/usr/sbin/asense -i $WANID 
+/usr/sbin/iproute2_config -w $WANID -i $IFNAME -d -x
+/usr/sbin/iproute2_config -w $WANID -i $IFNAME -u -x
+
+/usr/sbin/rc fw_wan restart $WANID dns
+/usr/sbin/rc dnrd restart wid $WANID no-service
+#/usr/sbin/rc wanip_service restart $WANID&

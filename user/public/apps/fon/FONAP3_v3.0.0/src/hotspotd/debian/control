@@ -1,0 +1,22 @@
+Source: hotspotd
+Section: unknown
+Priority: extra
+Maintainer: Steven Barth <steven@midlink.org>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.2
+Homepage: http://www.fon.com
+
+Package: hotspotd
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, iptables (>= 1.4.0), ppp (>= 2.4.5)
+Description: FON hotspot management daemon
+ The FON hotspot management daemon (hotspotd) provides FON functionality on top
+ of a configured network interface.
+
+Package: act-connmark-dkms
+Architecture: all
+Depends: dkms (>= 1.9.0)
+Description: act_connmark kernel module - DKMS
+ The act_connmark module supports traffic shaping with ifb-interfaces by
+ preserving connection marks.
+

@@ -1,0 +1,17 @@
+src/uuid/libupnp_la-uuid.lo: src/uuid/uuid.c src/inc/config.h \
+ ../autoconfig.h src/inc/sysdep.h ../threadutil/inc/ithread.h \
+ src/inc/global.h src/inc/md5.h src/inc/uuid.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/sysdep.h:
+
+../threadutil/inc/ithread.h:
+
+src/inc/global.h:
+
+src/inc/md5.h:
+
+src/inc/uuid.h:

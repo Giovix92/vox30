@@ -1,0 +1,65 @@
+#-----------------------------------------------------
+TOPDIR  :=  $(shell /bin/pwd)
+TOPDIR  :=  $(TOPDIR)/..
+
+include $(TOPDIR)/prerules.mk
+#-----------------------------------------------------
+
+TARGET_PREFIX = $(TOOLPREFIX)
+
+INCLUDES= -I$(COMM_INC_PATH) -I../library/ffmpeg-export-2008-01-17/include -I../library/libdlna/ -I../library/giflib-4.1.4 -I../library/libpng-1.2.18 
+
+LIBS= -L$(COMM_LIB_PATH) -lpthread -lixml  -lz -lupnp -lthreadutil -ljpeg
+LIBS+=-liconv 
+LIBS+=-L../library/libdlna -L../library/ffmpeg-export-2008-01-17/libavdevice -L../library/ffmpeg-export-2008-01-17/libavformat -L../library/ffmpeg-export-2008-01-17/libavcodec -L../library/ffmpeg-export-2008-01-17/libavutil -ldlna -lavformat -lavcodec -lavutil -lm
+LIBS+=../library/libpng-1.2.18/.libs/libpng.a ../library/sqlite-3.5.9/.libs/libsqlite3.a
+
+OBJS = upnpd.o sample_util.o  tool.o mediaserver.o md5.o uuid.o sysdep.o if_info.o make_upnp_xml.o http.o  pic_scale.o
+OBJS2 = mmsio.o sample_util.o  tool.o mediaserver.o md5.o uuid.o sysdep.o if_info.o make_upnp_xml.o http.o libinotifytools/inotifytools.o libinotifytools/redblack.o pic_scale.o
+OBJS3 = mmsio.o libinotifytools/inotifytools.o libinotifytools/redblack.o
+
+ifeq ($(DEBUG),1)
+OPT = -g -O2
+else
+OPT = -O2 
+endif
+
+CFLAGS += -Wall $(OPT)
+CFLAGS += -s -D_FILE_OFFSET_BITS=64 -D__ICONV_SUPPORT__
+#CFLAGS += -D__PNG_DLNA_SUPPORT__
+#CFLAGS += -D__DEBUG__
+CFLAGS += -D_SRT_SUPPORT_
+APPS = mediaupnp
+
+all: $(APPS) 
+
+mediaupnp:  $(OBJS) $(OBJS3)
+	$(CC)  $(CFLAGS) $(OBJS) $(OBJS3) -o  $@ $(LIBS) 
+#	$(CC)  $(CFLAGS) $(OBJS) $(OBJS3) -o  $@ ../library/libupnp-1.6.0_dlna_alive/upnp/.libs/libupnp.a ../library/libupnp-1.6.0_dlna_alive/threadutil/.libs/libthreadutil.a $(LIBS) 
+
+
+mmsio: $(OBJS2)
+	make -C libinotifytools
+	$(CC) $(CFLAGS) $(OBJS2) $(LIBS) -o $@ 
+
+debug: $(OBJS2) debug.o
+	make -C libinotifytools
+	$(CC) $(CFLAGS) $(OBJS2) debug.o ../library/libupnp-1.6.0_dlna/upnp/.libs/libupnp.a ../library/libupnp-1.6.0_dlna/threadutil/.libs/libthreadutil.a  $(LIBS) -o $@ 
+	
+%.o:	%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+clean:
+	make -C libinotifytools clean
+	rm -f *.o *.d  $(APPS) core *~
+
+install:
+	$(STRIP) $(APPS)
+	[ -d $(RAMDISK_DIR)/usr/etc/resource/ ] || mkdir -p $(RAMDISK_DIR)/usr/etc/resource/
+	cp -fa upnp_xml/*  $(RAMDISK_DIR)/etc/resource/
+	rm -rf $(RAMDISK_DIR)/etc/resource/CVS
+	rm -rf $(RAMDISK_DIR)/etc/resource/ContentDirectory/CVS
+	rm -rf $(RAMDISK_DIR)/etc/resource/ConnectionManager/CVS
+	rm -rf $(RAMDISK_DIR)/etc/resource/images/CVS
+	cp -af $(APPS) $(T_USBIN)
+	ln -sf /usr/sbin/$(APPS) $(RAMDISK_DIR)/etc/$(APPS)

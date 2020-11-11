@@ -1,0 +1,69 @@
+name: mosquitto
+version: 1.5
+summary: Eclipse Mosquitto MQTT broker
+description: This is a message broker that supports version 3.1 and 3.1.1 of the MQTT
+    protocol.
+    MQTT provides a method of carrying out messaging using a publish/subscribe
+    model. It is lightweight, both in terms of bandwidth usage and ease of
+    implementation. This makes it particularly useful at the edge of the network
+    where a sensor or other simple device may be implemented using an arduino for
+    example.
+confinement: strict
+grade: stable
+
+apps:
+  mosquitto:
+    command: launcher.sh
+    daemon: simple
+    restart-condition: always
+    plugs: [network, network-bind]
+
+  pub:
+    command: usr/bin/mosquitto_pub
+    plugs: [network]
+
+  sub:
+    command: usr/bin/mosquitto_sub
+    plugs: [network]
+
+
+parts:
+  script:
+    plugin: dump
+    source: snap/
+    prime:
+      - default_config.conf
+      - launcher.sh
+  config:
+    plugin: dump
+    source: .
+    prime:
+      - mosquitto.conf
+
+
+
+  mosquitto:
+    plugin: make
+    make-parameters: ["prefix=/usr", "WITH_SRV=no", "WITH_WEBSOCKETS=no"]
+    source: https://github.com/eclipse/mosquitto
+    source-type: git
+
+    build-packages:
+      - libssl-dev
+      - uuid-dev
+      - xsltproc
+      - docbook-xsl
+      - gcc
+      - g++
+    stage-packages:
+      - libssl1.0.0
+      - libuuid1
+      - libc-ares2
+    prime:
+      - usr/sbin/mosquitto
+      - usr/bin/mosquitto_pub
+      - usr/bin/mosquitto_sub
+      - usr/lib/libmosquitto.so*
+      - lib/*-linux-gnu/libcrypto.so*
+      - lib/*-linux-gnu/libssl.so*
+      - lib/*-linux-gnu/libuuid.so*

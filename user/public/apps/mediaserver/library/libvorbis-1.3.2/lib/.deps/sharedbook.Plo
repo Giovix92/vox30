@@ -1,0 +1,23 @@
+sharedbook.lo: sharedbook.c \
+ /home/michael/trunk/user/public/apps/mediaserver/library/libvorbis-1.3.2/lib/../../..//library/libogg-1.3.0/include/ogg/ogg.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/libvorbis-1.3.2/lib/../../..//library/libogg-1.3.0/include/ogg/os_types.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/libvorbis-1.3.2/lib/../../..//library/libogg-1.3.0/include/ogg/config_types.h \
+ os.h ../config.h misc.h ../include/vorbis/codec.h codebook.h scales.h
+
+/home/michael/trunk/user/public/apps/mediaserver/library/libvorbis-1.3.2/lib/../../..//library/libogg-1.3.0/include/ogg/ogg.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/libvorbis-1.3.2/lib/../../..//library/libogg-1.3.0/include/ogg/os_types.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/libvorbis-1.3.2/lib/../../..//library/libogg-1.3.0/include/ogg/config_types.h:
+
+os.h:
+
+../config.h:
+
+misc.h:
+
+../include/vorbis/codec.h:
+
+codebook.h:
+
+scales.h:

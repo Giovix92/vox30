@@ -1,0 +1,1 @@
+make -f sercomm.mk

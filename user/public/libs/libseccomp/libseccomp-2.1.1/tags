@@ -1,0 +1,779 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+ACT_BADARCH	src/python/seccomp.pyx	/^    ACT_BADARCH = libseccomp.SCMP_FLTATR_ACT_BADARCH$/;"	v	class:Attr
+ACT_DEFAULT	src/python/seccomp.pyx	/^    ACT_DEFAULT = libseccomp.SCMP_FLTATR_ACT_DEFAULT$/;"	v	class:Attr
+ADDDEP	macros.mk	/^ADDDEP = \\$/;"	m
+AINC_BLK	src/gen_bpf.c	39;"	d	file:
+AINC_PROG	src/gen_bpf.c	40;"	d	file:
+ALLOW	src/python/seccomp.pyx	/^ALLOW = libseccomp.SCMP_ACT_ALLOW$/;"	v
+ARCHIVE	macros.mk	/^	ARCHIVE = @echo " AR $@";$/;"	m
+ARCH_ENDIAN_BIG	src/arch.h	/^		ARCH_ENDIAN_BIG,$/;"	e	enum:arch_def::__anon3
+ARCH_ENDIAN_LITTLE	src/arch.h	/^		ARCH_ENDIAN_LITTLE,$/;"	e	enum:arch_def::__anon3
+ARCH_ENDIAN_UNSPEC	src/arch.h	/^		ARCH_ENDIAN_UNSPEC = 0,$/;"	e	enum:arch_def::__anon3
+ARCH_SIZE_32	src/arch.h	/^		ARCH_SIZE_32 = 32,$/;"	e	enum:arch_def::__anon2
+ARCH_SIZE_64	src/arch.h	/^		ARCH_SIZE_64 = 64,$/;"	e	enum:arch_def::__anon2
+ARCH_SIZE_UNSPEC	src/arch.h	/^		ARCH_SIZE_UNSPEC = 0,$/;"	e	enum:arch_def::__anon2
+ARG_COUNT_MAX	src/arch.h	76;"	d
+ARG_MASK_MAX	src/db.h	70;"	d
+ARM	src/python/seccomp.pyx	/^    ARM = libseccomp.SCMP_ARCH_ARM$/;"	v	class:Arch
+AWK	macros.mk	/^AWK ?= awk$/;"	m
+Arch	src/python/seccomp.pyx	/^cdef class Arch:$/;"	c
+Arg	src/python/seccomp.pyx	/^cdef class Arg:$/;"	c
+Attr	src/python/seccomp.pyx	/^cdef class Attr:$/;"	c
+BINDINGS	src/Makefile	/^BINDINGS =$/;"	m
+BPF_A	tools/bpf.h	117;"	d
+BPF_ABS	tools/bpf.h	87;"	d
+BPF_ADD	tools/bpf.h	95;"	d
+BPF_ALU	tools/bpf.h	75;"	d
+BPF_AND	tools/bpf.h	100;"	d
+BPF_B	tools/bpf.h	84;"	d
+BPF_CLASS	tools/bpf.h	70;"	d
+BPF_DIV	tools/bpf.h	98;"	d
+BPF_H	tools/bpf.h	83;"	d
+BPF_IMM	tools/bpf.h	86;"	d
+BPF_IND	tools/bpf.h	88;"	d
+BPF_JA	tools/bpf.h	105;"	d
+BPF_JEQ	tools/bpf.h	106;"	d
+BPF_JGE	tools/bpf.h	108;"	d
+BPF_JGT	tools/bpf.h	107;"	d
+BPF_JMP	tools/bpf.h	76;"	d
+BPF_JSET	tools/bpf.h	109;"	d
+BPF_K	tools/bpf.h	112;"	d
+BPF_LD	tools/bpf.h	71;"	d
+BPF_LDX	tools/bpf.h	72;"	d
+BPF_LEN	tools/bpf.h	90;"	d
+BPF_LSH	tools/bpf.h	101;"	d
+BPF_MEM	tools/bpf.h	89;"	d
+BPF_MISC	tools/bpf.h	78;"	d
+BPF_MISCOP	tools/bpf.h	120;"	d
+BPF_MODE	tools/bpf.h	85;"	d
+BPF_MSH	tools/bpf.h	91;"	d
+BPF_MUL	tools/bpf.h	97;"	d
+BPF_NEG	tools/bpf.h	103;"	d
+BPF_OP	tools/bpf.h	93;"	d
+BPF_OR	tools/bpf.h	99;"	d
+BPF_PGM_SIZE	src/gen_bpf.h	36;"	d
+BPF_PRG_MAX_LEN	tools/scmp_bpf_sim.c	36;"	d	file:
+BPF_RET	tools/bpf.h	77;"	d
+BPF_RSH	tools/bpf.h	102;"	d
+BPF_RVAL	tools/bpf.h	116;"	d
+BPF_SCRATCH_SIZE	tools/bpf.h	33;"	d
+BPF_SIZE	tools/bpf.h	81;"	d
+BPF_SRC	tools/bpf.h	111;"	d
+BPF_ST	tools/bpf.h	73;"	d
+BPF_STX	tools/bpf.h	74;"	d
+BPF_SUB	tools/bpf.h	96;"	d
+BPF_SYSCALL_MAX	tools/bpf.h	45;"	d
+BPF_SYS_ARG_MAX	tools/bpf.h	38;"	d
+BPF_TAX	tools/bpf.h	121;"	d
+BPF_TXA	tools/bpf.h	122;"	d
+BPF_W	tools/bpf.h	82;"	d
+BPF_X	tools/bpf.h	113;"	d
+CAT	macros.mk	/^CAT ?= cat$/;"	m
+CFLAGS	macros.mk	/^CFLAGS ?= -Wl,-z,relro -Wall -O0 -g$/;"	m
+COMPILE	macros.mk	/^	COMPILE = @echo " CC $@";$/;"	m
+COMPILE_EXEC	macros.mk	/^	COMPILE_EXEC = @echo " CC $@";$/;"	m
+CONFIGS	Makefile	/^CONFIGS = configure.mk configure.h version_info.mk libseccomp.pc$/;"	m
+CONF_BINDINGS_PYTHON	configure.h	8;"	d
+CONF_BINDINGS_PYTHON	configure.mk	/^CONF_BINDINGS_PYTHON = 1$/;"	m
+CONF_INSTALL_LIBDIR	configure.mk	/^CONF_INSTALL_LIBDIR = "\/usr\/local\/lib"$/;"	m
+CONF_INSTALL_PREFIX	configure.mk	/^CONF_INSTALL_PREFIX = "\/usr\/local"$/;"	m
+CONF_SYSINC_SECCOMP	configure.h	7;"	d
+CONF_SYSINC_SECCOMP	configure.mk	/^CONF_SYSINC_SECCOMP = 1$/;"	m
+CTL_NNP	src/python/seccomp.pyx	/^    CTL_NNP = libseccomp.SCMP_FLTATR_CTL_NNP$/;"	v	class:Attr
+D64_HI	src/arch.h	74;"	d
+D64_LO	src/arch.h	73;"	d
+DATUM_MAX	src/arch.h	72;"	d
+DEPS	src/Makefile	/^DEPS = $(OBJS:%.o=%.d)$/;"	m
+DEPS	tools/Makefile	/^DEPS = $(TOOLS:%=%.d)$/;"	m
+DEPS_OBJS	tests/Makefile	/^DEPS_OBJS = $(OBJS:%.o=%.d)$/;"	m
+DEPS_TESTS	tests/Makefile	/^DEPS_TESTS = $(TESTS:%=%.d)$/;"	m
+ECHO	macros.mk	/^ECHO ?= echo$/;"	m
+ECHO_INFO	macros.mk	/^	ECHO_INFO ?= $(ECHO) ">> INFO:"$/;"	m
+ECHO_INFO	macros.mk	/^	ECHO_INFO ?= \/bin\/true || $(ECHO) ">> INFO:"$/;"	m
+EQ	src/python/seccomp.pyx	/^EQ = libseccomp.SCMP_CMP_EQ$/;"	v
+ERRNO	src/python/seccomp.pyx	/^def ERRNO(int errno):$/;"	f
+Extension	src/python/setup.py	/^from distutils.extension import Extension$/;"	i
+GCC	macros.mk	/^GCC ?= gcc$/;"	m
+GE	src/python/seccomp.pyx	/^GE = libseccomp.SCMP_CMP_GE$/;"	v
+GT	src/python/seccomp.pyx	/^GT = libseccomp.SCMP_CMP_GT$/;"	v
+HASH_BIG_ENDIAN	src/hash.c	55;"	d	file:
+HASH_BIG_ENDIAN	src/hash.c	60;"	d	file:
+HASH_BIG_ENDIAN	src/hash.c	63;"	d	file:
+HASH_LITTLE_ENDIAN	src/hash.c	54;"	d	file:
+HASH_LITTLE_ENDIAN	src/hash.c	59;"	d	file:
+HASH_LITTLE_ENDIAN	src/hash.c	62;"	d	file:
+HDR_BUILD	include/Makefile	/^HDR_BUILD = seccomp.h$/;"	m
+INSTALL	macros.mk	/^INSTALL ?= install$/;"	m
+INSTALL_BIN_DIR	install.mk	/^INSTALL_BIN_DIR ?= $(DESTDIR)\/$(INSTALL_PREFIX)\/bin$/;"	m
+INSTALL_BIN_MACRO	macros.mk	/^	INSTALL_BIN_MACRO = @echo " INSTALL $^ ($(INSTALL_BIN_DIR)\/$^)";$/;"	m
+INSTALL_GROUP	install.mk	/^INSTALL_GROUP ?= $$(id -g)$/;"	m
+INSTALL_INC_DIR	install.mk	/^INSTALL_INC_DIR ?= $(DESTDIR)\/$(INSTALL_PREFIX)\/include$/;"	m
+INSTALL_INC_MACRO	macros.mk	/^	INSTALL_INC_MACRO = @echo " INSTALL $^ ($(INSTALL_INC_DIR))";$/;"	m
+INSTALL_LIB_DIR	install.mk	/^INSTALL_LIB_DIR ?= $(DESTDIR)\/$(CONF_INSTALL_LIBDIR)$/;"	m
+INSTALL_LIB_MACRO	macros.mk	/^	INSTALL_LIB_MACRO = @echo " INSTALL $^ ($(INSTALL_LIB_DIR)\/$^)";$/;"	m
+INSTALL_MAN1_MACRO	macros.mk	/^	INSTALL_MAN1_MACRO = \\$/;"	m
+INSTALL_MAN3_MACRO	macros.mk	/^	INSTALL_MAN3_MACRO = \\$/;"	m
+INSTALL_MAN_DIR	install.mk	/^INSTALL_MAN_DIR ?= $(DESTDIR)\/$(INSTALL_PREFIX)\/share\/man$/;"	m
+INSTALL_OWNER	install.mk	/^INSTALL_OWNER ?= $$(id -u)$/;"	m
+INSTALL_PC_MACRO	macros.mk	/^	INSTALL_PC_MACRO = \\$/;"	m
+INSTALL_PREFIX	install.mk	/^INSTALL_PREFIX ?= $(CONF_INSTALL_PREFIX)$/;"	m
+INSTALL_SBIN_DIR	install.mk	/^INSTALL_SBIN_DIR ?= $(DESTDIR)\/$(INSTALL_PREFIX)\/sbin$/;"	m
+KILL	src/python/seccomp.pyx	/^KILL = libseccomp.SCMP_ACT_KILL$/;"	v
+LDFLAGS	macros.mk	/^LDFLAGS ?= -z relro -g$/;"	m
+LDFLAGS	tests/Makefile	/^LDFLAGS := ..\/src\/libseccomp.a $(OBJS)$/;"	m
+LDFLAGS	tools/Makefile	/^LDFLAGS := ..\/src\/libseccomp.a$/;"	m
+LE	src/python/seccomp.pyx	/^LE = libseccomp.SCMP_CMP_LE$/;"	v
+LIBFLAGS	macros.mk	/^LIBFLAGS =$/;"	m
+LIB_SHARED	src/Makefile	/^LIB_SHARED = libseccomp.so.$(VERSION_RELEASE)$/;"	m
+LIB_STATIC	src/Makefile	/^LIB_STATIC = libseccomp.a$/;"	m
+LIB_STATIC	src/python/Makefile	/^LIB_STATIC = ..\/libseccomp.a$/;"	m
+LINK_EXEC	macros.mk	/^	LINK_EXEC = @echo " LD $@";$/;"	m
+LINK_LIB	macros.mk	/^	LINK_LIB = @echo " LD $@" \\$/;"	m
+LN	macros.mk	/^LN ?= ln$/;"	m
+LT	src/python/seccomp.pyx	/^LT = libseccomp.SCMP_CMP_LT$/;"	v
+MAKEDEP	macros.mk	/^MAKEDEP = @$(GCC) $(CPPFLAGS) -MM -MF $(patsubst %.o,%.d,$@) $<;$/;"	m
+MAKEDEP_EXEC	macros.mk	/^MAKEDEP_EXEC = \\$/;"	m
+MAN1	doc/Makefile	/^MAN1 = \\$/;"	m
+MAN3	doc/Makefile	/^MAN3 = \\$/;"	m
+MASKED_EQ	src/python/seccomp.pyx	/^MASKED_EQ = libseccomp.SCMP_CMP_MASKED_EQ$/;"	v
+MKDIR	macros.mk	/^MKDIR ?= mkdir$/;"	m
+MV	macros.mk	/^MV ?= mv$/;"	m
+NATIVE	src/python/seccomp.pyx	/^    NATIVE = libseccomp.SCMP_ARCH_NATIVE$/;"	v	class:Arch
+NE	src/python/seccomp.pyx	/^NE = libseccomp.SCMP_CMP_NE$/;"	v
+OBJS	src/Makefile	/^OBJS = \\$/;"	m
+OBJS	tests/Makefile	/^OBJS = util.o$/;"	m
+PR_GET_NO_NEW_PRIVS	src/system.h	89;"	d
+PR_SET_NO_NEW_PRIVS	src/system.h	85;"	d
+PYTHON	macros.mk	/^PYTHON ?= \/usr\/bin\/env python$/;"	m
+PY_BUILD	macros.mk	/^	PY_BUILD = @echo " PYTHON build";$/;"	m
+PY_DISTUTILS	macros.mk	/^PY_DISTUTILS = \\$/;"	m
+PY_INSTALL	macros.mk	/^	PY_INSTALL = @echo " PYTHON install";$/;"	m
+SECCOMP_MODE_DISABLED	src/system.h	41;"	d
+SECCOMP_MODE_FILTER	src/system.h	43;"	d
+SECCOMP_MODE_STRICT	src/system.h	42;"	d
+SECCOMP_RET_ACTION	src/system.h	60;"	d
+SECCOMP_RET_ACTION	tools/bpf.h	59;"	d
+SECCOMP_RET_ALLOW	src/system.h	57;"	d
+SECCOMP_RET_ALLOW	tools/bpf.h	67;"	d
+SECCOMP_RET_DATA	src/system.h	61;"	d
+SECCOMP_RET_DATA	tools/bpf.h	60;"	d
+SECCOMP_RET_ERRNO	src/system.h	55;"	d
+SECCOMP_RET_ERRNO	tools/bpf.h	65;"	d
+SECCOMP_RET_KILL	src/system.h	53;"	d
+SECCOMP_RET_KILL	tools/bpf.h	63;"	d
+SECCOMP_RET_TRACE	src/system.h	56;"	d
+SECCOMP_RET_TRACE	tools/bpf.h	66;"	d
+SECCOMP_RET_TRAP	src/system.h	54;"	d
+SECCOMP_RET_TRAP	tools/bpf.h	64;"	d
+SED	macros.mk	/^SED ?= sed$/;"	m
+SHELL	macros.mk	/^SHELL = \/bin\/bash$/;"	m
+SUBDIRS_BUILD	Makefile	/^SUBDIRS_BUILD = include src tests tools$/;"	m
+SUBDIRS_INSTALL	Makefile	/^SUBDIRS_INSTALL = include src tools doc$/;"	m
+SyscallFilter	src/python/seccomp.pyx	/^cdef class SyscallFilter:$/;"	c
+TAR	macros.mk	/^TAR ?= tar$/;"	m
+TESTS	tests/Makefile	/^TESTS = 01-sim-allow \\$/;"	m
+TEST_PRIVATE	tests/Makefile	/^TEST_PRIVATE = 00-test$/;"	m
+TGT_IMM	src/gen_bpf.c	/^	TGT_IMM,			\/* resolved immediate value *\/$/;"	e	enum:bpf_jump_type	file:
+TGT_K	src/gen_bpf.c	/^	TGT_K,				\/* immediate "k" value *\/$/;"	e	enum:bpf_jump_type	file:
+TGT_NONE	src/gen_bpf.c	/^	TGT_NONE = 0,$/;"	e	enum:bpf_jump_type	file:
+TGT_NXT	src/gen_bpf.c	/^	TGT_NXT,			\/* fall through to the next block *\/$/;"	e	enum:bpf_jump_type	file:
+TGT_PTR_BLK	src/gen_bpf.c	/^	TGT_PTR_BLK,			\/* pointer to an instruction block *\/$/;"	e	enum:bpf_jump_type	file:
+TGT_PTR_DB	src/gen_bpf.c	/^	TGT_PTR_DB,			\/* pointer to part of the filter db *\/$/;"	e	enum:bpf_jump_type	file:
+TGT_PTR_HSH	src/gen_bpf.c	/^	TGT_PTR_HSH,			\/* pointer to a block hash table *\/$/;"	e	enum:bpf_jump_type	file:
+TOOLS	tools/Makefile	/^TOOLS = scmp_bpf_disasm \\$/;"	m
+TOOLS_INSTALL	tools/Makefile	/^TOOLS_INSTALL = scmp_sys_resolver$/;"	m
+TOPDIR	macros.mk	/^TOPDIR := $(shell \\$/;"	m
+TRACE	src/python/seccomp.pyx	/^def TRACE(int value):$/;"	f
+TRAP	src/python/seccomp.pyx	/^TRAP = libseccomp.SCMP_ACT_TRAP$/;"	v
+V	macros.mk	/^V ?= 0$/;"	m
+VERSION_HDR	macros.mk	/^VERSION_HDR = version.h$/;"	m
+VERSION_MAJOR	version.h	5;"	d
+VERSION_MAJOR	version_info.mk	/^VERSION_MAJOR=0$/;"	m
+VERSION_MICRO	version.h	7;"	d
+VERSION_MICRO	version_info.mk	/^VERSION_MICRO=0$/;"	m
+VERSION_MINOR	version.h	6;"	d
+VERSION_MINOR	version_info.mk	/^VERSION_MINOR=0$/;"	m
+VERSION_RELEASE	version.h	4;"	d
+VERSION_RELEASE	version_info.mk	/^VERSION_RELEASE=0.0.0$/;"	m
+X32	src/python/seccomp.pyx	/^    X32 = libseccomp.SCMP_ARCH_X32$/;"	v	class:Arch
+X32_SYSCALL_BIT	src/arch-x32.h	30;"	d
+X86	src/python/seccomp.pyx	/^    X86 = libseccomp.SCMP_ARCH_X86$/;"	v	class:Arch
+X86_64	src/python/seccomp.pyx	/^    X86_64 = libseccomp.SCMP_ARCH_X86_64$/;"	v	class:Arch
+_ARCH_ARM_H	src/arch-arm.h	23;"	d
+_ARCH_H	src/arch.h	23;"	d
+_ARCH_X32_H	src/arch-x32.h	23;"	d
+_ARCH_X86_H	src/arch-x86.h	23;"	d
+_ARCH_x86_64_H	src/arch-x86_64.h	23;"	d
+_BLK_MSZE	src/gen_bpf.c	117;"	d	file:
+_BPF_H	tools/bpf.h	23;"	d
+_BPF_HASH_BITS	src/gen_bpf.c	126;"	d	file:
+_BPF_HASH_MASK	src/gen_bpf.c	128;"	d	file:
+_BPF_HASH_SIZE	src/gen_bpf.c	127;"	d	file:
+_BPF_INSTR	src/gen_bpf.c	156;"	d	file:
+_BPF_JMP_BLK	src/gen_bpf.c	76;"	d	file:
+_BPF_JMP_DB	src/gen_bpf.c	74;"	d	file:
+_BPF_JMP_HSH	src/gen_bpf.c	78;"	d	file:
+_BPF_JMP_IMM	src/gen_bpf.c	72;"	d	file:
+_BPF_JMP_MAX	src/gen_bpf.c	82;"	d	file:
+_BPF_JMP_MAX_RET	src/gen_bpf.c	83;"	d	file:
+_BPF_JMP_NO	src/gen_bpf.c	68;"	d	file:
+_BPF_JMP_NXT	src/gen_bpf.c	70;"	d	file:
+_BPF_K	src/gen_bpf.c	80;"	d	file:
+_BPF_OFFSET_SYSCALL	src/gen_bpf.c	91;"	d	file:
+_BPF_SYSCALL	src/gen_bpf.c	92;"	d	file:
+_CONFIGURE_H	configure.h	5;"	d
+_DB_PRI_MASK_CHAIN	src/db.c	41;"	d	file:
+_DB_PRI_MASK_USER	src/db.c	42;"	d	file:
+_DB_PRI_USER	src/db.c	43;"	d	file:
+_DB_STA_FREED	src/db.c	36;"	d	file:
+_DB_STA_VALID	src/db.c	35;"	d	file:
+_FILTER_DB_H	src/db.h	23;"	d
+_HASH_H	src/hash.h	19;"	d
+_OP_FMT	tools/scmp_bpf_disasm.c	35;"	d	file:
+_SYSTEM_H	src/system.h	23;"	d
+_TRANSLATOR_BPF_H	src/gen_bpf.h	23;"	d
+_TRANSLATOR_STR_H	src/gen_pfc.h	23;"	d
+_UTIL_TEST_H	tests/util.h	23;"	d
+_VERSION_H	version.h	3;"	d
+__NR_OABI_SYSCALL_BASE	src/arch-arm-syscalls.c	29;"	d	file:
+__NR_SYSCALL_BASE	src/arch-arm-syscalls.c	34;"	d	file:
+__NR_SYSCALL_BASE	src/arch-arm-syscalls.c	36;"	d	file:
+__author__	src/python/seccomp.pyx	/^__author__ =  'Paul Moore <paul@paul-moore.com>'$/;"	v
+__blk_free	src/gen_bpf.c	/^static void __blk_free(struct bpf_state *state, struct bpf_blk *blk)$/;"	f	file:
+__cinit__	src/python/seccomp.pyx	/^    def __cinit__(self, arg, op, datum_a, datum_b = 0):$/;"	m	class:Arg	file:
+__cinit__	src/python/seccomp.pyx	/^    def __cinit__(self, int defaction):$/;"	m	class:SyscallFilter	file:
+__date__	src/python/seccomp.pyx	/^__date__ = "7 January 2013"$/;"	v
+__db_tree_free	src/db.c	/^static unsigned int __db_tree_free(struct db_arg_chain_tree *tree)$/;"	f	file:
+__dealloc__	src/python/seccomp.pyx	/^    def __dealloc__(self):$/;"	m	class:SyscallFilter	file:
+__x86_NR_ipc	src/arch-x86.c	31;"	d	file:
+__x86_NR_socketcall	src/arch-x86.c	30;"	d	file:
+_blk_append	src/gen_bpf.c	/^static struct bpf_blk *_blk_append(struct bpf_state *state,$/;"	f	file:
+_blk_free	src/gen_bpf.c	/^static void _blk_free(struct bpf_state *state, struct bpf_blk *blk)$/;"	f	file:
+_bpf_append_blk	src/gen_bpf.c	/^static int _bpf_append_blk(struct bpf_program *prg, const struct bpf_blk *blk)$/;"	f	file:
+_ctx_valid	src/api.c	/^static int _ctx_valid(const scmp_filter_ctx *ctx)$/;"	f	file:
+_db_node_mask_fixup	src/db.c	/^static void _db_node_mask_fixup(struct db_arg_chain_tree *node)$/;"	f	file:
+_db_rule_gen_32	src/db.c	/^static struct db_sys_list *_db_rule_gen_32(const struct arch_def *arch,$/;"	f	file:
+_db_rule_gen_64	src/db.c	/^static struct db_sys_list *_db_rule_gen_64(const struct arch_def *arch,$/;"	f	file:
+_db_tree_act_check	src/db.c	/^static int _db_tree_act_check(struct db_arg_chain_tree *tree, uint32_t action)$/;"	f	file:
+_db_tree_free	src/db.c	/^static unsigned int _db_tree_free(struct db_arg_chain_tree *tree)$/;"	f	file:
+_db_tree_remove	src/db.c	/^static unsigned int _db_tree_remove(struct db_arg_chain_tree **tree,$/;"	f	file:
+_db_tree_sub_prune	src/db.c	/^static int _db_tree_sub_prune(struct db_arg_chain_tree **tree_head,$/;"	f	file:
+_gen_bpf_action	src/gen_bpf.c	/^static struct bpf_blk *_gen_bpf_action(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_action_hsh	src/gen_bpf.c	/^static struct bpf_blk *_gen_bpf_action_hsh(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_arch	src/gen_bpf.c	/^static struct bpf_blk *_gen_bpf_arch(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_build_bpf	src/gen_bpf.c	/^static int _gen_bpf_build_bpf(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_build_jmp	src/gen_bpf.c	/^static int _gen_bpf_build_jmp(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_build_jmp_ret	src/gen_bpf.c	/^static int _gen_bpf_build_jmp_ret(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_chain	src/gen_bpf.c	/^static struct bpf_blk *_gen_bpf_chain(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_chain_lvl_res	src/gen_bpf.c	/^static struct bpf_blk *_gen_bpf_chain_lvl_res(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_find_nxt	src/gen_bpf.c	/^static struct bpf_blk *_gen_bpf_find_nxt(const struct bpf_blk *blk,$/;"	f	file:
+_gen_bpf_node	src/gen_bpf.c	/^static struct bpf_blk *_gen_bpf_node(struct bpf_state *state,$/;"	f	file:
+_gen_bpf_syscall	src/gen_bpf.c	/^static struct bpf_blk *_gen_bpf_syscall(struct bpf_state *state,$/;"	f	file:
+_gen_pfc_arch	src/gen_pfc.c	/^static int _gen_pfc_arch(const struct db_filter_col *col,$/;"	f	file:
+_gen_pfc_chain	src/gen_pfc.c	/^static void _gen_pfc_chain(const struct arch_def *arch,$/;"	f	file:
+_gen_pfc_syscall	src/gen_pfc.c	/^static void _gen_pfc_syscall(const struct arch_def *arch,$/;"	f	file:
+_hsh_add	src/gen_bpf.c	/^static int _hsh_add(struct bpf_state *state, struct bpf_blk **blk_p,$/;"	f	file:
+_hsh_find	src/gen_bpf.c	/^static struct bpf_blk *_hsh_find(const struct bpf_state *state, uint64_t h_val)$/;"	f	file:
+_hsh_find_bkt	src/gen_bpf.c	/^static struct bpf_hash_bkt *_hsh_find_bkt(const struct bpf_state *state,$/;"	f	file:
+_hsh_find_once	src/gen_bpf.c	/^static struct bpf_blk *_hsh_find_once(const struct bpf_state *state,$/;"	f	file:
+_hsh_remove	src/gen_bpf.c	/^static struct bpf_blk *_hsh_remove(struct bpf_state *state, uint64_t h_val)$/;"	f	file:
+_indent	src/gen_pfc.c	/^static void _indent(FILE *fds, unsigned int lvl)$/;"	f	file:
+_pfc_action	src/gen_pfc.c	/^static void _pfc_action(FILE *fds, uint32_t action)$/;"	f	file:
+_pfc_arch	src/gen_pfc.c	/^static const char *_pfc_arch(const struct arch_def *arch)$/;"	f	file:
+_pfc_arg	src/gen_pfc.c	/^static void _pfc_arg(FILE *fds,$/;"	f	file:
+_program_free	src/gen_bpf.c	/^static void _program_free(struct bpf_program *prg)$/;"	f	file:
+_seccomp_rule_add	src/api.c	/^static int _seccomp_rule_add(struct db_filter_col *col,$/;"	f	file:
+_state_release	src/gen_bpf.c	/^static void _state_release(struct bpf_state *state)$/;"	f	file:
+_syscall_valid	src/api.c	/^static int _syscall_valid(int syscall)$/;"	f	file:
+_trap_handler	tests/util.c	/^static void _trap_handler(int signal, siginfo_t *info, void *ctx)$/;"	f	file:
+acc	tools/scmp_bpf_sim.c	/^	uint32_t acc;$/;"	m	struct:sim_state	file:
+acc_state	src/gen_bpf.c	/^	struct acc_state acc_state;$/;"	m	struct:bpf_blk	typeref:struct:bpf_blk::acc_state	file:
+acc_state	src/gen_bpf.c	/^struct acc_state {$/;"	s	file:
+act_badarch	src/db.h	/^	uint32_t act_badarch;$/;"	m	struct:db_filter_attr
+act_default	src/db.h	/^	uint32_t act_default;$/;"	m	struct:db_filter_attr
+act_f	src/db.h	/^	uint32_t act_f;$/;"	m	struct:db_arg_chain_tree
+act_f_flg	src/db.h	/^	bool act_f_flg;$/;"	m	struct:db_arg_chain_tree
+act_t	src/db.h	/^	uint32_t act_t;$/;"	m	struct:db_arg_chain_tree
+act_t_flg	src/db.h	/^	bool act_t_flg;$/;"	m	struct:db_arg_chain_tree
+action	src/db.h	/^	uint32_t action;$/;"	m	struct:db_sys_list
+add_arch	src/python/seccomp.pyx	/^    def add_arch(self, arch):$/;"	m	class:SyscallFilter
+add_rule	src/python/seccomp.pyx	/^    def add_rule(self, int action, syscall, *args):$/;"	m	class:SyscallFilter
+add_rule_exactly	src/python/seccomp.pyx	/^    def add_rule_exactly(self, int action, syscall, *args):$/;"	m	class:SyscallFilter
+arch	src/db.h	/^	const struct arch_def *arch;$/;"	m	struct:db_filter	typeref:struct:db_filter::arch_def
+arch	src/gen_bpf.c	/^	const struct arch_def *arch;$/;"	m	struct:bpf_state	typeref:struct:bpf_state::arch_def	file:
+arch	src/system.h	/^	__u32 arch;$/;"	m	struct:seccomp_data
+arch	tools/bpf.h	/^	uint32_t arch;$/;"	m	struct:seccomp_data
+arch_arg_count_max	src/arch.c	/^int arch_arg_count_max(const struct arch_def *arch)$/;"	f
+arch_arg_offset	src/arch.h	91;"	d
+arch_arg_offset_hi	src/arch.c	/^int arch_arg_offset_hi(const struct arch_def *arch, unsigned int arg)$/;"	f
+arch_arg_offset_lo	src/arch.c	/^int arch_arg_offset_lo(const struct arch_def *arch, unsigned int arg)$/;"	f
+arch_def	src/arch.h	/^struct arch_def {$/;"	s
+arch_def_arm	src/arch-arm.c	/^const struct arch_def arch_def_arm = {$/;"	v	typeref:struct:arch_def
+arch_def_lookup	src/arch.c	/^const struct arch_def *arch_def_lookup(uint32_t token)$/;"	f
+arch_def_native	src/arch.c	/^const struct arch_def *arch_def_native = &arch_def_arm;$/;"	v	typeref:struct:arch_def
+arch_def_native	src/arch.c	/^const struct arch_def *arch_def_native = &arch_def_x32;$/;"	v	typeref:struct:arch_def
+arch_def_native	src/arch.c	/^const struct arch_def *arch_def_native = &arch_def_x86;$/;"	v	typeref:struct:arch_def
+arch_def_native	src/arch.c	/^const struct arch_def *arch_def_native = &arch_def_x86_64;$/;"	v	typeref:struct:arch_def
+arch_def_x32	src/arch-x32.c	/^const struct arch_def arch_def_x32 = {$/;"	v	typeref:struct:arch_def
+arch_def_x86	src/arch-x86.c	/^const struct arch_def arch_def_x86 = {$/;"	v	typeref:struct:arch_def
+arch_def_x86_64	src/arch-x86_64.c	/^const struct arch_def arch_def_x86_64 = {$/;"	v	typeref:struct:arch_def
+arch_filter_rewrite	src/arch.c	/^int arch_filter_rewrite(const struct arch_def *arch,$/;"	f
+arch_syscall_def	src/arch.h	/^struct arch_syscall_def {$/;"	s
+arch_syscall_resolve_name	src/arch.c	/^int arch_syscall_resolve_name(const struct arch_def *arch, const char *name)$/;"	f
+arch_syscall_resolve_num	src/arch.c	/^const char *arch_syscall_resolve_num(const struct arch_def *arch, int num)$/;"	f
+arch_syscall_rewrite	src/arch.c	/^int arch_syscall_rewrite(const struct arch_def *arch, bool strict, int *syscall)$/;"	f
+arch_syscall_translate	src/arch.c	/^int arch_syscall_translate(const struct arch_def *arch, int *syscall)$/;"	f
+arch_valid	src/arch.c	/^int arch_valid(uint32_t arch)$/;"	f
+arg	src/db.h	/^	unsigned int arg;$/;"	m	struct:db_api_arg
+arg	src/db.h	/^	unsigned int arg;$/;"	m	struct:db_arg_chain_tree
+arg_offset	src/db.h	/^	unsigned int arg_offset;$/;"	m	struct:db_arg_chain_tree
+argparse	tests/01-sim-allow.py	/^import argparse$/;"	i
+argparse	tests/02-sim-basic.py	/^import argparse$/;"	i
+argparse	tests/03-sim-basic_chains.py	/^import argparse$/;"	i
+argparse	tests/04-sim-multilevel_chains.py	/^import argparse$/;"	i
+argparse	tests/05-sim-long_jumps.py	/^import argparse$/;"	i
+argparse	tests/06-sim-actions.py	/^import argparse$/;"	i
+argparse	tests/07-sim-db_bug_looping.py	/^import argparse$/;"	i
+argparse	tests/08-sim-subtree_checks.py	/^import argparse$/;"	i
+argparse	tests/09-sim-syscall_priority_pre.py	/^import argparse$/;"	i
+argparse	tests/10-sim-syscall_priority_post.py	/^import argparse$/;"	i
+argparse	tests/11-basic-basic_errors.py	/^import argparse$/;"	i
+argparse	tests/12-sim-basic_masked_ops.py	/^import argparse$/;"	i
+argparse	tests/13-basic-attrs.py	/^import argparse$/;"	i
+argparse	tests/14-sim-reset.py	/^import argparse$/;"	i
+argparse	tests/15-basic-resolver.py	/^import argparse$/;"	i
+argparse	tests/16-sim-arch_basic.py	/^import argparse$/;"	i
+argparse	tests/17-sim-arch_merge.py	/^import argparse$/;"	i
+argparse	tests/18-sim-basic_whitelist.py	/^import argparse$/;"	i
+argparse	tests/19-sim-missing_syscalls.py	/^import argparse$/;"	i
+argparse	tests/20-live-basic_die.py	/^import argparse$/;"	i
+argparse	tests/21-live-basic_allow.py	/^import argparse$/;"	i
+argparse	tests/22-sim-basic_chains_array.py	/^import argparse$/;"	i
+argparse	tests/23-sim-arch_all_basic.py	/^import argparse$/;"	i
+argparse	tests/24-live-arg_allow.py	/^import argparse$/;"	i
+argparse	tests/25-sim-multilevel_chains_adv.py	/^import argparse$/;"	i
+argparse	tests/util.py	/^import argparse$/;"	i
+args	src/system.h	/^	__u64 args[6];$/;"	m	struct:seccomp_data
+args	tests/01-sim-allow.py	/^args = util.get_opt()$/;"	v
+args	tests/02-sim-basic.py	/^args = util.get_opt()$/;"	v
+args	tests/03-sim-basic_chains.py	/^args = util.get_opt()$/;"	v
+args	tests/04-sim-multilevel_chains.py	/^args = util.get_opt()$/;"	v
+args	tests/05-sim-long_jumps.py	/^args = util.get_opt()$/;"	v
+args	tests/06-sim-actions.py	/^args = util.get_opt()$/;"	v
+args	tests/07-sim-db_bug_looping.py	/^args = util.get_opt()$/;"	v
+args	tests/08-sim-subtree_checks.py	/^args = util.get_opt()$/;"	v
+args	tests/09-sim-syscall_priority_pre.py	/^args = util.get_opt()$/;"	v
+args	tests/10-sim-syscall_priority_post.py	/^args = util.get_opt()$/;"	v
+args	tests/12-sim-basic_masked_ops.py	/^args = util.get_opt()$/;"	v
+args	tests/14-sim-reset.py	/^args = util.get_opt()$/;"	v
+args	tests/16-sim-arch_basic.py	/^args = util.get_opt()$/;"	v
+args	tests/17-sim-arch_merge.py	/^args = util.get_opt()$/;"	v
+args	tests/18-sim-basic_whitelist.py	/^args = util.get_opt()$/;"	v
+args	tests/19-sim-missing_syscalls.py	/^args = util.get_opt()$/;"	v
+args	tests/22-sim-basic_chains_array.py	/^args = util.get_opt()$/;"	v
+args	tests/23-sim-arch_all_basic.py	/^args = util.get_opt()$/;"	v
+args	tests/25-sim-multilevel_chains_adv.py	/^args = util.get_opt()$/;"	v
+args	tools/bpf.h	/^	uint64_t args[BPF_SYS_ARG_MAX];$/;"	m	struct:seccomp_data
+arm_arg_count_max	src/arch-arm.h	30;"	d
+arm_syscall_resolve_name	src/arch-arm-syscalls.c	/^int arm_syscall_resolve_name(const char *name)$/;"	f
+arm_syscall_resolve_num	src/arch-arm-syscalls.c	/^const char *arm_syscall_resolve_num(int num)$/;"	f
+arm_syscall_table	src/arch-arm-syscalls.c	/^const struct arch_syscall_def arm_syscall_table[] = \\$/;"	v	typeref:struct:arch_syscall_def
+attr	src/db.h	/^	struct db_filter_attr attr;$/;"	m	struct:db_filter_col	typeref:struct:db_filter_col::db_filter_attr
+attr	src/gen_bpf.c	/^	const struct db_filter_attr *attr;$/;"	m	struct:bpf_state	typeref:struct:bpf_state::db_filter_attr	file:
+blk	src/gen_bpf.c	/^		struct bpf_blk *blk;$/;"	m	union:bpf_jump::__anon1	typeref:struct:bpf_jump::__anon1::bpf_blk	file:
+blk	src/gen_bpf.c	/^	struct bpf_blk *blk;$/;"	m	struct:bpf_hash_bkt	typeref:struct:bpf_hash_bkt::bpf_blk	file:
+blk_alloc	src/gen_bpf.c	/^	unsigned int blk_alloc;$/;"	m	struct:bpf_blk	file:
+blk_cnt	src/gen_bpf.c	/^	unsigned int blk_cnt;$/;"	m	struct:bpf_blk	file:
+blk_cnt	src/gen_bpf.h	/^	uint16_t blk_cnt;$/;"	m	struct:bpf_program
+blks	src/gen_bpf.c	/^	struct bpf_instr *blks;$/;"	m	struct:bpf_blk	typeref:struct:bpf_blk::bpf_instr	file:
+blks	src/gen_bpf.h	/^	bpf_instr_raw *blks;$/;"	m	struct:bpf_program
+bpf	src/gen_bpf.c	/^	struct bpf_program *bpf;$/;"	m	struct:bpf_state	typeref:struct:bpf_state::bpf_program	file:
+bpf_blk	src/gen_bpf.c	/^struct bpf_blk {$/;"	s	file:
+bpf_decode	tools/scmp_bpf_disasm.c	/^static int bpf_decode(FILE *file)$/;"	f	file:
+bpf_decode_args	tools/scmp_bpf_disasm.c	/^static void bpf_decode_args(const bpf_instr_raw *bpf, unsigned int line)$/;"	f	file:
+bpf_decode_op	tools/scmp_bpf_disasm.c	/^static void bpf_decode_op(const bpf_instr_raw *bpf)$/;"	f	file:
+bpf_execute	tools/scmp_bpf_sim.c	/^static void bpf_execute(const struct bpf_program *prg,$/;"	f	file:
+bpf_flg	tests/util.h	/^	int bpf_flg;$/;"	m	struct:util_options
+bpf_hash_bkt	src/gen_bpf.c	/^struct bpf_hash_bkt {$/;"	s	file:
+bpf_instr	src/gen_bpf.c	/^struct bpf_instr {$/;"	s	file:
+bpf_instr_raw	src/system.h	/^typedef struct sock_filter bpf_instr_raw;$/;"	t	typeref:struct:sock_filter
+bpf_instr_raw	tools/bpf.h	/^typedef struct sock_filter bpf_instr_raw;$/;"	t	typeref:struct:sock_filter
+bpf_jump	src/gen_bpf.c	/^struct bpf_jump {$/;"	s	file:
+bpf_jump_type	src/gen_bpf.c	/^enum bpf_jump_type {$/;"	g	file:
+bpf_program	src/gen_bpf.h	/^struct bpf_program {$/;"	s
+bpf_program	tools/scmp_bpf_sim.c	/^struct bpf_program {$/;"	s	file:
+bpf_state	src/gen_bpf.c	/^struct bpf_state {$/;"	s	file:
+build_ext	src/python/setup.py	/^from Cython.Distutils import build_ext$/;"	i
+chains	src/db.h	/^	struct db_arg_chain_tree *chains;$/;"	m	struct:db_sys_list	typeref:struct:db_sys_list::db_arg_chain_tree
+cmdclass	src/python/setup.py	/^	cmdclass = {'build_ext': build_ext},$/;"	v
+cnf_entry	configure	/^function cnf_entry() {$/;"	f
+cnf_footer	configure	/^function cnf_footer() {$/;"	f
+cnf_h_entry	configure	/^function cnf_h_entry() {$/;"	f
+cnf_h_footer	configure	/^function cnf_h_footer() {$/;"	f
+cnf_h_header	configure	/^function cnf_h_header() {$/;"	f
+cnf_header	configure	/^function cnf_header() {$/;"	f
+cnf_mk_entry	configure	/^function cnf_mk_entry() {$/;"	f
+cnf_mk_footer	configure	/^function cnf_mk_footer() {$/;"	f
+cnf_mk_header	configure	/^function cnf_mk_header() {$/;"	f
+cnf_reset	configure	/^function cnf_reset() {$/;"	f
+code	tools/bpf.h	/^	uint16_t code;$/;"	m	struct:sock_filter
+ctx	tests/01-sim-allow.py	/^ctx = test(args)$/;"	v
+ctx	tests/02-sim-basic.py	/^ctx = test(args)$/;"	v
+ctx	tests/03-sim-basic_chains.py	/^ctx = test(args)$/;"	v
+ctx	tests/04-sim-multilevel_chains.py	/^ctx = test(args)$/;"	v
+ctx	tests/05-sim-long_jumps.py	/^ctx = test(args)$/;"	v
+ctx	tests/06-sim-actions.py	/^ctx = test(args)$/;"	v
+ctx	tests/07-sim-db_bug_looping.py	/^ctx = test(args)$/;"	v
+ctx	tests/08-sim-subtree_checks.py	/^ctx = test(args)$/;"	v
+ctx	tests/09-sim-syscall_priority_pre.py	/^ctx = test(args)$/;"	v
+ctx	tests/10-sim-syscall_priority_post.py	/^ctx = test(args)$/;"	v
+ctx	tests/12-sim-basic_masked_ops.py	/^ctx = test(args)$/;"	v
+ctx	tests/14-sim-reset.py	/^ctx = test(args)$/;"	v
+ctx	tests/16-sim-arch_basic.py	/^ctx = test(args)$/;"	v
+ctx	tests/17-sim-arch_merge.py	/^ctx = test(args)$/;"	v
+ctx	tests/18-sim-basic_whitelist.py	/^ctx = test(args)$/;"	v
+ctx	tests/19-sim-missing_syscalls.py	/^ctx = test(args)$/;"	v
+ctx	tests/22-sim-basic_chains_array.py	/^ctx = test(args)$/;"	v
+ctx	tests/23-sim-arch_all_basic.py	/^ctx = test(args)$/;"	v
+ctx	tests/25-sim-multilevel_chains_adv.py	/^ctx = test(args)$/;"	v
+datum	src/db.h	/^	scmp_datum_t datum;$/;"	m	struct:db_api_arg
+datum	src/db.h	/^	uint32_t datum;$/;"	m	struct:db_arg_chain_tree
+db	src/gen_bpf.c	/^		struct db_arg_chain_tree *db;$/;"	m	union:bpf_jump::__anon1	typeref:struct:bpf_jump::__anon1::db_arg_chain_tree	file:
+db_action_valid	src/db.c	/^int db_action_valid(uint32_t action)$/;"	f
+db_api_arg	src/db.h	/^struct db_api_arg {$/;"	s
+db_arg_chain_tree	src/db.h	/^struct db_arg_chain_tree {$/;"	s
+db_chain_eq	src/db.h	75;"	d
+db_chain_eq_result	src/db.h	85;"	d
+db_chain_gt	src/db.h	79;"	d
+db_chain_leaf	src/db.h	83;"	d
+db_chain_lt	src/db.h	71;"	d
+db_col_arch_exist	src/db.c	/^int db_col_arch_exist(struct db_filter_col *col, uint32_t arch_token)$/;"	f
+db_col_attr_get	src/db.c	/^int db_col_attr_get(const struct db_filter_col *col,$/;"	f
+db_col_attr_set	src/db.c	/^int db_col_attr_set(struct db_filter_col *col,$/;"	f
+db_col_db_add	src/db.c	/^int db_col_db_add(struct db_filter_col *col, struct db_filter *db)$/;"	f
+db_col_db_remove	src/db.c	/^int db_col_db_remove(struct db_filter_col *col, uint32_t arch_token)$/;"	f
+db_col_init	src/db.c	/^struct db_filter_col *db_col_init(uint32_t def_action)$/;"	f
+db_col_merge	src/db.c	/^int db_col_merge(struct db_filter_col *col_dst, struct db_filter_col *col_src)$/;"	f
+db_col_release	src/db.c	/^void db_col_release(struct db_filter_col *col)$/;"	f
+db_col_reset	src/db.c	/^void db_col_reset(struct db_filter_col *col, uint32_t def_action)$/;"	f
+db_col_valid	src/db.c	/^int db_col_valid(struct db_filter_col *col)$/;"	f
+db_filter	src/db.h	/^struct db_filter {$/;"	s
+db_filter_attr	src/db.h	/^struct db_filter_attr {$/;"	s
+db_filter_col	src/db.h	/^struct db_filter_col {$/;"	s
+db_init	src/db.c	/^struct db_filter *db_init(const struct arch_def *arch)$/;"	f
+db_list_foreach	src/db.h	156;"	d
+db_release	src/db.c	/^void db_release(struct db_filter *db)$/;"	f
+db_reset	src/db.c	/^void db_reset(struct db_filter *db)$/;"	f
+db_rule_add	src/db.c	/^int db_rule_add(struct db_filter *db, uint32_t action, unsigned int syscall,$/;"	f
+db_sys_list	src/db.h	/^struct db_sys_list {$/;"	s
+db_syscall_priority	src/db.c	/^int db_syscall_priority(struct db_filter *db,$/;"	f
+def_hsh	src/gen_bpf.c	/^	uint64_t def_hsh;$/;"	m	struct:bpf_state	file:
+description	src/python/setup.py	/^	description = "Python binding for libseccomp",$/;"	v
+end_action	tools/scmp_bpf_sim.c	/^static void end_action(uint32_t action, unsigned int line)$/;"	f	file:
+endian	src/arch.h	/^	} endian;$/;"	m	struct:arch_def	typeref:enum:arch_def::__anon3
+errno	src/python/seccomp.pyx	/^import errno$/;"	i
+errno	tests/06-sim-actions.py	/^import errno$/;"	i
+exist_arch	src/python/seccomp.pyx	/^    def exist_arch(self, arch):$/;"	m	class:SyscallFilter
+exit_error	tools/scmp_bpf_sim.c	/^static void exit_error(unsigned int rc, unsigned int line)$/;"	f	file:
+exit_fault	tools/scmp_bpf_sim.c	/^static void exit_fault(unsigned int rc)$/;"	f	file:
+exit_usage	tools/scmp_arch_detect.c	/^static void exit_usage(const char *program)$/;"	f	file:
+exit_usage	tools/scmp_bpf_sim.c	/^static void exit_usage(const char *program)$/;"	f	file:
+exit_usage	tools/scmp_sys_resolver.c	/^static void exit_usage(const char *program)$/;"	f	file:
+export_bpf	src/python/seccomp.pyx	/^    def export_bpf(self, file):$/;"	m	class:SyscallFilter
+export_pfc	src/python/seccomp.pyx	/^    def export_pfc(self, file):$/;"	m	class:SyscallFilter
+ext_modules	src/python/setup.py	/^	ext_modules = [$/;"	v
+extra_objects	src/python/setup.py	/^			extra_objects=["..\/libseccomp.a"])$/;"	v
+filter_cnt	src/db.h	/^	unsigned int filter_cnt;$/;"	m	struct:db_filter_col
+filter_output	tests/util.py	/^def filter_output(args, ctx):$/;"	f
+filters	src/db.h	/^	struct db_filter **filters;$/;"	m	struct:db_filter_col	typeref:struct:db_filter_col::db_filter
+final	src/hash.c	149;"	d	file:
+flag_dup	src/gen_bpf.c	/^	bool flag_dup;			\/* duplicate block and in use *\/$/;"	m	struct:bpf_blk	file:
+flag_hash	src/gen_bpf.c	/^	bool flag_hash;			\/* added to the hash table *\/$/;"	m	struct:bpf_blk	file:
+flag_unique	src/gen_bpf.c	/^	bool flag_unique;		\/* ->blks is unique to this block *\/$/;"	m	struct:bpf_blk	file:
+found	src/gen_bpf.c	/^	unsigned int found;$/;"	m	struct:bpf_hash_bkt	file:
+gen_bpf_generate	src/gen_bpf.c	/^struct bpf_program *gen_bpf_generate(const struct db_filter_col *col)$/;"	f
+gen_bpf_release	src/gen_bpf.c	/^void gen_bpf_release(struct bpf_program *program)$/;"	f
+gen_pfc_generate	src/gen_pfc.c	/^int gen_pfc_generate(const struct db_filter_col *col, int fd)$/;"	f
+generate_random_data	tests/regression	/^function generate_random_data() {$/;"	f
+generate_test_num	tests/regression	/^function generate_test_num() {$/;"	f
+get_attr	src/python/seccomp.pyx	/^    def get_attr(self, attr):$/;"	m	class:SyscallFilter
+get_opt	tests/util.py	/^def get_opt():$/;"	f
+get_range	tests/regression	/^function get_range() {$/;"	f
+hash	src/gen_bpf.c	/^		uint64_t hash;$/;"	m	union:bpf_jump::__anon1	file:
+hash	src/gen_bpf.c	/^	uint64_t hash;$/;"	m	struct:bpf_blk	file:
+hash_nxt	src/gen_bpf.c	/^	struct bpf_blk *hash_nxt;$/;"	m	struct:bpf_blk	typeref:struct:bpf_blk::bpf_blk	file:
+hashbig	src/hash.c	/^uint32_t hashbig( const void *key, size_t length, uint32_t initval)$/;"	f
+hashlittle	src/hash.c	/^uint32_t hashlittle( const void *key, size_t length, uint32_t initval)$/;"	f
+hashlittle	src/hash.c	44;"	d	file:
+hashlittle2	src/hash.c	/^void hashlittle2($/;"	f
+hashmask	src/hash.c	67;"	d	file:
+hashsize	src/hash.c	66;"	d	file:
+hashword	src/hash.c	/^uint32_t hashword($/;"	f
+hashword2	src/hash.c	/^void hashword2 ($/;"	f
+htbl	src/gen_bpf.c	/^	struct bpf_hash_bkt *htbl[_BPF_HASH_SIZE];$/;"	m	struct:bpf_state	typeref:struct:bpf_state::bpf_hash_bkt	file:
+i	tools/scmp_bpf_sim.c	/^	bpf_instr_raw *i;$/;"	m	struct:bpf_program	file:
+i_cnt	tools/scmp_bpf_sim.c	/^	size_t i_cnt;$/;"	m	struct:bpf_program	file:
+imm_j	src/gen_bpf.c	/^		uint8_t imm_j;$/;"	m	union:bpf_jump::__anon1	file:
+imm_k	src/gen_bpf.c	/^		uint32_t imm_k;$/;"	m	union:bpf_jump::__anon1	file:
+install_trap	tests/util.py	/^def install_trap():$/;"	f
+instruction_pointer	src/system.h	/^	__u64 instruction_pointer;$/;"	m	struct:seccomp_data
+instruction_pointer	tools/bpf.h	/^	uint64_t instruction_pointer;$/;"	m	struct:seccomp_data
+jf	src/gen_bpf.c	/^	struct bpf_jump jf;$/;"	m	struct:bpf_instr	typeref:struct:bpf_instr::bpf_jump	file:
+jf	tools/bpf.h	/^	uint8_t jf;$/;"	m	struct:sock_filter
+jt	src/gen_bpf.c	/^	struct bpf_jump jt;$/;"	m	struct:bpf_instr	typeref:struct:bpf_instr::bpf_jump	file:
+jt	tools/bpf.h	/^	uint8_t jt;$/;"	m	struct:sock_filter
+k	src/gen_bpf.c	/^	struct bpf_jump k;$/;"	m	struct:bpf_instr	typeref:struct:bpf_instr::bpf_jump	file:
+k	tools/bpf.h	/^	uint32_t k;$/;"	m	struct:sock_filter
+libseccomp	src/python/seccomp.pyx	/^cimport libseccomp$/;"	i
+license	src/python/setup.py	/^	license = "LGPLv2.1",$/;"	v
+load	src/python/seccomp.pyx	/^    def load(self):$/;"	m	class:SyscallFilter
+long_description	src/python/setup.py	/^	long_description = "Python API for the Linux Kernel's syscall filtering capability, seccomp.",$/;"	v
+lvl_nxt	src/db.h	/^	struct db_arg_chain_tree *lvl_prv, *lvl_nxt;$/;"	m	struct:db_arg_chain_tree	typeref:struct:db_arg_chain_tree::
+lvl_nxt	src/gen_bpf.c	/^	struct bpf_blk *lvl_prv, *lvl_nxt;$/;"	m	struct:bpf_blk	typeref:struct:bpf_blk::	file:
+lvl_prv	src/db.h	/^	struct db_arg_chain_tree *lvl_prv, *lvl_nxt;$/;"	m	struct:db_arg_chain_tree	typeref:struct:db_arg_chain_tree::db_arg_chain_tree
+lvl_prv	src/gen_bpf.c	/^	struct bpf_blk *lvl_prv, *lvl_nxt;$/;"	m	struct:bpf_blk	typeref:struct:bpf_blk::bpf_blk	file:
+main	tests/00-test.c	/^int main(void)$/;"	f
+main	tests/01-sim-allow.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/02-sim-basic.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/03-sim-basic_chains.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/04-sim-multilevel_chains.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/05-sim-long_jumps.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/06-sim-actions.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/07-sim-db_bug_looping.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/08-sim-subtree_checks.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/09-sim-syscall_priority_pre.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/10-sim-syscall_priority_post.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/11-basic-basic_errors.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/12-sim-basic_masked_ops.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/13-basic-attrs.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/14-sim-reset.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/15-basic-resolver.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/16-sim-arch_basic.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/17-sim-arch_merge.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/18-sim-basic_whitelist.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/19-sim-missing_syscalls.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/20-live-basic_die.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/21-live-basic_allow.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/22-sim-basic_chains_array.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/23-sim-arch_all_basic.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/24-live-arg_allow.c	/^int main(int argc, char *argv[])$/;"	f
+main	tests/25-sim-multilevel_chains_adv.c	/^int main(int argc, char *argv[])$/;"	f
+main	tools/scmp_arch_detect.c	/^int main(int argc, char *argv[])$/;"	f
+main	tools/scmp_bpf_disasm.c	/^int main(int argc, char *argv[])$/;"	f
+main	tools/scmp_bpf_sim.c	/^int main(int argc, char *argv[])$/;"	f
+main	tools/scmp_sys_resolver.c	/^int main(int argc, char *argv[])$/;"	f
+maintainer	src/python/setup.py	/^	maintainer = "Paul Moore",$/;"	v
+maintainer_email	src/python/setup.py	/^	maintainer_email = "paul@paul-moore.com",$/;"	v
+mask	src/db.h	/^	scmp_datum_t mask;$/;"	m	struct:db_api_arg
+mask	src/db.h	/^	uint32_t mask;$/;"	m	struct:db_arg_chain_tree
+mask	src/gen_bpf.c	/^	uint32_t mask;$/;"	m	struct:acc_state	file:
+merge	src/python/seccomp.pyx	/^    def merge(self, SyscallFilter filter):$/;"	m	class:SyscallFilter
+mix	src/hash.c	114;"	d	file:
+msg_error	configure	/^function msg_error() {$/;"	f
+msg_summary	configure	/^function msg_summary() {$/;"	f
+msg_usage	configure	/^function msg_usage() {$/;"	f
+name	src/arch.h	/^	const char *name;$/;"	m	struct:arch_syscall_def
+name	src/python/setup.py	/^	name = "seccomp",$/;"	v
+next	src/db.h	/^	struct db_sys_list *next;$/;"	m	struct:db_sys_list	typeref:struct:db_sys_list::db_sys_list
+next	src/gen_bpf.c	/^	struct bpf_blk *prev, *next;$/;"	m	struct:bpf_blk	typeref:struct:bpf_blk::	file:
+next	src/gen_bpf.c	/^	struct bpf_hash_bkt *next;$/;"	m	struct:bpf_hash_bkt	typeref:struct:bpf_hash_bkt::bpf_hash_bkt	file:
+next	src/gen_pfc.c	/^	struct pfc_sys_list *next;$/;"	m	struct:pfc_sys_list	typeref:struct:pfc_sys_list::pfc_sys_list	file:
+nnp_enable	src/db.h	/^	uint32_t nnp_enable;$/;"	m	struct:db_filter_attr
+node	src/gen_bpf.c	/^	const struct db_arg_chain_tree *node;$/;"	m	struct:bpf_blk	typeref:struct:bpf_blk::db_arg_chain_tree	file:
+node_cnt	src/db.h	/^	unsigned int node_cnt;$/;"	m	struct:db_sys_list
+nr	src/system.h	/^	int nr;$/;"	m	struct:seccomp_data
+nr	tools/bpf.h	/^	int32_t nr;$/;"	m	struct:seccomp_data
+num	src/arch.h	/^	unsigned int num;$/;"	m	struct:arch_syscall_def
+num	src/db.h	/^	unsigned int num;$/;"	m	struct:db_sys_list
+nxt	src/gen_bpf.c	/^		unsigned int nxt;$/;"	m	union:bpf_jump::__anon1	file:
+nxt_f	src/db.h	/^	struct db_arg_chain_tree *nxt_f;$/;"	m	struct:db_arg_chain_tree	typeref:struct:db_arg_chain_tree::db_arg_chain_tree
+nxt_t	src/db.h	/^	struct db_arg_chain_tree *nxt_t;$/;"	m	struct:db_arg_chain_tree	typeref:struct:db_arg_chain_tree::db_arg_chain_tree
+offset	src/gen_bpf.c	/^	int32_t offset;$/;"	m	struct:acc_state	file:
+op	src/db.h	/^	enum scmp_compare op;$/;"	m	struct:db_arg_chain_tree	typeref:enum:db_arg_chain_tree::scmp_compare
+op	src/db.h	/^	unsigned int op;$/;"	m	struct:db_api_arg
+op	src/gen_bpf.c	/^	uint16_t op;$/;"	m	struct:bpf_instr	file:
+opt_verbose	tools/scmp_bpf_sim.c	/^static unsigned int opt_verbose = 0;$/;"	v	file:
+os	src/python/setup.py	/^import os$/;"	i
+os	tests/24-live-arg_allow.py	/^import os$/;"	i
+os	tests/util.py	/^import os$/;"	i
+parse_action	tests/util.py	/^def parse_action(action):$/;"	f
+pfc_sys_list	src/gen_pfc.c	/^struct pfc_sys_list {$/;"	s	file:
+platforms	src/python/setup.py	/^	platforms = "Linux",$/;"	v
+prev	src/gen_bpf.c	/^	struct bpf_blk *prev, *next;$/;"	m	struct:bpf_blk	typeref:struct:bpf_blk::bpf_blk	file:
+pri_nxt	src/db.h	/^	struct db_sys_list *pri_prv, *pri_nxt;$/;"	m	struct:db_sys_list	typeref:struct:db_sys_list::
+pri_prv	src/db.h	/^	struct db_sys_list *pri_prv, *pri_nxt;$/;"	m	struct:db_sys_list	typeref:struct:db_sys_list::db_sys_list
+print_data	tests/regression	/^function print_data() {$/;"	f
+print_result	tests/regression	/^function print_result() {$/;"	f
+print_valgrind	tests/regression	/^function print_valgrind() {$/;"	f
+priority	src/db.h	/^	unsigned int priority;$/;"	m	struct:db_sys_list
+priority	src/gen_bpf.c	/^	unsigned int priority;$/;"	m	struct:bpf_blk	file:
+refcnt	src/db.h	/^	unsigned int refcnt;$/;"	m	struct:db_arg_chain_tree
+remove_arch	src/python/seccomp.pyx	/^    def remove_arch(self, arch):$/;"	m	class:SyscallFilter
+reset	src/python/seccomp.pyx	/^    def reset(self, int defaction = -1):$/;"	m	class:SyscallFilter
+resolve_syscall	src/python/seccomp.pyx	/^def resolve_syscall(arch, syscall):$/;"	f
+rot	src/hash.c	68;"	d	file:
+run_test	tests/regression	/^function run_test() {$/;"	f
+run_test_basic	tests/regression	/^function run_test_basic() {$/;"	f
+run_test_bpf_sim	tests/regression	/^function run_test_bpf_sim() {$/;"	f
+run_test_bpf_sim_fuzz	tests/regression	/^function run_test_bpf_sim_fuzz() {$/;"	f
+run_test_command	tests/regression	/^function run_test_command() {$/;"	f
+run_test_live	tests/regression	/^function run_test_live() {$/;"	f
+run_tests	tests/regression	/^function run_tests() {$/;"	f
+seccomp_arch_add	src/api.c	/^int seccomp_arch_add(scmp_filter_ctx ctx, uint32_t arch_token)$/;"	f
+seccomp_arch_exist	src/api.c	/^int seccomp_arch_exist(const scmp_filter_ctx ctx, uint32_t arch_token)$/;"	f
+seccomp_arch_native	src/api.c	/^uint32_t seccomp_arch_native(void)$/;"	f
+seccomp_arch_remove	src/api.c	/^int seccomp_arch_remove(scmp_filter_ctx ctx, uint32_t arch_token)$/;"	f
+seccomp_attr_get	src/api.c	/^int seccomp_attr_get(const scmp_filter_ctx ctx,$/;"	f
+seccomp_attr_set	src/api.c	/^int seccomp_attr_set(scmp_filter_ctx ctx,$/;"	f
+seccomp_data	src/system.h	/^struct seccomp_data {$/;"	s
+seccomp_data	tools/bpf.h	/^struct seccomp_data {$/;"	s
+seccomp_export_bpf	src/api.c	/^int seccomp_export_bpf(const scmp_filter_ctx ctx, int fd)$/;"	f
+seccomp_export_pfc	src/api.c	/^int seccomp_export_pfc(const scmp_filter_ctx ctx, int fd)$/;"	f
+seccomp_init	src/api.c	/^scmp_filter_ctx seccomp_init(uint32_t def_action)$/;"	f
+seccomp_load	src/api.c	/^int seccomp_load(const scmp_filter_ctx ctx)$/;"	f
+seccomp_merge	src/api.c	/^int seccomp_merge(scmp_filter_ctx ctx_dst, scmp_filter_ctx ctx_src)$/;"	f
+seccomp_release	src/api.c	/^void seccomp_release(scmp_filter_ctx ctx)$/;"	f
+seccomp_reset	src/api.c	/^int seccomp_reset(scmp_filter_ctx ctx, uint32_t def_action)$/;"	f
+seccomp_rule_add	src/api.c	/^int seccomp_rule_add(scmp_filter_ctx ctx,$/;"	f
+seccomp_rule_add_array	src/api.c	/^int seccomp_rule_add_array(scmp_filter_ctx ctx,$/;"	f
+seccomp_rule_add_exact	src/api.c	/^int seccomp_rule_add_exact(scmp_filter_ctx ctx, uint32_t action,$/;"	f
+seccomp_rule_add_exact_array	src/api.c	/^int seccomp_rule_add_exact_array(scmp_filter_ctx ctx,$/;"	f
+seccomp_syscall_priority	src/api.c	/^int seccomp_syscall_priority(scmp_filter_ctx ctx, int syscall, uint8_t priority)$/;"	f
+seccomp_syscall_resolve_name	src/api.c	/^int seccomp_syscall_resolve_name(const char *name)$/;"	f
+seccomp_syscall_resolve_name_arch	src/api.c	/^int seccomp_syscall_resolve_name_arch(uint32_t arch_token, const char *name)$/;"	f
+seccomp_syscall_resolve_num_arch	src/api.c	/^char *seccomp_syscall_resolve_num_arch(uint32_t arch_token, int num)$/;"	f
+set_attr	src/python/seccomp.pyx	/^    def set_attr(self, attr, int value):$/;"	m	class:SyscallFilter
+setup	src/python/setup.py	/^from distutils.core import setup$/;"	i
+signal	tests/util.py	/^import signal$/;"	i
+sim_state	tools/scmp_bpf_sim.c	/^struct sim_state {$/;"	s	file:
+size	src/arch.h	/^	} size;$/;"	m	struct:arch_def	typeref:enum:arch_def::__anon2
+sock_filter	tools/bpf.h	/^struct sock_filter {$/;"	s
+state	src/db.h	/^	int state;$/;"	m	struct:db_filter_col
+sys	src/gen_pfc.c	/^	struct db_sys_list *sys;$/;"	m	struct:pfc_sys_list	typeref:struct:pfc_sys_list::db_sys_list	file:
+sys	tests/01-sim-allow.py	/^import sys$/;"	i
+sys	tests/02-sim-basic.py	/^import sys$/;"	i
+sys	tests/03-sim-basic_chains.py	/^import sys$/;"	i
+sys	tests/04-sim-multilevel_chains.py	/^import sys$/;"	i
+sys	tests/05-sim-long_jumps.py	/^import sys$/;"	i
+sys	tests/06-sim-actions.py	/^import sys$/;"	i
+sys	tests/07-sim-db_bug_looping.py	/^import sys$/;"	i
+sys	tests/08-sim-subtree_checks.py	/^import sys$/;"	i
+sys	tests/09-sim-syscall_priority_pre.py	/^import sys$/;"	i
+sys	tests/10-sim-syscall_priority_post.py	/^import sys$/;"	i
+sys	tests/11-basic-basic_errors.py	/^import sys$/;"	i
+sys	tests/12-sim-basic_masked_ops.py	/^import sys$/;"	i
+sys	tests/13-basic-attrs.py	/^import sys$/;"	i
+sys	tests/14-sim-reset.py	/^import sys$/;"	i
+sys	tests/15-basic-resolver.py	/^import sys$/;"	i
+sys	tests/16-sim-arch_basic.py	/^import sys$/;"	i
+sys	tests/17-sim-arch_merge.py	/^import sys$/;"	i
+sys	tests/18-sim-basic_whitelist.py	/^import sys$/;"	i
+sys	tests/19-sim-missing_syscalls.py	/^import sys$/;"	i
+sys	tests/20-live-basic_die.py	/^import sys$/;"	i
+sys	tests/21-live-basic_allow.py	/^import sys$/;"	i
+sys	tests/22-sim-basic_chains_array.py	/^import sys$/;"	i
+sys	tests/23-sim-arch_all_basic.py	/^import sys$/;"	i
+sys	tests/24-live-arg_allow.py	/^import sys$/;"	i
+sys	tests/25-sim-multilevel_chains_adv.py	/^import sys$/;"	i
+sys	tests/util.py	/^import sys$/;"	i
+syscall_priority	src/python/seccomp.pyx	/^    def syscall_priority(self, syscall, int priority):$/;"	m	class:SyscallFilter
+syscalls	src/db.h	/^	struct db_sys_list *syscalls;$/;"	m	struct:db_filter	typeref:struct:db_filter::db_sys_list
+system_arch	src/python/seccomp.pyx	/^def system_arch():$/;"	f
+temp	tools/scmp_bpf_sim.c	/^	uint32_t temp[BPF_SCRATCH_SIZE];$/;"	m	struct:sim_state	file:
+test	tests/01-sim-allow.py	/^def test(args):$/;"	f
+test	tests/02-sim-basic.py	/^def test(args):$/;"	f
+test	tests/03-sim-basic_chains.py	/^def test(args):$/;"	f
+test	tests/04-sim-multilevel_chains.py	/^def test(args):$/;"	f
+test	tests/05-sim-long_jumps.py	/^def test(args):$/;"	f
+test	tests/06-sim-actions.py	/^def test(args):$/;"	f
+test	tests/07-sim-db_bug_looping.py	/^def test(args):$/;"	f
+test	tests/08-sim-subtree_checks.py	/^def test(args):$/;"	f
+test	tests/09-sim-syscall_priority_pre.py	/^def test(args):$/;"	f
+test	tests/10-sim-syscall_priority_post.py	/^def test(args):$/;"	f
+test	tests/11-basic-basic_errors.py	/^def test():$/;"	f
+test	tests/12-sim-basic_masked_ops.py	/^def test(args):$/;"	f
+test	tests/13-basic-attrs.py	/^def test():$/;"	f
+test	tests/14-sim-reset.py	/^def test(args):$/;"	f
+test	tests/15-basic-resolver.py	/^def test():$/;"	f
+test	tests/16-sim-arch_basic.py	/^def test(args):$/;"	f
+test	tests/17-sim-arch_merge.py	/^def test(args):$/;"	f
+test	tests/18-sim-basic_whitelist.py	/^def test(args):$/;"	f
+test	tests/19-sim-missing_syscalls.py	/^def test(args):$/;"	f
+test	tests/20-live-basic_die.py	/^def test():$/;"	f
+test	tests/21-live-basic_allow.py	/^def test():$/;"	f
+test	tests/22-sim-basic_chains_array.py	/^def test(args):$/;"	f
+test	tests/23-sim-arch_all_basic.py	/^def test(args):$/;"	f
+test	tests/24-live-arg_allow.py	/^def test():$/;"	f
+test	tests/25-sim-multilevel_chains_adv.py	/^def test(args):$/;"	f
+test_deps	configure	/^function test_deps() {$/;"	f
+tgt	src/gen_bpf.c	/^	} tgt;$/;"	m	struct:bpf_jump	typeref:union:bpf_jump::__anon1	file:
+tmpl_filter	configure	/^function tmpl_filter() {$/;"	f
+to_c	src/python/seccomp.pyx	/^    def to_c(self):$/;"	m	class:Arg
+token	src/arch.h	/^	uint32_t token;$/;"	m	struct:arch_def
+token_bpf	src/arch.h	/^	uint32_t token_bpf;$/;"	m	struct:arch_def
+trap_handler	tests/util.py	/^def trap_handler(signum, frame):$/;"	f
+type	src/gen_bpf.c	/^	enum bpf_jump_type type;$/;"	m	struct:bpf_jump	typeref:enum:bpf_jump::bpf_jump_type	file:
+uint32_t	src/python/libseccomp.pxd	/^from libc.stdint cimport uint8_t, uint32_t, uint64_t$/;"	i
+uint32_t	src/python/seccomp.pyx	/^from libc.stdint cimport uint32_t$/;"	i
+uint64_t	src/python/libseccomp.pxd	/^from libc.stdint cimport uint8_t, uint32_t, uint64_t$/;"	i
+uint8_t	src/python/libseccomp.pxd	/^from libc.stdint cimport uint8_t, uint32_t, uint64_t$/;"	i
+url	src/python/setup.py	/^	url = "http:\/\/libseccomp.sf.net",$/;"	v
+usage	tests/regression	/^function usage() {$/;"	f
+util	tests/01-sim-allow.py	/^import util$/;"	i
+util	tests/02-sim-basic.py	/^import util$/;"	i
+util	tests/03-sim-basic_chains.py	/^import util$/;"	i
+util	tests/04-sim-multilevel_chains.py	/^import util$/;"	i
+util	tests/05-sim-long_jumps.py	/^import util$/;"	i
+util	tests/06-sim-actions.py	/^import util$/;"	i
+util	tests/07-sim-db_bug_looping.py	/^import util$/;"	i
+util	tests/08-sim-subtree_checks.py	/^import util$/;"	i
+util	tests/09-sim-syscall_priority_pre.py	/^import util$/;"	i
+util	tests/10-sim-syscall_priority_post.py	/^import util$/;"	i
+util	tests/11-basic-basic_errors.py	/^import util$/;"	i
+util	tests/12-sim-basic_masked_ops.py	/^import util$/;"	i
+util	tests/13-basic-attrs.py	/^import util$/;"	i
+util	tests/14-sim-reset.py	/^import util$/;"	i
+util	tests/15-basic-resolver.py	/^import util$/;"	i
+util	tests/16-sim-arch_basic.py	/^import util$/;"	i
+util	tests/17-sim-arch_merge.py	/^import util$/;"	i
+util	tests/18-sim-basic_whitelist.py	/^import util$/;"	i
+util	tests/19-sim-missing_syscalls.py	/^import util$/;"	i
+util	tests/20-live-basic_die.py	/^import util$/;"	i
+util	tests/21-live-basic_allow.py	/^import util$/;"	i
+util	tests/22-sim-basic_chains_array.py	/^import util$/;"	i
+util	tests/23-sim-arch_all_basic.py	/^import util$/;"	i
+util	tests/24-live-arg_allow.py	/^import util$/;"	i
+util	tests/25-sim-multilevel_chains_adv.py	/^import util$/;"	i
+util_action_parse	tests/util.c	/^int util_action_parse(const char *action)$/;"	f
+util_file_write	tests/util.c	/^int util_file_write(const char *path)$/;"	f
+util_filter_output	tests/util.c	/^int util_filter_output(const struct util_options *opts,$/;"	f
+util_getopt	tests/util.c	/^int util_getopt(int argc, char *argv[], struct util_options *opts)$/;"	f
+util_options	tests/util.h	/^struct util_options {$/;"	s
+util_trap_install	tests/util.c	/^int util_trap_install(void)$/;"	f
+valid	src/db.h	/^	bool valid;$/;"	m	struct:db_api_arg
+valid	src/db.h	/^	bool valid;$/;"	m	struct:db_sys_list
+verify_deps	configure	/^function verify_deps() {$/;"	f
+verify_deps	tests/regression	/^function verify_deps() {$/;"	f
+verify_deps	tools/scmp_app_inspector	/^function verify_deps() {$/;"	f
+version	src/python/setup.py	/^	version = os.environ["VERSION_RELEASE"],$/;"	v
+write_file	tests/util.py	/^def write_file(path):$/;"	f
+x32_arg_count_max	src/arch-x32.h	32;"	d
+x32_syscall_resolve_name	src/arch-x32-syscalls.c	/^int x32_syscall_resolve_name(const char *name)$/;"	f
+x32_syscall_resolve_num	src/arch-x32-syscalls.c	/^const char *x32_syscall_resolve_num(int num)$/;"	f
+x86_64_arg_count_max	src/arch-x86_64.h	30;"	d
+x86_64_arg_offset_hi	src/arch-x86_64.h	35;"	d
+x86_64_arg_offset_lo	src/arch-x86_64.h	34;"	d
+x86_64_syscall_resolve_name	src/arch-x86_64-syscalls.c	/^int x86_64_syscall_resolve_name(const char *name)$/;"	f
+x86_64_syscall_resolve_num	src/arch-x86_64-syscalls.c	/^const char *x86_64_syscall_resolve_num(int num)$/;"	f
+x86_64_syscall_table	src/arch-x86_64-syscalls.c	/^const struct arch_syscall_def x86_64_syscall_table[] = \\$/;"	v	typeref:struct:arch_syscall_def
+x86_arg_count_max	src/arch-x86.h	31;"	d
+x86_filter_rewrite	src/arch-x86.c	/^int x86_filter_rewrite(const struct arch_def *arch, bool strict,$/;"	f
+x86_syscall_resolve_name	src/arch-x86-syscalls.c	/^int x86_syscall_resolve_name(const char *name)$/;"	f
+x86_syscall_resolve_num	src/arch-x86-syscalls.c	/^const char *x86_syscall_resolve_num(int num)$/;"	f
+x86_syscall_rewrite	src/arch-x86.c	/^int x86_syscall_rewrite(const struct arch_def *arch, bool strict, int *syscall)$/;"	f
+x86_syscall_table	src/arch-x86-syscalls.c	/^static const struct arch_syscall_def x86_syscall_table[] = \\$/;"	v	typeref:struct:arch_syscall_def	file:

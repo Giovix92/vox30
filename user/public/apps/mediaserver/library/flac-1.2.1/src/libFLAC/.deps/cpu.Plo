@@ -1,0 +1,8 @@
+cpu.lo: cpu.c ../../config.h include/private/cpu.h \
+ /home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/ordinals.h
+
+../../config.h:
+
+include/private/cpu.h:
+
+/home/michael/trunk/user/public/apps/mediaserver/library/flac-1.2.1/src/libFLAC/../../../..//library/flac-1.2.1/include/FLAC/ordinals.h:

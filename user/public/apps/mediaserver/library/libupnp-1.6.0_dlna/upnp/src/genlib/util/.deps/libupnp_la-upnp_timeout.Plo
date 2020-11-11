@@ -1,0 +1,9 @@
+src/genlib/util/libupnp_la-upnp_timeout.lo: \
+ src/genlib/util/upnp_timeout.c src/inc/config.h ../autoconfig.h \
+ src/inc/upnp_timeout.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/upnp_timeout.h:

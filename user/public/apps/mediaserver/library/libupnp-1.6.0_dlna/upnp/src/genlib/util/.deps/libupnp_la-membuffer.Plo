@@ -1,0 +1,24 @@
+src/genlib/util/libupnp_la-membuffer.lo: src/genlib/util/membuffer.c \
+ src/inc/config.h ../autoconfig.h src/inc/membuffer.h src/inc/util.h \
+ ../upnp/inc/upnp.h ../ixml/inc/ixml.h ../upnp/inc/upnpconfig.h \
+ ../upnp/inc/upnpdebug.h ../upnp/inc/upnp.h src/inc/unixutil.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/membuffer.h:
+
+src/inc/util.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+../upnp/inc/upnp.h:
+
+src/inc/unixutil.h:

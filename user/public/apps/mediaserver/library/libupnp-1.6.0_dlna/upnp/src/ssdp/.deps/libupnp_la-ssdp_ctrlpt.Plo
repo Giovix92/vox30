@@ -1,0 +1,77 @@
+src/ssdp/libupnp_la-ssdp_ctrlpt.lo: src/ssdp/ssdp_ctrlpt.c \
+ src/inc/config.h ../autoconfig.h src/inc/util.h ../upnp/inc/upnp.h \
+ ../ixml/inc/ixml.h ../upnp/inc/upnpconfig.h ../upnp/inc/upnpdebug.h \
+ ../upnp/inc/upnp.h src/inc/ssdplib.h src/inc/httpparser.h src/inc/util.h \
+ src/inc/membuffer.h src/inc/uri.h ../threadutil/inc/LinkedList.h \
+ ../threadutil/inc/FreeList.h ../threadutil/inc/ithread.h \
+ src/inc/httpreadwrite.h src/inc/config.h src/inc/sock.h \
+ src/inc/miniserver.h src/inc/upnpapi.h src/inc/client_table.h \
+ src/inc/service_table.h ../threadutil/inc/TimerThread.h \
+ ../threadutil/inc/LinkedList.h ../threadutil/inc/ThreadPool.h \
+ src/inc/upnp_timeout.h ../threadutil/inc/ThreadPool.h \
+ src/inc/httpparser.h src/inc/httpreadwrite.h src/inc/statcodes.h \
+ src/inc/unixutil.h
+
+src/inc/config.h:
+
+../autoconfig.h:
+
+src/inc/util.h:
+
+../upnp/inc/upnp.h:
+
+../ixml/inc/ixml.h:
+
+../upnp/inc/upnpconfig.h:
+
+../upnp/inc/upnpdebug.h:
+
+../upnp/inc/upnp.h:
+
+src/inc/ssdplib.h:
+
+src/inc/httpparser.h:
+
+src/inc/util.h:
+
+src/inc/membuffer.h:
+
+src/inc/uri.h:
+
+../threadutil/inc/LinkedList.h:
+
+../threadutil/inc/FreeList.h:
+
+../threadutil/inc/ithread.h:
+
+src/inc/httpreadwrite.h:
+
+src/inc/config.h:
+
+src/inc/sock.h:
+
+src/inc/miniserver.h:
+
+src/inc/upnpapi.h:
+
+src/inc/client_table.h:
+
+src/inc/service_table.h:
+
+../threadutil/inc/TimerThread.h:
+
+../threadutil/inc/LinkedList.h:
+
+../threadutil/inc/ThreadPool.h:
+
+src/inc/upnp_timeout.h:
+
+../threadutil/inc/ThreadPool.h:
+
+src/inc/httpparser.h:
+
+src/inc/httpreadwrite.h:
+
+src/inc/statcodes.h:
+
+src/inc/unixutil.h:

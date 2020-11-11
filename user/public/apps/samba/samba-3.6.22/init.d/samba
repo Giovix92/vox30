@@ -1,0 +1,53 @@
+#!/bin/sh /etc/rc.common
+
+START=6
+USE_PROCD=1
+SERVICE_DAEMONIZE=1
+get_value()
+{
+enable=$(ubus call v1.DataModel get {\"object\":[\"$1\"]} | grep 1);
+if [[ "$enable" == "" ]]
+then
+return 0
+else
+return 1
+fi
+}
+
+service_triggers() {
+        procd_open_trigger
+       	procd_add_event_trigger Services.Local.Media.SMB 1000 /etc/init.d/samba restart
+       	procd_add_event_trigger Interfaces.Physical.Data.USB 1000 /etc/init.d/samba restart
+       	procd_close_trigger
+}
+                        
+start_service() {
+	get_value InternetGatewayDevice.Services.StorageService.1.Enable
+	enable=$?
+	if [ $enable != "1" ]
+	then
+	return
+	fi
+	
+	get_value InternetGatewayDevice.Services.StorageService.1.NetworkServer.SMBEnable
+	enable=$?
+	if [ $enable != "1" ]
+	then
+	return
+	fi
+#generate smb.conf	
+	/etc/init.d/samba.lua
+	procd_open_instance smbd
+	procd_set_param command /usr/sbin/smbd -D -P 19
+    	procd_close_instance
+	procd_open_instance nmbd
+	procd_set_param command /usr/sbin/nmbd -D -P 19
+    	procd_close_instance
+}
+
+stop_service() {
+        service_stop /usr/sbin/smbd;
+        service_stop /usr/sbin/nmbd;
+	rm -r /var/samba;
+}
+

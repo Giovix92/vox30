@@ -1,0 +1,20 @@
+#ifndef _SPEEDTEST_SERVERS_
+#define _SPEEDTEST_SERVERS_
+
+typedef struct speedtestServer
+{
+	char *url;
+	float lat;
+	float lon;
+	char *name;
+	char *country;
+	char *sponsor;
+	long distance;
+
+} SPEEDTESTSERVER_T;
+SPEEDTESTSERVER_T **getServers(int *serverCount, const char *infraUrl);
+char *getServerDownloadUrl(char *serverUrl);
+#ifdef CONFIG_SUPPORT_WEBAPI
+extern char *server_url;
+#endif
+#endif

@@ -1,0 +1,51 @@
+Open Source Guide for VOX30 v213
+Vodafone Entry Level Router
+
+======================================================================
+
+1. Platform Requirement:
+    This GPL code has been tested in Fedora 12 (32bits)
+
+----------------------------------------------------------------------
+
+2. Permission Requirement:
+    Don't use root account for following steps
+
+----------------------------------------------------------------------
+
+3. Install related packages:
+    (a). yum install gcc-c++ flex msgfmt texinfo gettext?patch bison gdb ncurses-devel zlib-devel lzo-devel uuid-devel libuuid-devel perl perl-CPAN automake autoconf cmake
+    (b). libcrypto.so.1.0.0 is need for create the FW img file
+
+----------------------------------------------------------------------
+
+4. Set up build environment:
+    (a). sudo dpkg-reconfigure dash (choose NO)
+    (b). if dash, change to bash
+
+----------------------------------------------------------------------
+
+5. Compile steps for toolchain:
+    (a). Unpack GPL package
+    (b). Mkdir toolchain dir /opt/toolchains
+    (c). Change current directory into build directory
+    (d). make toolchain_prep
+    (e). the toolchain will be auto compiled when run make GPL=1 in the build direcrory
+    (f). When compiled success, just have samba ipk
+
+----------------------------------------------------------------------
+
+6. Compile steps for firmware:
+    (a). Change current directory into build directory
+    (b). Run make GPL=1
+
+----------------------------------------------------------------------
+
+7. Samba ipk file path
+    (a). Get samba_3.6.22_arm.ipk in ./build/ipk/ipk/samba_3.6.22_arm.ipk
+
+----------------------------------------------------------------------
+
+8. Additional Information:
+    (a). Samba Upgrade method in ./doc/UpgradeSambaPackage.txt
+

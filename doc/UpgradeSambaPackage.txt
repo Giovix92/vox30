@@ -1,0 +1,70 @@
+This guiid is used for end user to upgrade Samba package to other GPL versions.
+Complete steps includes:
+    1. Build your Samba binary into a .ipk package
+    2. Sign .ipk package for passing VOX's security check
+    3. Upgrade Samba package from U-Disk
+
+* Build your Samba binary into a .ipk package
+Generally, Samba package includes several binaries: smbd,nmbd...
+For building Samba package, firstly you need to build out these binaries.
+Secondly you need to write start/stop script for Samba, the format is OpenWRT init script, for example:
+                #!/bin/sh /etc/rc.common
+  
+                START=50
+                STOP=50
+                start() {
+                    mkdir -m 0755 -p /var/run/helloworld
+                    service_start /usr/sbin/helloworld
+                    }
+                
+                stop() {
+                    service_stop /usr/sbin/helloworld
+                    }
+##Notice: This script must be installed under /etc/init.d/.
+At last, binaries are ready, script is ready, you need to write a Makefile to install binaries and script, pack to .ipk, So you need to define package name, version, filename,..., write install command, and then make.
+here is a example:
+    
+    PKG_NAME:=samba
+    VERSION:=4.0.0
+    SECTION:=utils
+    define Package/$(PKG_NAME)/description
+    endef
+    define Build/Prepare
+    endef
+
+    define Build/Configure
+    endef
+
+    define Build/Compile
+    endef
+
+    # Install file list
+    define Package/$(PKG_NAME)/install
+    $(INSTALL_DIR) $(1)/usr/ ;\
+    $(INSTALL_DIR) $(1)/usr/sbin ;\
+    $(INSTALL_BIN) smbd $(1)/usr/sbin/smbd; \
+    $(INSTALL_DIR) $(1)/etc ;\
+    $(INSTALL_DIR) $(1)/etc/init.d ;\
+    $(INSTALL_CONF) samba $(1)/etc/init.d/ ;
+    endef
+    define Package/$(PKG_NAME)/conffiles
+    endef
+    include $(BUILDPATH)/include/buildpackage.mk
+
+    buildipk:
+	    $(BuildTargetipkg)
+##Notice: <PKG_NAME> must be samba, <VERSION> must newer that 3.6.22.
+Suppose you put all binaries, script and Makefile on build/samba. then please enter build/ and all a rule "make -C samba" to build/Makefile, and make the target,then you can find .ipk package in build/ipk/ipk and package details on build/ipk/package_arm/. For example:
+Add below to build/Makefile:
+x:
+	make -C samba
+then run "make x" under build/, you can find ipk under build/ipk/ipk.
+* Sign .ipk package for passing VOX's security check
+There is a script to sign "signipk" under build/include,Rename samba_version_arm.ipk to 'Packages', run command "./signpackages", then a "checksum.sig" will be generated, then rename 'Package' to 'samba_version_arm.ipk',rename 'checksum.sig' to samba_version_arm.sig. If your samba version not change.you need rename samba_version_arm.ipk to samba_version_arm.rar. Then unzip it.You will find control.tar.gz. Unzip control.tar.gz. You will find a file "control". Open file, change version bigger than 3.6.22.Restore it. Then sign it to generate new checksum.sig. please rename it to the same name with samba package. If package name is samba_4.0.0_arm.ipk, then sig file should be samba_4.0.0_arm.sig. 
+
+* Upgrade Samba package from U-Disk
+Cope the samba_VERSION_arm.ipk and samba_VERSION_arm.sig to U-Disk
+Insert U-Disk to VOX'USB port
+Check Web GUI Samba service is close
+Push Wi-Fi button and WPS button together,it will be upgrade
+

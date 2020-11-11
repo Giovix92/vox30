@@ -1,0 +1,120 @@
+/*
+ * Broadcom BCM63138 Reference Board DTS
+ */
+
+#include "bcm_963xx_template.dtsi"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+#define GIC_CPUI_BASE	0x8001e100
+#define GIC_DIST_BASE	0x8001f000
+
+#define PMU_CORE0_SPI	8
+#define PMU_CORE1_SPI	9
+
+/ {
+	compatible = "brcm,bcm963138";
+	model = "Broadcom BCM963138";
+	interrupt-parent = <&gic>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		CPU_0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+		};
+
+		CPU_1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+		};
+	};
+
+	gic: interrupt-controller@80000000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <GIC_DIST_BASE 0x1000>,
+		      <GIC_CPUI_BASE 0x0100>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_SPI PMU_CORE0_SPI IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI PMU_CORE1_SPI IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU_0>,
+				     <&CPU_1>;
+	};
+
+#if defined (CONFIG_BCM_ASTRA)
+	psci {
+		compatible	= "arm,psci";
+		method		= "smc";
+		cpu_off		= <1>;
+		cpu_on		= <2>;
+	};
+#endif
+
+	/* increase coherent_pool size for ARM-based chip */
+	chosen {
+		bootargs = "console=ttyS0,115200 debug irqaffinity=0 coherent_pool=1M cpuidle_sysfs_switch";
+	};
+
+	/* ARM bus */
+	axi@80018000 {
+		compatible = "simple-bus";
+		ranges = <0 0x80018000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		L2: cache-controller@5000 {
+			compatible = "arm,pl310-cache";
+			reg = <0x5000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
+		};
+	};
+
+	/* Legacy UBUS base */
+	ubus@fffe8000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xfffe8000 0x8000>;
+
+		nand@2000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,nand-bcm63xx", "brcm,brcmnand-v7.0";
+			reg = <0x2000 0x600>, <0xf0 0x10>;
+			reg-names = "nand", "nand-int-base";
+			status = "okay";
+
+			nandcs@0 {
+				compatible = "brcm,nandcs";
+				reg = <0>;
+				nand-on-flash-bbt;
+			};
+
+		};
+
+		watchdog@a8 {
+			compatible = "brcm,bcm96xxx-wdt";
+			reg = <0xa8 0x10>;
+			timeout-sec = <80>;
+		};
+	};
+
+	sdhci: sdhci@fffec000 {
+		compatible = "brcm,bcm63xx-sdhci";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0xfffec000 0x100>;
+		bus-width = <8>;
+		non-removable;
+	};
+};

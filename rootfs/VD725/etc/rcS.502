@@ -1,0 +1,138 @@
+#!/bin/sh
+
+export PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/lib:/usr/lib
+export EXECENV_INDEX=BaseSystem
+UTC=yes
+
+# This script runs when init it run during the boot process.
+# Mounts everything in the fstab
+
+mount -n -t proc proc /proc
+mount -n -t sysfs sysfs /sys
+mount -n -t ramfs ramfs /var
+mount -n -t ramfs ramfs /tmp
+mount -n -t ramfs ramfs /mnt
+mount -n -t devpts devpts /dev/pts
+mount -t debugfs debugfs /sys/kernel/debug/
+
+# build var directories
+chmod 777 /var
+chmod 777 /tmp
+/bin/mkdir -m 0777 /tmp/www-app
+/bin/mkdir -m 0777 /tmp/dev
+/bin/mkdir -m 0777 /tmp/var
+/bin/mkdir -m 0777 /tmp/var/run
+/bin/mkdir -m 0777 /tmp/fw_info
+/bin/mkdir -m 0777 /tmp/tr069_info
+/bin/mkdir -m 0777 /tmp/igmp
+/bin/mkdir -m 0777 /tmp/sal
+/bin/mkdir -m 0777 /tmp/4
+/bin/mkdir -m 0777 /var/lock
+/bin/mkdir -m 0777 /var/log
+/bin/mkdir -m 0777 /var/run
+/bin/mkdir -m 0777 /var/tmp
+/bin/mkdir -m 0777 /var/ppp
+/bin/mkdir -m 0777 /var/iproute2
+/bin/mkdir -m 0777 /var/voice
+/bin/mkdir -m 0777 /var/ubus
+/bin/mkdir -m 0777 /mnt/0
+/bin/mkdir -m 0777 /mnt/1
+/bin/mkdir -m 0777 /mnt/2
+/bin/mkdir -m 0777 /mnt/3
+/bin/mkdir -m 0777 /mnt/shares
+mount -n -t jffs2 /dev/mtdblock10 /mnt/0
+mount -n -t jffs2 /dev/mtdblock11 /mnt/1
+mount -n -t jffs2 -o rw /dev/mtdblock5 /mnt/2
+fw_version=$(/bin/cat /etc/pid | /usr/bin/cut -b 101-104)
+if [ 3600 -gt ${fw_version} ];then
+mount -n -t jffs2 -o rw /dev/mtdblock9 /mnt/3
+else
+/sbin/insmod /lib/modules/lzo_compress.ko
+/sbin/insmod /lib/modules/lzo_decompress.ko
+/sbin/insmod /lib/modules/lzo.ko
+/sbin/insmod /lib/modules/deflate.ko
+/sbin/insmod /lib/modules/zlib.ko
+/sbin/insmod /lib/modules/ubi.ko mtd=/dev/mtd9
+/sbin/insmod /lib/modules/ubifs.ko
+mount -t ubifs ubi:package /mnt/3
+fi
+/usr/sbin/install_properties -d 10 -p /mnt/0
+/usr/sbin/install_properties -d 11 -p /mnt/1
+/usr/sbin/install_properties -d 5 -p /mnt/2
+if [ 3600 -gt ${fw_version} ];then
+/usr/sbin/install_properties -d 9 -p /mnt/3
+fi
+ln -s /mnt/2 /tmp/sc_data_jffs2
+
+
+/usr/bin/taskset 2 /usr/sbin/watchdog &
+if [ -f "/mnt/2/bcm43602_nvramvars.bin" ];then
+/bin/ln -sf /mnt/2/bcm43602_nvramvars.bin /tmp/bcm43602_nvramvars.bin
+else
+/bin/ln -sf /etc/wlan/bcm43602_nvramvars.bak.bin /tmp/bcm43602_nvramvars.bin
+fi
+if [ -f "/mnt/2/bcm43664_nvramvars.bin" ];then
+/bin/ln -sf /mnt/2/bcm43664_nvramvars.bin /tmp/bcm43664_nvramvars.bin
+else
+/bin/ln -sf /etc/wlan/bcm43664_nvramvars.bak.bin /tmp/bcm43664_nvramvars.bin
+fi
+
+echo 524288 > /proc/sys/net/core/wmem_default
+echo 524288 > /proc/sys/net/core/wmem_max
+echo 524288 > /proc/sys/net/core/rmem_default
+echo 524288 > /proc/sys/net/core/rmem_max
+
+#->brcm 
+ifconfig lo 127.0.0.1 netmask 255.0.0.0 broadcast 127.255.255.255 up
+#RDPA
+/sbin/insmod /lib/modules/bdmf.ko bdmf_chrdev_major=3021
+/sbin/insmod /lib/modules/rdpa_gpl.ko
+/sbin/insmod /lib/modules/rdpa_gpl_ext.ko 
+/sbin/insmod /lib/modules/rdpa.ko
+/sbin/insmod /lib/modules/rdpa_mw.ko
+
+/sbin/insmod /lib/modules/chipinfo.ko
+/sbin/insmod /lib/modules/bcmxtmrtdrv.ko
+/sbin/insmod /lib/modules/pktflow.ko 
+/sbin/insmod /lib/modules/bcmxtmcfg.ko
+/sbin/insmod /lib/modules/adsldd.ko
+/sbin/insmod /lib/modules/bcm_enet.ko
+
+/sbin/insmod /lib/modules/pktrunner.ko
+/sbin/insmod /lib/modules/nciTMSkmod.ko
+
+/sbin/insmod /lib/modules/bcmvlan.ko
+/sbin/insmod /lib/modules/otp.ko
+/sbin/insmod /lib/modules/pwrmngtd.ko
+/sbin/insmod /lib/modules/endpointdd.ko
+/sbin/insmod /lib/modules/ebt_sc_mark.ko
+/sbin/insmod /lib/modules/event_forwarder.ko
+/sbin/insmod /lib/modules/wlcsm.ko
+/sbin/insmod /lib/modules/wfd.ko
+/sbin/insmod /lib/modules/wlemf.ko
+/sbin/insmod /lib/modules/gre.ko
+/sbin/insmod /lib/modules/ip_gre.ko
+/sbin/insmod /lib/modules/pptp.ko
+/sbin/insmod /lib/modules/pcmshim.ko
+/sbin/insmod /lib/modules/dhd.ko  firmware_path=/etc/wlan/dhd mfg_firmware_path=/etc/wlan/dhd/mfg  dhd_dpc_prio=5  iface_name=wl  dhd_console_ms=0
+
+#usb related module
+#/sbin/insmod /lib/modules/ohci-hcd.ko
+#/sbin/insmod /lib/modules/uhci-hcd.ko
+#/sbin/insmod /lib/modules/xhci-hcd.ko
+#/sbin/insmod /lib/modules/ehci-hcd.ko
+#/sbin/insmod /lib/modules/bcm63xx_usb.ko
+#/sbin/insmod /lib/modules/usblp.ko
+/sbin/insmod /lib/modules/rdpa_cmd.ko
+/sbin/insmod /lib/modules/bcm_ingqos.ko
+/sbin/insmod /lib/modules/dsphal.ko
+/sbin/insmod /lib/modules/slicslac.ko
+
+swmdk &
+#<-brcm 
+/sbin/insmod /lib/modules/sc_drv.ko sc_drv_major=196
+/sbin/insmod /lib/modules/sc_sfp.ko
+/sbin/insmod /lib/modules/nulldev.ko
+/usr/sbin/rc init
+

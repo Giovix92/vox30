@@ -1,0 +1,9 @@
+#
+#	$Id: inittab,v 1.2 2006/04/27 21:40:03 jwessel Exp $
+#
+# Busybox's init uses a different syntax then the normal init.
+# The "-" in -/bin/sh allows job control on /dev/console.
+#
+::sysinit:/etc/rcS
+::respawn:/sbin/getty ttyS0 115200
+::restart:/sbin/init

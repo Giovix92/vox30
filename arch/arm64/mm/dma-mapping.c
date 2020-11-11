@@ -161,6 +161,19 @@ static void *__dma_alloc(struct device *dev, size_t size,
 	if (!ptr)
 		goto no_mem;
 
+#if defined(CONFIG_BCM_KF_COHERENT_OUTER_SHARED) && defined(CONFIG_BCM_COHERENT_OUTER_SHARED)
+	if (coherent)
+	{
+	    /* remove any dirty cache lines on the kernel alias */
+	    __dma_flush_range(ptr, ptr + size);
+
+	    /*Yoni Itah: in case of coherent Need to remap to normal memory, cacheable outer sharable*/
+        ptr = dma_common_contiguous_remap(virt_to_page((void*)ptr), size, VM_USERMAP,
+                                    __pgprot(PROT_OUTER_SHARABLE),
+                                    NULL);
+        return ptr;
+	}
+#endif
 	/* no need for non-cacheable mapping if coherent */
 	if (coherent)
 		return ptr;

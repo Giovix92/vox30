@@ -451,6 +451,58 @@ void __init set_smp_cross_call(void (*fn)(const struct cpumask *, unsigned int))
 		__smp_cross_call = fn;
 }
 
+#if defined(CONFIG_BCM_ASTRA) && defined(CONFIG_BCM_KF_ASTRA)
+struct ipi {
+	const char *desc;
+	void (*handler)(void);
+};
+ 
+#define IPI_DESC_STRING_IPI_WAKEUP "CPU wakeup interrupts"
+#define IPI_DESC_STRING_IPI_TIMER "Timer broadcast interrupts"
+#define IPI_DESC_STRING_IPI_RESCHEDULE "Rescheduling interrupts"
+#define IPI_DESC_STRING_IPI_CALL_FUNC "Function call interrupts"
+#define IPI_DESC_STRING_IPI_CALL_FUNC_SINGLE "Single function call interrupts"
+#define IPI_DESC_STRING_IPI_CPU_STOP "CPU stop interrupts"
+#define IPI_DESC_STRING_IPI_IRQ_WORK "IRQ work interrupts"
+#define IPI_DESC_STRING_IPI_COMPLETION "completion interrupts"
+
+#define IPI_DESC_STR(x) IPI_DESC_STRING_ ## x
+
+static struct ipi ipi_types[NR_IPI] = {
+#define S(x, f)	[x].desc = IPI_DESC_STR(x), [x].handler = f
+	S(IPI_WAKEUP, NULL),
+	S(IPI_TIMER, NULL),
+	S(IPI_RESCHEDULE, NULL),
+	S(IPI_CALL_FUNC, NULL),
+	S(IPI_CALL_FUNC_SINGLE, NULL),
+	S(IPI_CPU_STOP, NULL),
+	S(IPI_IRQ_WORK, NULL),
+	S(IPI_COMPLETION, NULL),
+};
+
+static void smp_cross_call(const struct cpumask *target, unsigned int ipinr)
+{
+	trace_ipi_raise(target, ipi_types[ipinr].desc);
+	__smp_cross_call(target, ipinr);
+}
+
+void show_ipi_list(struct seq_file *p, int prec)
+{
+	unsigned int cpu, i;
+ 
+	for (i = 0; i < NR_IPI; i++) {
+		if (ipi_types[i].desc) {
+			seq_printf(p, "%*s%u: ", prec - 1, "IPI", i);
+
+			for_each_online_cpu(cpu)
+				seq_printf(p, "%10u ",
+					   __get_irq_stat(cpu, ipi_irqs[i]));
+
+			seq_printf(p, " %s\n", ipi_types[i].desc);
+		}
+	}
+}
+#else
 static const char *ipi_types[NR_IPI] __tracepoint_string = {
 #define S(x,s)	[x] = s
 	S(IPI_WAKEUP, "CPU wakeup interrupts"),
@@ -483,6 +535,7 @@ void show_ipi_list(struct seq_file *p, int prec)
 		seq_printf(p, " %s\n", ipi_types[i]);
 	}
 }
+#endif
 
 u64 smp_irq_stat_cpu(unsigned int cpu)
 {
@@ -575,10 +628,17 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 	unsigned int cpu = smp_processor_id();
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
+#if defined(CONFIG_BCM_ASTRA) && defined(CONFIG_BCM_KF_ASTRA)
+	if ((unsigned)ipinr < NR_IPI) {
+		trace_ipi_entry_rcuidle(ipi_types[ipinr].desc);
+		__inc_irq_stat(cpu, ipi_irqs[ipinr]);
+	}
+#else
 	if ((unsigned)ipinr < NR_IPI) {
 		trace_ipi_entry_rcuidle(ipi_types[ipinr]);
 		__inc_irq_stat(cpu, ipi_irqs[ipinr]);
 	}
+#endif   
 
 	switch (ipinr) {
 	case IPI_WAKEUP:
@@ -629,15 +689,78 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	default:
+#if defined(CONFIG_BCM_ASTRA) && defined(CONFIG_BCM_KF_ASTRA)
+		if (ipi_types[ipinr].handler) {
+			irq_enter();
+			(*ipi_types[ipinr].handler)();
+			irq_exit();
+		}
+		else
+#endif
 		pr_crit("CPU%u: Unknown IPI message 0x%x\n",
 		        cpu, ipinr);
 		break;
 	}
 
+#if defined(CONFIG_BCM_ASTRA) && defined(CONFIG_BCM_KF_ASTRA)
+	if ((unsigned)ipinr < NR_IPI)
+		trace_ipi_exit_rcuidle(ipi_types[ipinr].desc);
+#else
 	if ((unsigned)ipinr < NR_IPI)
 		trace_ipi_exit_rcuidle(ipi_types[ipinr]);
+#endif
 	set_irq_regs(old_regs);
 }
+
+#if defined(CONFIG_BCM_ASTRA) && defined(CONFIG_BCM_KF_ASTRA)
+/*
+ * set_ipi_handler:
+ * Interface provided for a kernel module to specify an IPI handler function.
+ */
+int set_ipi_handler(int ipinr, void *handler, char *desc)
+{
+	unsigned int cpu = smp_processor_id();
+
+	/* make sure index is within range and don't allow
+	   first 8 Linux handlers to be changed */
+	if ( (ipinr < 8) || (ipinr > (NR_IPI - 1)) )
+	{
+		return -1;
+	}
+
+
+	if (ipi_types[ipinr].handler) {
+		pr_crit("CPU%u: IPI handler 0x%x already registered to %pf\n",
+			cpu, ipinr, ipi_types[ipinr].handler);
+		return -1;
+	}
+
+	ipi_types[ipinr].handler = handler;
+	ipi_types[ipinr].desc = desc;
+
+	return 0;
+}
+EXPORT_SYMBOL(set_ipi_handler);
+
+/*
+ * clear_ipi_handler:
+ * Interface provided for a kernel module to clear an IPI handler function.
+ */
+int clear_ipi_handler(int ipinr)
+{
+	/* make sure index is within range and don't allow
+	   first 8 Linux handlers to be changed */
+	if ( (ipinr < 8) || (ipinr > (NR_IPI - 1)) )
+	{
+		return -1;
+	}
+
+	ipi_types[ipinr].handler = NULL;
+	ipi_types[ipinr].desc = NULL;
+	return 0;
+}
+EXPORT_SYMBOL(clear_ipi_handler);
+#endif
 
 void smp_send_reschedule(int cpu)
 {

@@ -145,7 +145,9 @@ struct in_addr {
 #define MCAST_MSFILTER			48
 #define IP_MULTICAST_ALL		49
 #define IP_UNICAST_IF			50
-
+#ifdef __SC_BUILD__
+#define IP_MSFILTER_X                   51
+#endif
 #define MCAST_EXCLUDE	0
 #define MCAST_INCLUDE	1
 
@@ -171,6 +173,21 @@ struct ip_mreq_source {
 	__be32		imr_interface;
 	__be32		imr_sourceaddr;
 };
+#ifdef __SC_BUILD__
+struct ip_msfilter_x {
+    __be32      imsf_multiaddr;
+    __be32      imsf_interface;
+    __be32          imsf_ifindex;
+    __u32       imsf_fmode;
+    __u32       imsf_numsrc;
+    __be32      imsf_slist[1];
+
+};
+#define IP_MSFILTER_X_SIZE(numsrc) \
+    (sizeof(struct ip_msfilter_x) - sizeof(__u32) \
+     + (numsrc) * sizeof(__u32))
+
+#endif
 
 struct ip_msfilter {
 	__be32		imsf_multiaddr;

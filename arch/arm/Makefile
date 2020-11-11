@@ -129,6 +129,25 @@ endif
 KBUILD_CFLAGS	+=$(CFLAGS_ABI) $(CFLAGS_ISA) $(arch-y) $(tune-y) $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,)) -msoft-float -Uarm
 KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_ISA) $(arch-y) $(tune-y) -include asm/unified.h -msoft-float
 
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+# Copy from bigisland's Makefile, but most likely it does apply to BCM63138
+# ifeq ($(CONFIG_VFP),y)
+# ifeq ($(CONFIG_VFPv3),y)
+# # v3 vfp
+# KBUILD_CFLAGS	+=-mfpu=vfp3 -mfloat-abi=softfp
+# KBUILD_AFLAGS	+=-mfpu=vfp3 -mfloat-abi=softfp 
+# else
+# #non-v3 vfp
+# KBUILD_CFLAGS	+=-mfloat-abi=softfp
+# KBUILD_AFLAGS	+=-mfloat-abi=softfp
+# endif
+# else
+# #no vfp
+# KBUILD_CFLAGS	+=-mfloat-abi=soft
+# KBUILD_AFLAGS	+=-mfloat-abi=soft
+# endif
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
+
 CHECKFLAGS	+= -D__arm__
 
 #Default value
@@ -154,6 +173,9 @@ machine-$(CONFIG_ARCH_ALPINE)		+= alpine
 machine-$(CONFIG_ARCH_AT91)		+= at91
 machine-$(CONFIG_ARCH_AXXIA)		+= axxia
 machine-$(CONFIG_ARCH_BCM)		+= bcm
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+machine-$(CONFIG_ARCH_BCM63XX)		:= bcm963xx
+endif # BCM_KF
 machine-$(CONFIG_ARCH_BERLIN)		+= berlin
 machine-$(CONFIG_ARCH_CLPS711X)		+= clps711x
 machine-$(CONFIG_ARCH_CNS3XXX)		+= cns3xxx
@@ -217,6 +239,9 @@ machine-$(CONFIG_PLAT_SPEAR)		+= spear
 
 # Platform directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+plat-$(CONFIG_ARCH_BCM63XX)	:= bcm63xx
+endif # BCM_KF
 plat-$(CONFIG_ARCH_EXYNOS)	+= samsung
 plat-$(CONFIG_ARCH_OMAP)	+= omap
 plat-$(CONFIG_ARCH_S3C64XX)	+= samsung

@@ -185,6 +185,9 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 #ifdef CONFIG_ZONE_DMA32
 	 256,
 #endif
+#if defined(CONFIG_BCM_KF_ARM_BCM963XX) && defined(CONFIG_BCM_ZONE_ACP)
+	 1,
+#endif
 #ifdef CONFIG_HIGHMEM
 	 32,
 #endif
@@ -199,6 +202,9 @@ static char * const zone_names[MAX_NR_ZONES] = {
 #endif
 #ifdef CONFIG_ZONE_DMA32
 	 "DMA32",
+#endif
+#if defined(CONFIG_BCM_KF_ARM_BCM963XX) && defined(CONFIG_BCM_ZONE_ACP)
+	 "ACP",
 #endif
 	 "Normal",
 #ifdef CONFIG_HIGHMEM
@@ -5908,7 +5914,11 @@ int __meminit init_per_zone_wmark_min(void)
 	int new_min_free_kbytes;
 
 	lowmem_kbytes = nr_free_buffer_pages() * (PAGE_SIZE >> 10);
+#ifdef __SC_BUILD__
+	new_min_free_kbytes = int_sqrt(lowmem_kbytes * 16) *4;
+#else
 	new_min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
+#endif
 
 	if (new_min_free_kbytes > user_min_free_kbytes) {
 		min_free_kbytes = new_min_free_kbytes;

@@ -76,13 +76,21 @@ static void dump_arp_packet(struct nf_log_buf *m,
 	nf_log_buf_add(m, " MACSRC=%pM IPSRC=%pI4 MACDST=%pM IPDST=%pI4",
 		       ap->mac_src, ap->ip_src, ap->mac_dst, ap->ip_dst);
 }
-
+#ifdef __SC_BUILD__
+static void nf_log_arp_packet(struct net *net, u_int8_t pf,
+			      unsigned int hooknum, const struct sk_buff *skb,
+			      const struct net_device *in,
+			      const struct net_device *out,
+			      const struct nf_loginfo *loginfo,
+			      const char *prefix, const char * suffix)
+#else
 static void nf_log_arp_packet(struct net *net, u_int8_t pf,
 			      unsigned int hooknum, const struct sk_buff *skb,
 			      const struct net_device *in,
 			      const struct net_device *out,
 			      const struct nf_loginfo *loginfo,
 			      const char *prefix)
+#endif
 {
 	struct nf_log_buf *m;
 
@@ -95,8 +103,13 @@ static void nf_log_arp_packet(struct net *net, u_int8_t pf,
 	if (!loginfo)
 		loginfo = &default_loginfo;
 
+#ifdef __SC_BUILD__
+	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out, loginfo,
+				  prefix, suffix);
+#else
 	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out, loginfo,
 				  prefix);
+#endif
 	dump_arp_packet(m, loginfo, skb, 0);
 
 	nf_log_buf_close(m);

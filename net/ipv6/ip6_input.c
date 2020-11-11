@@ -45,7 +45,41 @@
 #include <net/addrconf.h>
 #include <net/xfrm.h>
 #include <net/inet_ecn.h>
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+#include <sc/sc_spi.h>
+#endif
+#endif
+#ifdef __SC_BUILD__
+static inline int isDeprecatedAddr(const struct in6_addr *addr, struct net_device *dev)
+{
+	struct inet6_dev *idev;
+	struct inet6_ifaddr *ifa;
+	int onlink, deprecate_prefix;
 
+	onlink = 0;
+	deprecate_prefix = 0;
+	rcu_read_lock();
+	idev = __in6_dev_get(dev);
+	if (idev) {
+		read_lock_bh(&idev->lock);
+            list_for_each_entry(ifa, &idev->addr_list, if_list) { // west
+			onlink = ipv6_prefix_equal(addr, &ifa->addr,
+					ifa->prefix_len);
+			if (onlink) {
+				if (ifa->prefered_lft == 0 &&
+					ifa->flags == IFA_F_DEPRECATED) {
+					deprecate_prefix = 1;
+				}
+				break;
+			}
+		}
+		read_unlock_bh(&idev->lock);
+	}
+	rcu_read_unlock();
+	return deprecate_prefix;
+}
+#endif
 int ip6_rcv_finish(struct sock *sk, struct sk_buff *skb)
 {
 	if (sysctl_ip_early_demux && !skb_dst(skb) && skb->sk == NULL) {
@@ -107,7 +141,13 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	if (hdr->version != 6)
 		goto err;
-
+#ifdef __SC_BUILD__
+	if (isDeprecatedAddr(&hdr->saddr, skb->dev)) {
+		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_POLICY_FAIL,
+				0);
+		goto err;
+	}
+#endif
 	IP6_ADD_STATS_BH(dev_net(dev), idev,
 			 IPSTATS_MIB_NOECTPKTS +
 				(ipv6_get_dsfield(hdr) & INET_ECN_MASK),
@@ -176,7 +216,14 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 			return NET_RX_DROP;
 		}
 	}
-
+#if defined(__SC_BUILD__) && defined(CONFIG_SUPPORT_SPI_FIREWALL)
+	if(/*spi_fun_switch_on  && spi_enable && */
+		sc_packet_ip_check_hook)
+	{
+		if(sc_packet_ip_check_hook(skb, PF_INET6) == NF_DROP)
+			goto drop;
+	}
+#endif
 	rcu_read_unlock();
 
 	/* Must drop socket now because of tproxy. */
@@ -226,7 +273,10 @@ resubmit:
 
 		if (ipprot->flags & INET6_PROTO_FINAL) {
 			const struct ipv6hdr *hdr;
-
+#if defined(CONFIG_MIPS_BCM963XX) && defined(CONFIG_BCM_KF_UNALIGNED_EXCEPTION)
+			struct in6_addr srcAddr;
+			struct in6_addr dstAddr;
+#endif
 			/* Free reference early: we don't need it any more,
 			   and it may hold ip_conntrack module loaded
 			   indefinitely. */
@@ -235,11 +285,21 @@ resubmit:
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));
 			hdr = ipv6_hdr(skb);
+#if defined(CONFIG_MIPS_BCM963XX) && defined(CONFIG_BCM_KF_UNALIGNED_EXCEPTION)
+			memcpy(&srcAddr, &hdr->saddr, sizeof(struct in6_addr));
+			memcpy(&dstAddr, &hdr->daddr, sizeof(struct in6_addr));
+			if (ipv6_addr_is_multicast(&dstAddr) &&
+			    !ipv6_chk_mcast_addr(skb->dev, &dstAddr,
+			    &srcAddr) &&
+			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb)))
+				goto discard;
+#else
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&
 			    !ipv6_chk_mcast_addr(skb->dev, &hdr->daddr,
 			    &hdr->saddr) &&
 			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb)))
 				goto discard;
+#endif
 		}
 		if (!(ipprot->flags & INET6_PROTO_NOPOLICY) &&
 		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
@@ -286,20 +346,32 @@ int ip6_mc_input(struct sk_buff *skb)
 {
 	const struct ipv6hdr *hdr;
 	bool deliver;
+#if defined(CONFIG_MIPS_BCM963XX) && defined(CONFIG_BCM_KF_UNALIGNED_EXCEPTION)
+	struct in6_addr dAddr;
+#endif
 
 	IP6_UPD_PO_STATS_BH(dev_net(skb_dst(skb)->dev),
 			 ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_INMCAST,
 			 skb->len);
 
 	hdr = ipv6_hdr(skb);
+#if defined(CONFIG_MIPS_BCM963XX) && defined(CONFIG_BCM_KF_UNALIGNED_EXCEPTION)
+	memcpy(&dAddr, &hdr->daddr, sizeof(struct in6_addr));
+	deliver = ipv6_chk_mcast_addr(skb->dev, &dAddr, NULL);
+#else
 	deliver = ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, NULL);
+#endif
 
 #ifdef CONFIG_IPV6_MROUTE
 	/*
 	 *      IPv6 multicast router mode is now supported ;)
 	 */
 	if (dev_net(skb->dev)->ipv6.devconf_all->mc_forwarding &&
+#if defined(CONFIG_MIPS_BCM963XX) && defined(CONFIG_BCM_KF_UNALIGNED_EXCEPTION)
+	    !(ipv6_addr_type(&dAddr) &
+#else
 	    !(ipv6_addr_type(&hdr->daddr) &
+#endif
 	      (IPV6_ADDR_LOOPBACK|IPV6_ADDR_LINKLOCAL)) &&
 	    likely(!(IP6CB(skb)->flags & IP6SKB_FORWARDED))) {
 		/*

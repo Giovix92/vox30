@@ -49,6 +49,13 @@
 #include <linux/netfilter_ipv4.h>
 #include <net/inet_ecn.h>
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+#include <sc/sc_spi.h>
+#include <linux/slog.h>
+#endif
+#include <net/netfilter/nf_conntrack_tuple.h>
+#endif
 /* NOTE. Logic of IP defragmentation is parallel to corresponding IPv6
  * code now. If you change something here, _PLEASE_ update ipv6/reassembly.c
  * as well. Or notify me, at least. --ANK
@@ -78,8 +85,20 @@ struct ipq {
 	int             iif;
 	unsigned int    rid;
 	struct inet_peer *peer;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+    unsigned short sport;
+	struct nf_conntrack_tuple tuple;
+#endif
+#endif
 };
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+int sysctl_ipfrag_count_max __read_mostly = 64;
+int sysctl_ipfrag_count_per_ip_max __read_mostly = 64;
+atomic_t ip_frag_total_count = ATOMIC_INIT(0);	/*total number of ip fregment*/
+#endif
+#endif
 static u8 ip4_frag_ecn(u8 tos)
 {
 	return 1 << (tos & INET_ECN_MASK);
@@ -298,6 +317,12 @@ static int ip_frag_reinit(struct ipq *qp)
 		struct sk_buff *xp = fp->next;
 
 		sum_truesize += fp->truesize;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+		atomic_dec(&qp->q.count);
+		atomic_dec(&ip_frag_total_count);
+#endif
+#endif
 		kfree_skb(fp);
 		fp = xp;
 	} while (fp);
@@ -323,7 +348,19 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	int ihl, end;
 	int err = -ENOENT;
 	u8 ecn;
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+    /*
+    Seems there is common bug that try to drop all fragments except first ones, 
+    device would crash when running cdrouter case cdrouter_firewall_110. 
+    Not found the root cause of this bug yet.
+    workaround: So define flag goto_teardrop to replace goto teardrop, 
+    fragments won't be dropped if teardrop attack detected, just do same 
+    thing as linux kernel used to do and show log if necessary.
+    */
+    unsigned char goto_teardrop = 0;
+#endif
+#endif
 	if (qp->q.flags & INET_FRAG_COMPLETE)
 		goto err;
 
@@ -343,6 +380,77 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 
 	/* Determine the position of this fragment. */
 	end = offset + skb->len - skb_network_offset(skb) - ihl;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	if(offset == 0 && (skb->len - ihl > 4))
+	{
+		struct iphdr *iph;
+    	unsigned short sport, dport;
+		__be32 saddr, daddr;
+		
+	    sport = dport = 0;
+		iph = ip_hdr(skb);
+		saddr = iph->saddr;
+		daddr = iph->daddr;
+		
+		qp->tuple.dst.protonum = iph->protocol;
+
+        switch (iph->protocol) {
+	        case IPPROTO_TCP: {
+	            struct tcphdr *tcph = (struct tcphdr *)(skb_network_header(skb) + ip_hdrlen(skb));
+	
+	            if (ntohs(iph->frag_off) & IP_OFFSET) {
+	                break;
+	            }
+				qp->tuple.src.u.tcp.port = tcph->source;
+				qp->tuple.dst.u.tcp.port = tcph->dest;
+	            sport = ntohs(tcph->source);
+	            dport = ntohs(tcph->dest);
+	            break;
+	        }
+	        case IPPROTO_UDP: {
+	            struct udphdr *udph = (struct udphdr *)(skb_network_header(skb) + ip_hdrlen(skb));
+	
+	            if (ntohs(iph->frag_off) & IP_OFFSET) {
+	                break;
+	            }
+				qp->tuple.src.u.udp.port = udph->source;
+				qp->tuple.dst.u.udp.port = udph->dest;
+	            sport = ntohs(udph->source);
+	            dport = ntohs(udph->dest);
+	            break;
+	        }
+	        default:
+	            break;
+        }
+        qp->sport = sport;
+        qp->tuple.src.l3num = PF_INET;
+        qp->tuple.src.u3.ip = saddr;
+        qp->tuple.dst.u3.ip = daddr;
+
+	}
+	if(end + ihl > 65535)
+	{
+		if(qp->protocol == IPPROTO_TCP || qp->protocol == IPPROTO_UDP)
+        {
+			if (net_ratelimit())
+            LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+                    "DoS attack: Jolt2 Attack from source: %u.%u.%u.%u:%hu\n",
+                    NIPQUAD(qp->saddr), qp->sport);
+        }
+        else
+        {
+			if (net_ratelimit())
+            LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+        	        "DoS attack: Jolt2 Attack from source: %u.%u.%u.%u\n",
+                            NIPQUAD(qp->saddr));
+        }
+
+    }
+               
+	
+#endif
+#endif
 	err = -EINVAL;
 
 	/* Is this the final fragment? */
@@ -352,7 +460,17 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		 */
 		if (end < qp->q.len ||
 		    ((qp->q.flags & INET_FRAG_LAST_IN) && end != qp->q.len))
+{
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+		    if (end < qp->q.len)
+		    {
+		        goto_teardrop = 1;
+		    }
+#endif
+#endif
 			goto err;
+}
 		qp->q.flags |= INET_FRAG_LAST_IN;
 		qp->q.len = end;
 	} else {
@@ -392,6 +510,14 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	for (next = qp->q.fragments; next != NULL; next = next->next) {
 		if (FRAG_CB(next)->offset >= offset)
 			break;	/* bingo! */
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+		if(FRAG_CB(next)->offset < offset && (FRAG_CB(next)->offset + next->len) > offset )
+		{
+            goto_teardrop = 1;
+		}
+#endif
+#endif
 		prev = next;
 	}
 
@@ -404,6 +530,11 @@ found:
 		int i = (FRAG_CB(prev)->offset + prev->len) - offset;
 
 		if (i > 0) {
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+            goto_teardrop = 1;
+#endif
+#endif
 			offset += i;
 			err = -EINVAL;
 			if (end <= offset)
@@ -420,6 +551,16 @@ found:
 
 	while (next && FRAG_CB(next)->offset < end) {
 		int i = end - FRAG_CB(next)->offset; /* overlap is 'i' bytes */
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+		/* Netgear 1.9 spec.
+			for IP fragments that the router forwards to LAN hosts, 
+			a router implementation MUST drop an IP fragment if it 
+			overlaps with another fragment of the original IP packet.
+		*/
+		goto_teardrop = 1;
+#endif
+#endif
 
 		if (i < next->len) {
 			/* Eat head of the next overlapped fragment
@@ -448,8 +589,47 @@ found:
 			qp->q.meat -= free_it->len;
 			sub_frag_mem_limit(&qp->q, free_it->truesize);
 			kfree_skb(free_it);
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+            /*decrease counts when free skb_buff of fragments*/
+    		atomic_dec(&qp->q.count);
+    		atomic_dec(&ip_frag_total_count);
+#endif
+#endif
 		}
 	}
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	if( goto_teardrop && (skb->dev)
+		&& (skb->dev->priv_flags & IFF_WANDEV)
+		&& (qp->tuple.src.l3num == PF_INET)
+		&& sc_check_and_block_hook)
+	{
+		int check_block;
+		goto_teardrop = 0;
+		check_block = sc_check_and_block_hook(skb, &qp->tuple);
+//			printk(KERN_EMERG "check_block = %d \n", check_block);
+		if(check_block != DETECT_PASS)
+    	{
+			if(qp->protocol == IPPROTO_TCP || qp->protocol == IPPROTO_UDP)
+            {
+			    if (net_ratelimit())
+                LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+    			    "DoS attack: Teardrop Attack from source: %u.%u.%u.%u:%hu\n",
+                        NIPQUAD(qp->saddr), qp->sport);
+            }
+            else
+            {
+			    if (net_ratelimit())
+                LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+    			    "DoS attack: Teardrop Attack from source: %u.%u.%u.%u\n",
+                        NIPQUAD(qp->saddr));
+            }
+
+		}
+	}	
+#endif
+#endif
 
 	FRAG_CB(skb)->offset = offset;
 
@@ -473,7 +653,12 @@ found:
 	add_frag_mem_limit(&qp->q, skb->truesize);
 	if (offset == 0)
 		qp->q.flags |= INET_FRAG_FIRST_IN;
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	atomic_inc(&qp->q.count);
+	atomic_inc(&ip_frag_total_count);
+#endif
+#endif
 	if (ip_hdr(skb)->frag_off & htons(IP_DF) &&
 	    skb->len + ihl > qp->q.max_size)
 		qp->q.max_size = skb->len + ihl;
@@ -492,6 +677,39 @@ found:
 	return -EINPROGRESS;
 
 err:
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+		if( goto_teardrop && (skb->dev)
+			&& (skb->dev->priv_flags & IFF_WANDEV)
+			&& (qp->tuple.src.l3num == PF_INET)
+			&& sc_check_and_block_hook)
+		{
+			int check_block;
+			goto_teardrop = 0;
+			check_block = sc_check_and_block_hook(skb, &qp->tuple);
+//			printk(KERN_EMERG "check_block = %d \n", check_block);
+			if(check_block != DETECT_PASS)
+        	{
+				if(qp->protocol == IPPROTO_TCP || qp->protocol == IPPROTO_UDP)
+                {
+			        if (net_ratelimit())
+                    LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+        			    "DoS attack: Teardrop Attack from source: %u.%u.%u.%u:%hu\n",
+                            NIPQUAD(qp->saddr), qp->sport);
+                }
+                else
+                {
+			        if (net_ratelimit())
+                    LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+        			    "DoS attack: Teardrop Attack from source: %u.%u.%u.%u\n",
+                            NIPQUAD(qp->saddr));
+                }
+
+//				goto err;
+			}
+		}	
+#endif
+#endif
 	kfree_skb(skb);
 	return err;
 }
@@ -602,7 +820,13 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		fp = next;
 	}
 	sub_frag_mem_limit(&qp->q, sum_truesize);
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+//	printk(KERN_EMERG "qp->count = %d\n", atomic_read(&qp->count));
+	atomic_sub(atomic_read(&qp->q.count), &ip_frag_total_count);
+	atomic_set(&qp->q.count, 0);
+#endif
+#endif
 	head->next = NULL;
 	head->dev = dev;
 	head->tstamp = qp->q.stamp;
@@ -626,6 +850,24 @@ out_nomem:
 	err = -ENOMEM;
 	goto out_fail;
 out_oversize:
+#ifdef __SC_BUILD__
+    dev->stats.rx_dropped ++;
+#endif
+
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+if (net_ratelimit())
+{
+		if(qp->protocol == IPPROTO_ICMP)
+        {
+            LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+        	    "DoS attack: Ping of Death Attack from source: %u.%u.%u.%u\n",
+                                    NIPQUAD(qp->saddr));
+
+        }
+}
+#endif
+#endif
 	net_info_ratelimited("Oversized IP packet from %pI4\n", &qp->saddr);
 out_fail:
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
@@ -638,6 +880,12 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	struct ipq *qp;
 	struct net *net;
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	struct net_device *dev;
+    dev = skb->dev ? skb->dev : skb_dst(skb)->dev;
+#endif
+#endif
 	net = skb->dev ? dev_net(skb->dev) : dev_net(skb_dst(skb)->dev);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMREQDS);
 
@@ -646,6 +894,26 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	if (qp) {
 		int ret;
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	if(atomic_read(&qp->q.count) >= sysctl_ipfrag_count_per_ip_max ||
+             atomic_read(&ip_frag_total_count) >= sysctl_ipfrag_count_max)
+	{
+        dev->stats.rx_dropped ++;
+        if (net_ratelimit())
+        {
+            if(qp->protocol == IPPROTO_ICMP)
+            {
+                LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+                        "DoS attack: Ping of Death Attack from source: %u.%u.%u.%u\n",
+                        NIPQUAD(qp->saddr));
+            }
+        }
+		ipq_put(qp);
+		goto end;
+	}
+#endif
+#endif
 		spin_lock(&qp->q.lock);
 
 		ret = ip_frag_queue(qp, skb);
@@ -655,6 +923,11 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 		return ret;
 	}
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+end:
+#endif
+#endif
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 	kfree_skb(skb);
 	return -ENOMEM;

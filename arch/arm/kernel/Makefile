@@ -89,5 +89,7 @@ ifeq ($(CONFIG_ARM_PSCI),y)
 obj-y				+= psci.o psci-call.o
 obj-$(CONFIG_SMP)		+= psci_smp.o
 endif
+#sercomm add
+obj-y	+= post_led.o
 
 extra-y := $(head-y) vmlinux.lds

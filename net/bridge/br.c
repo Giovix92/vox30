@@ -77,7 +77,16 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	case NETDEV_DOWN:
 		spin_lock_bh(&br->lock);
 		if (br->dev->flags & IFF_UP)
+#if defined(CONFIG_BCM_KF_BRIDGE_STP)
+		{
+			if (br->stp_enabled)
+				br_stp_off_port(p);
+			else
+				br_stp_disable_port(p);
+		}
+#else
 			br_stp_disable_port(p);
+#endif
 		spin_unlock_bh(&br->lock);
 		break;
 

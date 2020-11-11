@@ -21,7 +21,11 @@
 
 #include <linux/types.h>		/* for "__kernel_caddr_t" et al	*/
 #include <linux/socket.h>		/* for "struct sockaddr" et al	*/
+#if !defined(CONFIG_BCM_IN_KERNEL)
+//userspace already has __user defined....
+#else
 #include <linux/compiler.h>		/* for "__user" et al           */
+#endif
 
 #define	IFNAMSIZ	16
 #define	IFALIASZ	256
@@ -109,6 +113,17 @@ enum net_device_flags {
 #define IFF_DORMANT			IFF_DORMANT
 #define IFF_ECHO			IFF_ECHO
 
+#if defined(CONFIG_BCM_MPTCP) && defined(CONFIG_BCM_KF_MPTCP)
+#define IFF_NOMULTIPATH	0x80000		/* Disable for MPTCP 		*/
+#define IFF_MPBACKUP	0x100000	/* Use as backup path for MPTCP */
+
+#endif
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+/* Standard interface dos flags (netdevice->dos_flags). */
+#define IFF_DOS_ENABLE 0x1             /* dos enabled.          */
+#endif
+#endif
 #define IFF_VOLATILE	(IFF_LOOPBACK|IFF_POINTOPOINT|IFF_BROADCAST|IFF_ECHO|\
 		IFF_MASTER|IFF_SLAVE|IFF_RUNNING|IFF_LOWER_UP|IFF_DORMANT)
 

@@ -359,3 +359,11 @@ ENTRY(\name\()_tlb_fns)
 	orr	\dest, \addr, \dest, lsl #1	@ mask in the region size
 	orr	\dest, \dest, \enable
 .endm
+
+#if defined(CONFIG_BCM_KF_ARM_BCM963XX) && defined(CONFIG_BCM_B15_MEGA_BARRIER)
+.macro issue_mega_barrier
+	stmfd	sp!,{r3,lr}
+	blx	BcmMegaBarrier
+	ldmfd	sp!,{r3,lr}
+.endm
+#endif

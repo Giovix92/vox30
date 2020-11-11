@@ -85,7 +85,40 @@ int kobject_action_type(const char *buf, size_t count,
 out:
 	return ret;
 }
+#ifdef __SC_BUILD__
+#if defined(CONFIG_NET)
+int kobject_send_uevent(char *message, size_t len)
+{
+	struct sk_buff *skb;
+	int retval = 0;
+	char *scratch;
+	struct uevent_sock *ue_sk;
 
+	/* send netlink message */
+	list_for_each_entry(ue_sk, &uevent_sock_list, list) {
+		struct sock *uevent_sock = ue_sk->sk;
+	
+		if (!netlink_has_listeners(uevent_sock, 1))
+			continue;
+		skb = alloc_skb(len, GFP_KERNEL);
+		if (skb) {
+			/* add header */
+			scratch = skb_put(skb, len);
+			memcpy(scratch, message, len);
+			NETLINK_CB(skb).dst_group = 1;
+			retval = netlink_broadcast(uevent_sock, skb, 0, 1,
+						   GFP_KERNEL);
+			/* ENOBUFS should be handled in userspace */
+			if (retval == -ENOBUFS)
+				retval = 0;
+		} else
+			retval = -ENOMEM;
+	}
+    return retval;
+}
+EXPORT_SYMBOL_GPL(kobject_send_uevent);
+#endif
+#endif
 #ifdef CONFIG_NET
 static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 {

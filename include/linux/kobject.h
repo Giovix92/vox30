@@ -220,5 +220,9 @@ int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...);
 
 int kobject_action_type(const char *buf, size_t count,
 			enum kobject_action *type);
-
+#ifdef __SC_BUILD__
+#if defined(CONFIG_NET)
+int kobject_send_uevent(char *message, size_t len);
+#endif
+#endif
 #endif /* _KOBJECT_H_ */

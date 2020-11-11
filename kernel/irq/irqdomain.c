@@ -204,8 +204,16 @@ struct irq_domain *irq_find_host(struct device_node *node)
 	list_for_each_entry(h, &irq_domain_list, link) {
 		if (h->ops->match)
 			rc = h->ops->match(h, node);
+#if defined(CONFIG_BCM_KF_GIC_NOOFNODE) && \
+	defined(CONFIG_BCM_GIC_NOOFNODE)
+		else if (h->of_node != NULL)
+			rc = (h->of_node == node);
+		else
+			found = h;
+#else
 		else
 			rc = (h->of_node != NULL) && (h->of_node == node);
+#endif
 
 		if (rc) {
 			found = h;

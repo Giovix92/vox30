@@ -109,6 +109,10 @@ static bool no_handshake = 0;
 module_param (no_handshake, bool, 0);
 MODULE_PARM_DESC (no_handshake, "true (not default) disables BIOS handshake");
 
+#ifdef __SC_BUILD__
+int usb_traffic_count = 0;
+EXPORT_SYMBOL(usb_traffic_count);
+#endif
 /*-------------------------------------------------------------------------*/
 
 static int number_of_tds(struct urb *urb)
@@ -293,6 +297,10 @@ static int ohci_urb_enqueue (
 	 */
 	urb->hcpriv = urb_priv;
 	td_submit_urb (ohci, urb);
+
+#ifdef __SC_BUILD__
+    usb_traffic_count++;
+#endif
 
 fail:
 	if (retval)

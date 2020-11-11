@@ -3560,6 +3560,13 @@ const char *module_address_lookup(unsigned long addr,
 		if (within_module(addr, mod)) {
 			if (modname)
 				*modname = mod->name;
+        //martin
+    #ifdef __SC_BUILD__
+            if((((long)mod & 0x80000000) != 0x80000000) || ((addr & 0x80000000) != 0x80000000))
+            {
+                printk(KERN_ERR "module = %s\n", mod->name);
+            }
+    #endif
 			ret = get_ksymbol(mod, addr, size, offset);
 			break;
 		}
@@ -3775,6 +3782,7 @@ static int m_show(struct seq_file *m, void *p)
 	/* Used by oprofile and other similar tools. */
 	seq_printf(m, " 0x%pK", mod->module_core);
 
+
 	/* Taints info */
 	if (mod->taints)
 		seq_printf(m, " %s", module_flags(mod, buf));
@@ -3935,6 +3943,15 @@ void print_modules(void)
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
 		pr_cont(" %s%s", mod->name, module_flags(mod, buf));
+#if defined(CONFIG_BCM_KF_EXTRA_DEBUG) 
+	{
+		printk(" init_addr(%p - %p), core_addr(%p - %p)\n",
+			mod->module_init,
+			mod->module_init+mod->init_text_size,
+			mod->module_core, 
+			mod->module_core+mod->core_text_size);
+	}
+#endif
 	}
 	preempt_enable();
 	if (last_unloaded_module[0])

@@ -194,7 +194,7 @@ EXPORT_SYMBOL(blk_delay_queue);
  **/
 void blk_start_queue(struct request_queue *q)
 {
-	WARN_ON(!irqs_disabled());
+	WARN_ON(!in_interrupt());
 
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
 	__blk_run_queue(q);
@@ -554,7 +554,11 @@ void blk_cleanup_queue(struct request_queue *q)
 		q->queue_lock = &q->__queue_lock;
 	spin_unlock_irq(lock);
 
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+	bdi_unregister(&q->backing_dev_info);
+#else
 	bdi_destroy(&q->backing_dev_info);
+#endif
 
 	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);

@@ -366,7 +366,11 @@ void hfs_bnode_unlink(struct hfs_bnode *node)
 
 	/* move down? */
 	if (!node->prev && !node->next)
+{
+#ifndef __SC_BUILD__
 		hfs_dbg(BNODE_MOD, "hfs_btree_del_level\n");
+#endif
+}
 	if (!node->parent) {
 		tree->root = 0;
 		tree->depth = 0;

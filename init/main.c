@@ -81,7 +81,12 @@
 #include <linux/integrity.h>
 #include <linux/proc_ns.h>
 #include <linux/io.h>
-
+#ifdef __SC_BUILD__
+#include <linux/timer.h>
+#endif
+#ifdef CONFIG_CRASH_LOG
+#include <linux/hal_wd.h>
+#endif
 #include <asm/io.h>
 #include <asm/bugs.h>
 #include <asm/setup.h>
@@ -93,6 +98,9 @@ static int kernel_init(void *);
 extern void init_IRQ(void);
 extern void fork_init(void);
 extern void radix_tree_init(void);
+#if defined(CONFIG_BCM_KF_LOG)
+extern void bcmLog_init(void);
+#endif
 #ifndef CONFIG_DEBUG_RODATA
 static inline void mark_rodata_ro(void) { }
 #endif
@@ -465,10 +473,16 @@ void __init __weak smp_setup_processor_id(void)
 {
 }
 
-# if THREAD_SIZE >= PAGE_SIZE
+#if THREAD_SIZE >= PAGE_SIZE
 void __init __weak thread_info_cache_init(void)
 {
 }
+#endif
+#ifdef __SC_BUILD__
+extern void do_post_without_interrupt(int first);
+extern void post_before_init_process(void);
+extern void post_error(void);
+extern void do_post_interrupt(void);
 #endif
 
 /*
@@ -489,11 +503,29 @@ static void __init mm_init(void)
 	ioremap_huge_init();
 }
 
+#ifdef CONFIG_CRASH_LOG
+int  sc_boot_flag = REBOOT_POWER_OFF;
+int  sc_boot_flag_copy = REBOOT_POWER_OFF;
+EXPORT_SYMBOL(sc_boot_flag);
+EXPORT_SYMBOL(sc_boot_flag_copy);
+static void read_flash_boot_info(void)
+{
+	int  *p = (int *)BOOT_FREE_ADDRESS;
+	if(((*p & 0xFFFF0000) == 0x55aa0000) && ((*(p+1) & 0xFFFF0000) == 0x55aa0000))
+		sc_boot_flag_copy = *p & 0xFFFF;
+	else if(((*p & 0xFFFF0000) == 0xaa550000) && ((*(p+1) & 0xFFFF0000) == 0xaa550000))
+		sc_boot_flag_copy = REBOOT_UNKNOW;
+	else
+		sc_boot_flag_copy = REBOOT_POWER_OFF;
+	*p = 0xaa550000;
+	*(p + 1) = 0xaa550000;
+}
+
+#endif
 asmlinkage __visible void __init start_kernel(void)
 {
 	char *command_line;
 	char *after_dashes;
-
 	/*
 	 * Need to run as early as possible, to initialize the
 	 * lockdep hash:
@@ -512,7 +544,6 @@ asmlinkage __visible void __init start_kernel(void)
 
 	local_irq_disable();
 	early_boot_irqs_disabled = true;
-
 /*
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
@@ -673,7 +704,9 @@ asmlinkage __visible void __init start_kernel(void)
 	}
 
 	ftrace_init();
-
+#if defined(CONFIG_BCM_KF_LOG) && defined(CONFIG_BCM_LOG)
+	bcmLog_init();
+#endif
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
 }
@@ -922,13 +955,27 @@ static int try_to_run_init_process(const char *init_filename)
 
 	return ret;
 }
+#if __SC_BUILD__
+struct timer_list post_led_timer;
+extern int check_post_time_end(void);
 
+static void func_post_led(unsigned long data)
+{
+	if(!check_post_time_end()){
+		mod_timer(&post_led_timer,jiffies + HZ);
+		do_post_interrupt();
+	}
+}
+#endif
 static noinline void __init kernel_init_freeable(void);
 
 static int __ref kernel_init(void *unused)
 {
 	int ret;
 
+#ifdef __SC_BUILD__
+	post_before_init_process();
+#endif
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
@@ -936,9 +983,15 @@ static int __ref kernel_init(void *unused)
 	mark_rodata_ro();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
-
 	flush_delayed_fput();
-
+#ifdef CONFIG_CRASH_LOG
+	read_flash_boot_info();
+#endif
+#ifdef __SC_BUILD__
+	setup_timer(&post_led_timer,func_post_led,0);
+	post_led_timer.expires= jiffies + HZ;
+	add_timer(&post_led_timer);
+#endif
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret)
@@ -966,6 +1019,9 @@ static int __ref kernel_init(void *unused)
 	    !try_to_run_init_process("/bin/sh"))
 		return 0;
 
+#ifdef __SC_BUILD__
+	post_error();
+#endif
 	panic("No working init found.  Try passing init= option to kernel. "
 	      "See Linux Documentation/init.txt for guidance.");
 }

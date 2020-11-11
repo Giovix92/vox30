@@ -38,9 +38,13 @@ log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
-
+#ifdef __SC_BUILD__
+	nf_log_packet_x(net, par->family, par->hooknum, skb, par->in, par->out,
+		      &li, loginfo->suffix,"%s",  loginfo->prefix);
+#else
 	nf_log_packet(net, par->family, par->hooknum, skb, par->in, par->out,
 		      &li, "%s", loginfo->prefix);
+#endif
 	return XT_CONTINUE;
 }
 

@@ -26,16 +26,34 @@
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+#include <linux/blog.h>
+#endif
 static unsigned int udp_timeouts[UDP_CT_MAX] = {
 	[UDP_CT_UNREPLIED]	= 30*HZ,
 	[UDP_CT_REPLIED]	= 180*HZ,
 };
+#if defined(__SC_BUILD__) && defined(CONFIG_SUPPORT_SPI_FIREWALL)
+#include <linux/ip.h>
+#include <linux/slog.h>
+unsigned int nf_ct_udp_timeout  = 30*HZ;
+#endif
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+unsigned int *udp_timeout_blog_p = &udp_timeouts[UDP_CT_UNREPLIED];
+#endif
 
 static inline struct nf_udp_net *udp_pernet(struct net *net)
 {
 	return &net->ct.nf_ct_proto.udp;
 }
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+int nf_ct_udp_flood_enable __read_mostly = 0;
+int nf_ct_udp_flood_speed __read_mostly = 200;
+int nf_ct_udp_port_scan_enable __read_mostly = 0;
+int nf_ct_udp_bomb_enable __read_mostly = 0;
+#endif
+#endif
 static bool udp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
 			     struct nf_conntrack_tuple *tuple)
@@ -88,8 +106,18 @@ static int udp_packet(struct nf_conn *ct,
 	/* If we've seen traffic both ways, this is some kind of UDP
 	   stream.  Extend timeout. */
 	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+#if defined(CONFIG_BCM_KF_NETFILTER)
+                unsigned timeout = udp_timeouts[UDP_CT_REPLIED];
+                if (ct->derived_timeout == 0xFFFFFFFF){
+                        timeout = 60*60*HZ;
+                } else if(ct->derived_timeout > 0) {
+                        timeout = ct->derived_timeout;
+                }
+                nf_ct_refresh_acct(ct, ctinfo, skb, timeout);
+#else
 		nf_ct_refresh_acct(ct, ctinfo, skb,
 				   timeouts[UDP_CT_REPLIED]);
+#endif
 		/* Also, more likely to be important, and not a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
@@ -115,7 +143,9 @@ static int udp_error(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	unsigned int udplen = skb->len - dataoff;
 	const struct udphdr *hdr;
 	struct udphdr _hdr;
-
+#ifdef __SC_BUILD__
+    struct iphdr *iph;
+#endif
 	/* Header is too small? */
 	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hdr == NULL) {
@@ -130,6 +160,38 @@ static int udp_error(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		if (LOG_INVALID(net, IPPROTO_UDP))
 			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
 				"nf_ct_udp: truncated/malformed packet ");
+#if defined(__SC_BUILD__) && defined(CONFIG_SUPPORT_SPI_FIREWALL)
+            if(nf_ct_udp_bomb_enable)
+            {
+                if(pf == PF_INET)
+                {
+                    iph = ip_hdr(skb);
+                    LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+                            "DoS attack: UDP Bomb Detect from source: %u.%u.%u.%u:%hu\n",
+                            NIPQUAD(iph->saddr),ntohs(hdr->source));
+                }
+#ifdef CONFIG_IPV6
+                else if(pf == PF_INET6)
+                {
+#define NIP6_FMT "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x"
+#define NIP6(addr) \
+        ntohs((addr).s6_addr16[0]), \
+        ntohs((addr).s6_addr16[1]), \
+        ntohs((addr).s6_addr16[2]), \
+        ntohs((addr).s6_addr16[3]), \
+        ntohs((addr).s6_addr16[4]), \
+        ntohs((addr).s6_addr16[5]), \
+        ntohs((addr).s6_addr16[6]), \
+        ntohs((addr).s6_addr16[7])
+
+                    struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+                    LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+                            "DoS attack: UDP Bomb Detect from source: "NIP6_FMT":%hu\n",
+                            NIP6(ipv6h->saddr),ntohs(hdr->source));
+                }
+#endif
+            }
+#endif
 		return -NF_ACCEPT;
 	}
 
@@ -201,20 +263,84 @@ udp_timeout_nla_policy[CTA_TIMEOUT_UDP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+int udp_timeout_proc_hndlr(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret;
+	ret = proc_dointvec_jiffies(table, write, buffer, lenp, ppos);
+	/* on success update the blog time out to be same as udp_timeout */
+	if (!ret)
+		blog_nat_udp_def_idle_timeout = (unsigned int)*udp_timeout_blog_p;
+	return ret;
+}
+
+int udp_timeout_stream_proc_hndlr(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+    int ret;
+    ret = proc_dointvec_jiffies(table, write, buffer, lenp, ppos);
+    /* on success update the blog time out to be same as udp_timeout */
+    if (!ret)
+        blog_nat_udp_def_idle_timeout_stream = udp_timeouts[UDP_CT_REPLIED];
+    return ret;
+}
+#endif
+
 #ifdef CONFIG_SYSCTL
 static struct ctl_table udp_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_udp_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+		.proc_handler	= udp_timeout_proc_hndlr,
+#else
 		.proc_handler	= proc_dointvec_jiffies,
+#endif
 	},
 	{
 		.procname	= "nf_conntrack_udp_timeout_stream",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+        .proc_handler	= udp_timeout_stream_proc_hndlr,
+#else
+        .proc_handler	= proc_dointvec_jiffies,
+#endif
 	},
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	{
+		.procname	= "nf_conntrack_udp_flood_enable",
+		.data		= &nf_ct_udp_flood_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_udp_flood_speed",
+		.data		= &nf_ct_udp_flood_speed,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_udp_port_scan_enable",
+		.data		= &nf_ct_udp_port_scan_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_udp_bomb_enable",
+		.data		= &nf_ct_udp_bomb_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+#endif
 	{ }
 };
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
@@ -223,13 +349,21 @@ static struct ctl_table udp_compat_sysctl_table[] = {
 		.procname	= "ip_conntrack_udp_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+		.proc_handler	= udp_timeout_proc_hndlr,
+#else
 		.proc_handler	= proc_dointvec_jiffies,
+#endif
 	},
 	{
 		.procname	= "ip_conntrack_udp_timeout_stream",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+        .proc_handler	= udp_timeout_stream_proc_hndlr,
+#else
+        .proc_handler	= proc_dointvec_jiffies,
+#endif
 	},
 	{ }
 };
@@ -248,6 +382,9 @@ static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	if (!pn->ctl_table)
 		return -ENOMEM;
 	pn->ctl_table[0].data = &un->timeouts[UDP_CT_UNREPLIED];
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+    udp_timeout_blog_p = &un->timeouts[UDP_CT_UNREPLIED];
+#endif		
 	pn->ctl_table[1].data = &un->timeouts[UDP_CT_REPLIED];
 #endif
 	return 0;
@@ -265,6 +402,9 @@ static int udp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
 		return -ENOMEM;
 
 	pn->ctl_compat_table[0].data = &un->timeouts[UDP_CT_UNREPLIED];
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+    udp_timeout_blog_p = &un->timeouts[UDP_CT_UNREPLIED];
+#endif		
 	pn->ctl_compat_table[1].data = &un->timeouts[UDP_CT_REPLIED];
 #endif
 #endif
@@ -366,3 +506,10 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 __read_mostly =
 	.get_net_proto		= udp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp6);
+#if defined(__SC_BUILD__) && defined(CONFIG_SUPPORT_SPI_FIREWALL)
+EXPORT_SYMBOL_GPL(nf_ct_udp_timeout);
+EXPORT_SYMBOL_GPL(nf_ct_udp_flood_enable);
+EXPORT_SYMBOL_GPL(nf_ct_udp_flood_speed);
+EXPORT_SYMBOL_GPL(nf_ct_udp_port_scan_enable);
+EXPORT_SYMBOL_GPL(nf_ct_udp_bomb_enable);
+#endif

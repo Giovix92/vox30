@@ -235,7 +235,12 @@ static inline int inet_is_local_reserved_port(struct net *net, int port)
 #endif
 
 __be32 inet_current_timestamp(void);
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+extern int sysctl_ipfrag_count_max;
+extern int sysctl_ipfrag_count_per_ip_max;
+#endif
+#endif
 /* From inetpeer.c */
 extern int inet_peer_threshold;
 extern int inet_peer_minttl;
@@ -479,6 +484,9 @@ enum ip_defrag_users {
 	IP_DEFRAG_VS_FWD,
 	IP_DEFRAG_AF_PACKET,
 	IP_DEFRAG_MACVLAN,
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+	IP_DEFRAG_MAPT,
+#endif
 };
 
 int ip_defrag(struct sk_buff *skb, u32 user);

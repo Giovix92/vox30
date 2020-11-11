@@ -136,6 +136,13 @@
 
 #include <trace/events/sock.h>
 
+#if defined(CONFIG_BCM_MPTCP) && defined(CONFIG_BCM_KF_MPTCP)
+#ifdef CONFIG_MPTCP
+#include <net/mptcp.h>
+#include <net/inet_common.h>
+#endif
+
+#endif
 #ifdef CONFIG_INET
 #include <net/tcp.h>
 #endif
@@ -280,7 +287,11 @@ static const char *const af_family_slock_key_strings[AF_MAX+1] = {
   "slock-AF_IEEE802154", "slock-AF_CAIF" , "slock-AF_ALG"      ,
   "slock-AF_NFC"   , "slock-AF_VSOCK"    ,"slock-AF_MAX"
 };
+#if !defined(CONFIG_BCM_MPTCP) || !defined(CONFIG_BCM_KF_MPTCP)
 static const char *const af_family_clock_key_strings[AF_MAX+1] = {
+#else
+char *const af_family_clock_key_strings[AF_MAX+1] = {
+#endif
   "clock-AF_UNSPEC", "clock-AF_UNIX"     , "clock-AF_INET"     ,
   "clock-AF_AX25"  , "clock-AF_IPX"      , "clock-AF_APPLETALK",
   "clock-AF_NETROM", "clock-AF_BRIDGE"   , "clock-AF_ATMPVC"   ,
@@ -301,7 +312,11 @@ static const char *const af_family_clock_key_strings[AF_MAX+1] = {
  * sk_callback_lock locking rules are per-address-family,
  * so split the lock classes by using a per-AF key:
  */
+#if !defined(CONFIG_BCM_MPTCP) || !defined(CONFIG_BCM_KF_MPTCP)
 static struct lock_class_key af_callback_keys[AF_MAX];
+#else
+struct lock_class_key af_callback_keys[AF_MAX];
+#endif
 
 /* Take into consideration the size of the struct sk_buff overhead in the
  * determination of these values, since that is non-constant across
@@ -942,7 +957,14 @@ set_rcvbuf:
 		else
 			sk->sk_mark = val;
 		break;
-
+#ifdef __SC_BUILD__
+	case SO_SC_MARK:
+		if (!capable(CAP_NET_ADMIN))
+			ret = -EPERM;
+		else
+			sk->sk_sc_mark = val;
+		break;
+#endif
 	case SO_RXQ_OVFL:
 		sock_valbool_flag(sk, SOCK_RXQ_OVFL, valbool);
 		break;
@@ -979,7 +1001,14 @@ set_rcvbuf:
 		}
 		break;
 #endif
-
+#ifdef __SC_BUILD__
+	case SO_APPID:
+	    sk->app_id = val;
+		break;
+	case SO_FLOWID:
+	    sk->flow_id = val;
+		break;
+#endif
 	case SO_MAX_PACING_RATE:
 		sk->sk_max_pacing_rate = val;
 		sk->sk_pacing_rate = min(sk->sk_pacing_rate,
@@ -1268,8 +1297,30 @@ lenout:
  *
  * (We also register the sk_lock with the lock validator.)
  */
+#if !defined(CONFIG_BCM_MPTCP) || !defined(CONFIG_BCM_KF_MPTCP)
 static inline void sock_lock_init(struct sock *sk)
 {
+#else
+void sock_lock_init(struct sock *sk)
+{
+#ifdef CONFIG_MPTCP
+	/* Reclassify the lock-class for subflows */
+	if (sk->sk_type == SOCK_STREAM && sk->sk_protocol == IPPROTO_TCP)
+		if (mptcp(tcp_sk(sk)) || tcp_sk(sk)->is_master_sk) {
+			sock_lock_init_class_and_name(sk, "slock-AF_INET-MPTCP",
+						      &meta_slock_key,
+						      "sk_lock-AF_INET-MPTCP",
+						      &meta_key);
+
+			/* We don't yet have the mptcp-point.
+			 * Thus we still need inet_sock_destruct
+			 */
+			sk->sk_destruct = inet_sock_destruct;
+			return;
+		}
+#endif
+
+#endif
 	sock_lock_init_class_and_name(sk,
 			af_family_slock_key_strings[sk->sk_family],
 			af_family_slock_keys + sk->sk_family,
@@ -1316,7 +1367,11 @@ void sk_prot_clear_portaddr_nulls(struct sock *sk, int size)
 }
 EXPORT_SYMBOL(sk_prot_clear_portaddr_nulls);
 
+#if !defined(CONFIG_BCM_MPTCP) || !defined(CONFIG_BCM_KF_MPTCP)
 static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
+#else
+struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
+#endif
 		int family)
 {
 	struct sock *sk;
@@ -1412,6 +1467,10 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 
 		sock_update_classid(sk);
 		sock_update_netprioidx(sk);
+#ifdef __SC_BUILD__
+        sk->app_id = 0;
+        sk->flow_id = 0;
+#endif
 	}
 
 	return sk;
@@ -1530,6 +1589,9 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
 
 		sock_reset_flag(newsk, SOCK_DONE);
+#if defined(CONFIG_BCM_MPTCP) && defined(CONFIG_BCM_KF_MPTCP)
+		sock_reset_flag(newsk, SOCK_MPTCP);
+#endif
 		skb_queue_head_init(&newsk->sk_error_queue);
 
 		filter = rcu_dereference_protected(newsk->sk_filter, 1);
@@ -1713,6 +1775,20 @@ struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force,
 		struct sk_buff *skb = alloc_skb(size, priority);
 		if (skb) {
 			skb_set_owner_w(skb, sk);
+#ifdef __SC_BUILD__
+            if(sk->app_id)
+            {
+                int appid = sk->app_id;
+                struct sercomm_head *psh;
+                psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+                psh->mark = SCMARK_SET_APPID(psh->mark, appid);
+                if(sk->flow_id)
+                {
+                    appid = sk->flow_id;
+                    psh->mark = SCMARK_SET_FLOWID(psh->mark, appid);
+                }
+            }
+#endif
 			return skb;
 		}
 	}
@@ -1835,6 +1911,20 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 				   errcode, sk->sk_allocation);
 	if (skb)
 		skb_set_owner_w(skb, sk);
+#ifdef __SC_BUILD__
+    if(sk->app_id)
+    {
+        int appid = sk->app_id;
+        struct sercomm_head *psh;
+        psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+        psh->mark = SCMARK_SET_APPID(psh->mark, appid);
+        if(sk->flow_id)
+        {
+            appid = sk->flow_id;
+            psh->mark = SCMARK_SET_FLOWID(psh->mark, appid);
+        }
+    }
+#endif
 	return skb;
 
 interrupted:

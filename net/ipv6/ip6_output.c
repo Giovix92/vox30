@@ -39,6 +39,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#ifdef __SC_BUILD__
+#include <linux/netfilter/x_tables.h>
+#include <net/netfilter/nf_conntrack_core.h>
+#include <linux/netfilter/nf_conntrack_common.h>
+#endif
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
 
@@ -323,6 +328,64 @@ static inline int ip6_forward_finish(struct sock *sk, struct sk_buff *skb)
 	return dst_output_sk(sk, skb);
 }
 
+#if defined(CONFIG_BCM_KF_IP)
+static inline int isULA(const struct in6_addr *addr)
+{
+	__be32 st;
+
+	st = addr->s6_addr32[0];
+
+	/* RFC 4193 */
+	if ((st & htonl(0xFE000000)) == htonl(0xFC000000))
+		return	1;
+	else
+		return	0;
+}
+
+static inline int isSpecialAddr(const struct in6_addr *addr)
+{
+	__be32 st;
+
+	st = addr->s6_addr32[0];
+
+	/* RFC 5156 */
+	if (((st & htonl(0xFFFFFFFF)) == htonl(0x20010db8)) ||
+		((st & htonl(0xFFFFFFF0)) == htonl(0x20010010)))
+		return	1;
+	else
+		return	0;
+}
+#endif
+#ifdef __SC_BUILD__
+static inline int isDeprecatedAddr(const struct in6_addr *addr, struct net_device *dev)
+{
+	struct inet6_dev *idev;
+	struct inet6_ifaddr *ifa;
+	int onlink, deprecate_prefix;
+
+	onlink = 0;
+	deprecate_prefix = 0;
+	rcu_read_lock();
+	idev = __in6_dev_get(dev);
+	if (idev) {
+		read_lock_bh(&idev->lock);
+	list_for_each_entry(ifa, &idev->addr_list, if_list) { // west
+			onlink = ipv6_prefix_equal(addr, &ifa->addr,
+					ifa->prefix_len);
+			if (onlink) {
+				if (ifa->prefered_lft == 0 &&
+					ifa->flags == IFA_F_DEPRECATED) {
+					deprecate_prefix = 1;
+				}
+				break;
+			}
+		}
+		read_unlock_bh(&idev->lock);
+	}
+	rcu_read_unlock();
+	return deprecate_prefix;
+}
+#endif
 static unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
 {
 	unsigned int mtu;
@@ -369,6 +432,13 @@ int ip6_forward(struct sk_buff *skb)
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct net *net = dev_net(dst->dev);
 	u32 mtu;
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+	int needfrag = 0;
+#endif
+#ifdef __SC_BUILD__
+    struct nf_conn *ct;
+    enum ip_conntrack_info ctinfo;
+#endif
 
 	if (net->ipv6.devconf_all->forwarding == 0)
 		goto error;
@@ -387,7 +457,11 @@ int ip6_forward(struct sk_buff *skb)
 				 IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
-
+#ifdef __SC_BUILD__
+    ct = nf_ct_get(skb, &ctinfo);
+    if(ct)
+        ct->local = 0;
+#endif
 	skb_forward_csum(skb);
 
 	/*
@@ -421,6 +495,14 @@ int ip6_forward(struct sk_buff *skb)
 		kfree_skb(skb);
 		return -ETIMEDOUT;
 	}
+
+#if defined(CONFIG_BCM_KF_IP)
+    /* No traffic with ULA address should be forwarded at WAN intf */
+	if ( isULA(&hdr->daddr) || isULA(&hdr->saddr) )
+		if ((skb->dev->priv_flags & IFF_WANDEV) || 
+			(dst->dev->priv_flags & IFF_WANDEV) )
+			goto drop;
+#endif
 
 	/* XXX: idev->cnf.proxy_ndp? */
 	if (net->ipv6.devconf_all->proxy_ndp &&
@@ -476,7 +558,19 @@ int ip6_forward(struct sk_buff *skb)
 
 		/* This check is security critical. */
 		if (addrtype == IPV6_ADDR_ANY ||
+#if defined(CONFIG_BCM_KF_IP)
+			/* 
+			 * RFC 5156: IPv4 mapped addr and IPv4-compatible addr
+			 * should not appear on the Internet. In addition,
+			 * 2001:db8::/32 and 2001:10::/28 should not appear either.
+			 */
+			(addrtype & (IPV6_ADDR_MULTICAST | IPV6_ADDR_LOOPBACK | 
+				IPV6_ADDR_COMPATv4 | IPV6_ADDR_MAPPED | 
+				IPV6_ADDR_SITELOCAL)) ||
+			isSpecialAddr(&hdr->saddr))
+#else
 		    addrtype & (IPV6_ADDR_MULTICAST | IPV6_ADDR_LOOPBACK))
+#endif
 			goto error;
 		if (addrtype & IPV6_ADDR_LINKLOCAL) {
 			icmpv6_send(skb, ICMPV6_DEST_UNREACH,
@@ -484,12 +578,32 @@ int ip6_forward(struct sk_buff *skb)
 			goto error;
 		}
 	}
+#ifdef __SC_BUILD__
+	/* RFC6204 L-14
+	 * The IPv6 CE router MUST send ICMP Destination Unreachable message, code 5
+	 * (Source address failed ingress/egress policy) for packets forwarded to it
+	 * that use an address from a prefix that has been deprecated.
+	*/
+	if (isDeprecatedAddr(&hdr->saddr, skb->dev)) {
+		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_POLICY_FAIL,
+				0);
+		goto error;
+	}
+#endif
 
 	mtu = ip6_dst_mtu_forward(dst);
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
 
 	if (ip6_pkt_too_big(skb, mtu)) {
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+		/*
+		 * MAPT_FORWARD_MODE2 is used to fragment translated IPv6 packet
+		 * for MAP-T feature
+		 */
+		if (skb->mapt_forward != MAPT_FORWARD_MODE2)
+		{
+#endif
 		/* Again, force OUTPUT device used as source address */
 		skb->dev = dst->dev;
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
@@ -499,6 +613,15 @@ int ip6_forward(struct sk_buff *skb)
 				 IPSTATS_MIB_FRAGFAILS);
 		kfree_skb(skb);
 		return -EMSGSIZE;
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+		}
+		else
+			needfrag = 1;
+	}
+	else if ((skb->mapt_forward == MAPT_FORWARD_MODE2) && 
+			 (skb->len > (mtu-sizeof(struct frag_hdr)))) {
+		needfrag = 1;
+#endif
 	}
 
 	if (skb_cow(skb, dst->dev->hard_header_len)) {
@@ -512,6 +635,23 @@ int ip6_forward(struct sk_buff *skb)
 	/* Mangling hops number delayed to point after skb COW */
 
 	hdr->hop_limit--;
+
+#if defined(CONFIG_BCM_KF_WANDEV)
+#if !defined(CONFIG_BCM_WAN_2_WAN_FWD_ENABLED)
+	/* Never forward a packet from a WAN intf to the other WAN intf */
+	if( (skb->dev) && (dst->dev) && 
+		((skb->dev->priv_flags & dst->dev->priv_flags) & IFF_WANDEV) )
+		goto drop;
+#endif
+#endif
+
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+	if (needfrag)
+	{
+		skb->ignore_df = 1;
+		return ip6_fragment(skb->sk, skb, ip6_forward_finish);
+	}
+#endif
 
 	IP6_INC_STATS_BH(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
 	IP6_ADD_STATS_BH(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTOCTETS, skb->len);
@@ -635,6 +775,11 @@ int ip6_fragment(struct sock *sk, struct sk_buff *skb,
 		skb_reset_network_header(skb);
 		memcpy(skb_network_header(skb), tmp_hdr, hlen);
 
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+		if (skb->mapt_id)
+			fh->identification = skb->mapt_id;
+		else
+#endif
 		ipv6_select_ident(net, fh, rt);
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
@@ -663,9 +808,17 @@ int ip6_fragment(struct sock *sk, struct sk_buff *skb,
 				offset += skb->len - hlen - sizeof(struct frag_hdr);
 				fh->nexthdr = nexthdr;
 				fh->reserved = 0;
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+				fh->frag_off = htons(offset+skb->mapt_offset);
+#else
 				fh->frag_off = htons(offset);
+#endif
 				if (frag->next)
 					fh->frag_off |= htons(IP6_MF);
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+				else if (skb->mapt_mf)
+					fh->frag_off |= htons(IP6_MF);
+#endif
 				fh->identification = frag_id;
 				ipv6_hdr(frag)->payload_len =
 						htons(frag->len -
@@ -781,11 +934,20 @@ slow_path:
 		 */
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+		if (skb->mapt_id)
+			fh->identification = skb->mapt_id;
+		else
+		{
+#endif
 		if (!frag_id) {
 			ipv6_select_ident(net, fh, rt);
 			frag_id = fh->identification;
 		} else
 			fh->identification = frag_id;
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+		}
+#endif
 
 		/*
 		 *	Copy a block of the IP datagram.
@@ -794,9 +956,17 @@ slow_path:
 				     len));
 		left -= len;
 
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+		fh->frag_off = htons(offset+skb->mapt_offset);
+#else
 		fh->frag_off = htons(offset);
+#endif
 		if (left > 0)
 			fh->frag_off |= htons(IP6_MF);
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+		else if (skb->mapt_mf)
+			fh->frag_off |= htons(IP6_MF);
+#endif
 		ipv6_hdr(frag)->payload_len = htons(frag->len -
 						    sizeof(struct ipv6hdr));
 
@@ -824,6 +994,9 @@ fail:
 	kfree_skb(skb);
 	return err;
 }
+#if defined(CONFIG_BCM_KF_IP)
+EXPORT_SYMBOL_GPL(ip6_fragment);
+#endif
 
 static inline int ip6_rt_check(const struct rt6key *rt_key,
 			       const struct in6_addr *fl_addr,

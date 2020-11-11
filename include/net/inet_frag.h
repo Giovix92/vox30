@@ -59,6 +59,11 @@ struct inet_frag_queue {
 	__u8			flags;
 	u16			max_size;
 	struct netns_frags	*net;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	atomic_t	count;
+#endif
+#endif
 };
 
 #define INETFRAGS_HASHSZ	1024

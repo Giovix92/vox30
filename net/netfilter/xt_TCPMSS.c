@@ -104,7 +104,11 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	tcph = (struct tcphdr *)(skb_network_header(skb) + tcphoff);
 	tcp_hdrlen = tcph->doff * 4;
 
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+	if (len < tcp_hdrlen || tcp_hdrlen < sizeof(struct tcphdr))
+#else
 	if (len < tcp_hdrlen)
+#endif
 		return -1;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU) {
@@ -156,6 +160,11 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	if (len > tcp_hdrlen)
 		return 0;
 
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+	/* tcph->doff has 4 bits, do not wrap it to 0 */
+	if (tcp_hdrlen >= 15 * 4)
+		return 0;
+#endif
 	/*
 	 * MSS Option not found ?! add it..
 	 */
@@ -207,6 +216,11 @@ tcpmss_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	__be16 newlen;
 	int ret;
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG_FEATURE)
+	skb->ipt_check |= IPT_TARGET_TCPMSS;
+	if ( skb->ipt_check & IPT_TARGET_CHECK )
+		return XT_CONTINUE;
+#endif
 	ret = tcpmss_mangle_packet(skb, par,
 				   PF_INET,
 				   iph->ihl * 4,
@@ -231,6 +245,12 @@ tcpmss_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	__be16 frag_off;
 	int tcphoff;
 	int ret;
+
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG_FEATURE)
+	skb->ipt_check |= IPT_TARGET_TCPMSS;
+	if ( skb->ipt_check & IPT_TARGET_CHECK )
+		return XT_CONTINUE;
+#endif
 
 	nexthdr = ipv6h->nexthdr;
 	tcphoff = ipv6_skip_exthdr(skb, sizeof(*ipv6h), &nexthdr, &frag_off);

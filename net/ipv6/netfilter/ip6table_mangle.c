@@ -39,6 +39,9 @@ ip6t_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 	u_int8_t hop_limit;
 	u_int32_t flowlabel, mark;
 	int err;
+#ifdef __SC_BUILD__
+	u_int32_t mask = 0x0fff;
+#endif
 #if 0
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct iphdr) ||
@@ -63,7 +66,11 @@ ip6t_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (!ipv6_addr_equal(&ipv6_hdr(skb)->saddr, &saddr) ||
 	     !ipv6_addr_equal(&ipv6_hdr(skb)->daddr, &daddr) ||
+#ifdef __SC_BUILD__
+	 ((skb->mark | mask) != (mark | mask)) ||
+#else
 	     skb->mark != mark ||
+#endif
 	     ipv6_hdr(skb)->hop_limit != hop_limit ||
 	     flowlabel != *((u_int32_t *)ipv6_hdr(skb)))) {
 		err = ip6_route_me_harder(skb);

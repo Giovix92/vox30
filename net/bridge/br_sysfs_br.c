@@ -743,6 +743,63 @@ static ssize_t default_pvid_store(struct device *d,
 static DEVICE_ATTR_RW(default_pvid);
 #endif
 
+#if defined(CONFIG_BCM_KF_BRIDGE_COUNTERS)
+static ssize_t show_mac_entry_discard_counter(struct device *d,
+                struct device_attribute *attr, char *buf)
+{
+    struct net_bridge *br = to_bridge(d);
+    return sprintf(buf, "%u\n", br->mac_entry_discard_counter);
+}
+
+static int set_mac_entry_discard_counter(struct net_bridge *br, unsigned long val)
+{
+    br->mac_entry_discard_counter = val;
+    return 0;
+}
+
+static ssize_t store_mac_entry_discard_counter(struct device *d,
+                 struct device_attribute *attr,
+                 const char *buf, size_t len)
+{
+    return store_bridge_parm(d, buf, len, set_mac_entry_discard_counter);
+}
+static DEVICE_ATTR(mac_entry_discard_counter, S_IRUGO | S_IWUSR, show_mac_entry_discard_counter,
+        store_mac_entry_discard_counter);
+#endif
+
+#if defined(CONFIG_BCM_KF_BRIDGE_MAC_FDB_LIMIT) && defined(CONFIG_BCM_BRIDGE_MAC_FDB_LIMIT)
+static ssize_t max_fdb_entries_show(struct device *d,
+				  struct device_attribute *attr, char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br->max_br_fdb_entries);
+}
+
+static int set_max_fdb_entries(struct net_bridge *br, unsigned long val)
+{
+	spin_lock_bh(&br->lock);
+	br_set_fdb_limit(br, NULL, 0, 0, (int)val);
+	spin_unlock_bh(&br->lock);
+	return 0;
+}
+
+static ssize_t max_fdb_entries_store(struct device *d,
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_max_fdb_entries);
+}
+static DEVICE_ATTR_RW(max_fdb_entries);
+
+static ssize_t used_fdb_entries_show(struct device *d, struct device_attribute *attr,
+			      char *buf)
+{
+	return sprintf(buf, "%d\n", to_bridge(d)->used_br_fdb_entries);
+}
+static DEVICE_ATTR_RO(used_fdb_entries);
+#endif
+
+
 static struct attribute *bridge_attrs[] = {
 	&dev_attr_forward_delay.attr,
 	&dev_attr_hello_time.attr,
@@ -762,6 +819,9 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_topology_change_timer.attr,
 	&dev_attr_gc_timer.attr,
 	&dev_attr_group_addr.attr,
+#if defined(CONFIG_BCM_KF_BRIDGE_COUNTERS)
+    &dev_attr_mac_entry_discard_counter.attr,
+#endif
 	&dev_attr_flush.attr,
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	&dev_attr_multicast_router.attr,
@@ -788,6 +848,10 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_vlan_filtering.attr,
 	&dev_attr_vlan_protocol.attr,
 	&dev_attr_default_pvid.attr,
+#endif
+#if defined(CONFIG_BCM_KF_BRIDGE_MAC_FDB_LIMIT) && defined(CONFIG_BCM_BRIDGE_MAC_FDB_LIMIT)
+	&dev_attr_max_fdb_entries.attr,
+	&dev_attr_used_fdb_entries.attr,
 #endif
 	NULL
 };

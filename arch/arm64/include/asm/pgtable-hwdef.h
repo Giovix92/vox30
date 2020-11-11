@@ -101,6 +101,9 @@
 #define PTE_USER		(_AT(pteval_t, 1) << 6)		/* AP[1] */
 #define PTE_RDONLY		(_AT(pteval_t, 1) << 7)		/* AP[2] */
 #define PTE_SHARED		(_AT(pteval_t, 3) << 8)		/* SH[1:0], inner shareable */
+#if defined(CONFIG_BCM_KF_COHERENT_OUTER_SHARED) && defined(CONFIG_BCM_COHERENT_OUTER_SHARED)
+#define PTE_OUTER_SHARED      (_AT(pteval_t, 2) << 8)     /* SH[1:0], outer shareable */
+#endif
 #define PTE_AF			(_AT(pteval_t, 1) << 10)	/* Access Flag */
 #define PTE_NG			(_AT(pteval_t, 1) << 11)	/* nG */
 #define PTE_PXN			(_AT(pteval_t, 1) << 53)	/* Privileged XN */

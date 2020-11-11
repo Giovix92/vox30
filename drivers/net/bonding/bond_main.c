@@ -84,6 +84,14 @@
 
 #include "bonding_priv.h"
 
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING)
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+#include <linux/blog.h>
+#endif
+#include <linux/bcm_log.h>
+#include <linux/bcm_log_mod.h>
+#endif
+
 /*---------------------------- Module parameters ----------------------------*/
 
 /* monitor all links that often (in milliseconds). <=0 disables monitoring */
@@ -1152,6 +1160,23 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	if (unlikely(!skb))
 		return RX_HANDLER_CONSUMED;
 
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING)
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	if (blog_ptr(skb)) 
+	{
+
+		/* Clarify : bond device shouldn't modify the packet;
+			also it does not hold its own stats rather gets the cummulative stats from its slave devices [ see:bond_get_stats() ];
+			blog->put_stats,clr_stats are also not needed for the same reason; 
+			Do we need to link bond devices ; One usage could be that when bond device goes down ; FC will be able to remove the flows */
+
+		blog_lock();
+		blog_link( IF_DEVICE, blog_ptr(skb), (void*)skb->dev, DIR_RX, skb->len );
+		blog_unlock();
+	}
+#endif /* defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG) */
+#endif /* defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) */
+
 	*pskb = skb;
 
 	slave = bond_slave_get_rcu(skb->dev);
@@ -1665,6 +1690,28 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_upper_unlink;
 	}
 
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) 
+	/* Notify Ethernet Driver about change in bonding */
+	{
+		bcmFun_t *bcmFun = bcmFun_get(BCM_FUN_ID_ENET_BONDING_CHANGE);
+
+		if (bcmFun) {
+			BCM_EnetBondingInfo enet_bond_info;
+			enet_bond_info.is_join = 1;
+			enet_bond_info.bonding_group_id = bond->master_id;
+			enet_bond_info.slave_dev = slave_dev;
+			enet_bond_info.bond_dev = bond_dev;
+			res = bcmFun(&enet_bond_info);
+
+            if (res)  /* IMPORTANT: Keep this hook here so we can utilize the existing error recovery */
+            {
+                bond_sysfs_slave_del(new_slave);
+                goto err_upper_unlink;
+            }
+		}
+	}
+#endif /* defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) */
+
 	bond->slave_cnt++;
 	bond_compute_features(bond);
 	bond_set_carrier(bond);
@@ -1685,6 +1732,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* enslave is successful */
 	bond_queue_slave_event(new_slave);
+
 	return 0;
 
 /* Undo stages on error */
@@ -1903,6 +1951,23 @@ static int __bond_release_one(struct net_device *bond_dev,
 	slave_dev->priv_flags &= ~IFF_BONDING;
 
 	bond_free_slave(slave);
+
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) 
+	/* Notify Ethernet Driver about change in bonding */
+	{
+		bcmFun_t *bcmFun = bcmFun_get(BCM_FUN_ID_ENET_BONDING_CHANGE);
+
+		if (bcmFun) {
+			BCM_EnetBondingInfo enet_bond_info;
+			enet_bond_info.is_join = 0;
+			enet_bond_info.bonding_group_id = bond->master_id;
+			enet_bond_info.slave_dev = slave_dev;
+			enet_bond_info.bond_dev = bond_dev;
+			bcmFun(&enet_bond_info);
+			/* TBD : Better to do error check */
+		}
+	}
+#endif /* defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) */
 
 	return 0;
 }
@@ -3971,6 +4036,32 @@ static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev
 	    !bond_slave_override(bond, skb))
 		return NETDEV_TX_OK;
 
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING)
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+
+/* Only XOR or 802.3AD mode can be accelerated by flow-cache -- these are flow-based moded */
+#define BOND_SUPPORTED_ACCL_MODE(mode) (((mode) == BOND_MODE_XOR) || ((mode) == BOND_MODE_8023AD))
+
+/* IS_SKB check not needed unless we support flow-cache acceleration to bond device in other modes;
+   No need to check for non-NULL blog as well -- blog_skip will take care */
+
+    if (!BOND_SUPPORTED_ACCL_MODE(bond->params.mode))
+		blog_skip(skb, blog_skip_reason_bond);
+    else if (blog_ptr(skb)) 
+    {
+        /* Clarify : bond device shouldn't modify the packet;
+           also it does not hold its own stats rather gets the cummulative stats from its slave devices [ see:bond_get_stats() ];
+           blog->put_stats,clr_stats are also not needed for the same reason;
+           Do we need to link bond devices ??                                                          ;
+           One usage could be that when bond device goes down -- FC will be able to remove the flows */
+        blog_lock();
+        blog_link( IF_DEVICE, blog_ptr(skb), (void*)dev, DIR_TX, skb->len );
+        blog_unlock();
+    }
+
+#endif /* defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG) */
+#endif /* defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) */
+
 	switch (BOND_MODE(bond)) {
 	case BOND_MODE_ROUNDROBIN:
 		return bond_xmit_roundrobin(skb, dev);
@@ -4593,6 +4684,9 @@ int bond_create(struct net *net, const char *name)
 	struct bonding *bond;
 	struct alb_bond_info *bond_info;
 	int res;
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING)
+	static int master_id = 0;  /* Unique bond group identifier that maps to Ethernet Driver trunk group */
+#endif
 
 	rtnl_lock();
 
@@ -4623,6 +4717,12 @@ int bond_create(struct net *net, const char *name)
 	rtnl_unlock();
 	if (res < 0)
 		bond_destructor(bond_dev);
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING)
+	else {
+		bond->master_id = master_id;
+		master_id++;
+	}
+#endif
 	return res;
 }
 
@@ -4664,12 +4764,40 @@ static struct pernet_operations bond_net_ops = {
 	.size = sizeof(struct bond_net),
 };
 
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) && defined(CONFIG_BCM_KF_LOG)
+/* Callback function through bcm_log function pointer;
+	Given a bond device ; returns the bond group identifier which directly maps to trunk group in Ethernet Driver */
+int bcm_bond_get_mstr_id(void *ctxt)
+{
+	struct net_device *bond_dev = ctxt;
+
+    if ( (bond_dev->flags & IFF_MASTER) && (bond_dev->priv_flags & IFF_BONDING))
+    {
+        struct bonding *bond = netdev_priv(bond_dev);
+
+        return bond->master_id;
+    }
+    return -1;
+}
+#endif /* defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) */
+
 static int __init bonding_init(void)
 {
 	int i;
 	int res;
 
 	pr_info("%s", bond_version);
+
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) && defined(CONFIG_BCM_KF_LOG)
+	/* Check with Ethernet Driver about the max bonding groups supported */
+	{
+		bcmFun_t *bcmFun = bcmFun_get(BCM_FUN_ID_ENET_MAX_BONDS);
+
+		if (bcmFun) {
+			max_bonds = bcmFun(NULL);
+		}
+	}
+#endif /* defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) */
 
 	res = bond_check_params(&bonding_defaults);
 	if (res)
@@ -4692,6 +4820,11 @@ static int __init bonding_init(void)
 	}
 
 	register_netdevice_notifier(&bond_netdev_notifier);
+
+#if defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) 
+    bcmFun_reg(BCM_FUN_ID_BOND_GET_MSTR_ID, bcm_bond_get_mstr_id);
+#endif /* defined(CONFIG_BCM_KF_KBONDING) && defined(CONFIG_BCM_KERNEL_BONDING) */
+
 out:
 	return res;
 err:

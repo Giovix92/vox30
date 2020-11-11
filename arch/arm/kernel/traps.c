@@ -49,6 +49,7 @@ static const char *handler[]= {
 
 void *vectors_page;
 
+
 #ifdef CONFIG_DEBUG_USER
 unsigned int user_debug;
 
@@ -66,8 +67,14 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
 {
 #ifdef CONFIG_KALLSYMS
 	printk("[<%08lx>] (%ps) from [<%08lx>] (%pS)\n", where, (void *)where, from, (void *)from);
+#ifdef CONFIG_CRASH_LOG
+    SC_LOG_MSG_TO_BUFF("[<%08lx>] (%ps) from [<%08lx>] (%pS)\n", where, (void *)where, from,(void *)from);
+#endif
 #else
 	printk("Function entered at [<%08lx>] from [<%08lx>]\n", where, from);
+#ifdef CONFIG_CRASH_LOG
+    SC_LOG_MSG_TO_BUFF("Function entered at [<%08lx>] from [<%08lx>]\n", where, from);
+#endif
 #endif
 
 	if (in_exception_text(where))
@@ -109,6 +116,9 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 	set_fs(KERNEL_DS);
 
 	printk("%s%s(0x%08lx to 0x%08lx)\n", lvl, str, bottom, top);
+#ifdef CONFIG_CRASH_LOG
+    SC_LOG_MSG_TO_BUFF("%s%s(0x%08lx to 0x%08lx)\n", lvl, str, bottom, top);
+#endif
 
 	for (first = bottom & ~31; first < top; first += 32) {
 		unsigned long p;
@@ -127,6 +137,10 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 			}
 		}
 		printk("%s%04lx:%s\n", lvl, first & 0xffff, str);
+
+#ifdef CONFIG_CRASH_LOG
+        SC_LOG_MSG_TO_BUFF("%s%04lx:%s\n", lvl, first & 0xffff, str);
+#endif
 	}
 
 	set_fs(fs);
@@ -166,6 +180,9 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 		}
 	}
 	printk("%sCode: %s\n", lvl, str);
+#ifdef CONFIG_CRASH_LOG
+    SC_LOG_MSG_TO_BUFF("%sCode: %s\n", lvl, str);
+#endif
 
 	set_fs(fs);
 }
@@ -243,6 +260,11 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 	pr_emerg("Internal error: %s: %x [#%d]" S_PREEMPT S_SMP S_ISA "\n",
 	         str, err, ++die_counter);
 
+#ifdef CONFIG_CRASH_LOG
+    sc_boot_flag = REBOOT_KERNEL_CRASH;
+    SC_LOG_MSG_TO_BUFF("Internal error: %s: %x [#%d]" S_PREEMPT S_SMP S_ISA "\n",
+            str, err, ++die_counter);
+#endif
 	/* trap and error numbers are mostly meaningless on ARM */
 	ret = notify_die(DIE_OOPS, str, regs, err, tsk->thread.trap_no, SIGSEGV);
 	if (ret == NOTIFY_STOP)
@@ -252,6 +274,10 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 	__show_regs(regs);
 	pr_emerg("Process %.*s (pid: %d, stack limit = 0x%p)\n",
 		 TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), end_of_stack(tsk));
+#ifdef CONFIG_CRASH_LOG
+    SC_LOG_MSG_TO_BUFF("Process %.*s (pid: %d, stack limit = 0x%p)\n",
+            TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), end_of_stack(tsk));
+#endif
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,

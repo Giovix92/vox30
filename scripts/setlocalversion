@@ -170,5 +170,8 @@ else
 		res="$res${scm:++}"
 	fi
 fi
-
+# sercomm add __SC_BUILD__
+if [ -z "${res}" ]; then
+    res="+"
+fi
 echo "$res"

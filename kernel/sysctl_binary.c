@@ -413,7 +413,12 @@ static const struct bin_table bin_net_ipv4_table[] = {
 
 	{ CTL_INT,	NET_IPV4_IPFRAG_SECRET_INTERVAL,	"ipfrag_secret_interval" },
 	/* NET_IPV4_IPFRAG_MAX_DIST "ipfrag_max_dist" no longer used */
-
+#ifdef __SC_BUILD__ 
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	{ CTL_INT,	NET_IPV4_IPFRAG_MAX_TOTAL,	"ipfrag_max_total" },
+	{ CTL_INT,	NET_IPV4_IPFRAG_MAX_PER_IP,	"ipfrag_max_per_ip" },
+#endif
+#endif
 	{ CTL_INT,	2088 /* NET_IPQ_QMAX */,		"ip_queue_maxlen" },
 
 	/* NET_TCP_DEFAULT_WIN_SCALE unused */
@@ -698,6 +703,21 @@ static const struct bin_table bin_net_netfilter_table[] = {
 	{ CTL_INT,	NET_NF_CONNTRACK_FRAG6_LOW_THRESH,	"nf_conntrack_frag6_low_thresh" },
 	{ CTL_INT,	NET_NF_CONNTRACK_FRAG6_HIGH_THRESH,	"nf_conntrack_frag6_high_thresh" },
 	{ CTL_INT,	NET_NF_CONNTRACK_CHECKSUM,		"nf_conntrack_checksum" },
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	{ CTL_INT,NET_NF_CONNTRACK_ICMP_FLOOD_EN,			"nf_conntrack_icmp_flood_enable" },
+	{CTL_INT, NET_NF_CONNTRACK_ICMP_FLOOD_SPEED,		"nf_conntrack_icmp_flood_speed" },
+	{ CTL_INT,NET_NF_CONNTRACK_UDP_FLOOD_EN,			"nf_conntrack_udp_flood_enable" },
+	{ CTL_INT,NET_NF_CONNTRACK_UDP_FLOOD_SPEED,			"nf_conntrack_udp_flood_speed" },
+	{ CTL_INT,NET_NF_CONNTRACK_TCP_SYN_FLOOD_EN,		"nf_conntrack_tcp_syn_flood_enable" },
+	{ CTL_INT,NET_NF_CONNTRACK_TCP_SYN_FLOOD_SPEED,		"nf_conntrack_tcp_syn_flood_speed" },
+	{ CTL_INT,NET_NF_CONNTRACK_TCP_FIN_FLOOD_EN,		"nf_conntrack_tcp_fin_flood_enable" },
+	{ CTL_INT,NET_NF_CONNTRACK_TCP_FIN_FLOOD_SPEED,		"nf_conntrack_tcp_fin_flood_speed" },
+	{ CTL_INT,NET_NF_CONNTRACK_TCP_PORT_SCAN_EN,		"nf_conntrack_tcp_port_scan_enable" },
+	{CTL_INT, NET_NF_CONNTRACK_UDP_PORT_SCAN_EN,		"nf_conntrack_udp_port_scan_enable" },
+	{CTL_INT, NET_NF_CONNTRACK_PORT_SCAN_MAX,		    "nf_conntrack_port_scan_max" },
+#endif
+#endif
 
 	{}
 };

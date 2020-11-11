@@ -1,0 +1,65 @@
+#
+# SC_HOOKS point configuration
+# hook from arch/xxx/Kconfig
+#
+
+menu "SC_HOOKS point"
+
+#config SPI_FIREWALL
+#	bool "netgear spi firewall support"
+#	default y
+#	help
+#	  Say Y here if you want to support netgear spi firewall device. 
+#	  When in doubt, say "N".
+
+
+#config SC_SOURCE_INFO
+#	bool "source info support"
+#	default y
+#	help
+#	  Say Y here if you want to support source info. 
+#	  When in doubt, say "N".
+
+config SC_USB_LED
+	bool "SC USB led control"
+	default y
+
+#config SC_MARK
+#	bool "SC MARK support"
+#	default y
+#	help
+#		Say Y here if you want to support scmark routing policy.
+#		When in doubt, say "N'.
+
+config CNAPT
+	bool "SC cone nat support"
+	depends on NF_NAT
+	default y
+	help
+	  as title.
+config SPI_FIREWALL
+	bool "SC SPI firewall support"
+	default y
+	help
+	  as title.
+
+config SC_IGMP_SNOOP
+	bool "SC igmp snooping enable"
+	default y
+	help
+	  as title.
+
+config SC_TRAFFIC_METER
+	bool "SC traffic meter enable"
+	default y
+	help
+	  as title.
+
+config SC_IPV6_BRIDGE
+	bool "SC IPv6 bridge modules"
+	default y
+	help
+	  as title.
+
+endmenu
+

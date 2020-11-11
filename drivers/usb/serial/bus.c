@@ -15,6 +15,9 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#ifdef __SC_BUILD__
+#include <linux/slog.h>
+#endif
 
 static int usb_serial_device_match(struct device *dev,
 						struct device_driver *drv)
@@ -63,17 +66,37 @@ static int usb_serial_device_probe(struct device *dev)
 	}
 
 	minor = port->minor;
+#if 0
+    if(port->serial->dev->descriptor.idVendor == 0x12d1) {
+        if(port->serial->dev->descriptor.idProduct == 0x158E) {
+            tty_dev = tty_register_device_huawei_158E(usb_serial_tty_driver, minor, dev);
+        } else {
+            tty_dev = tty_register_device_huawei(usb_serial_tty_driver, minor, dev);
+        }
+    } else {
+            tty_dev = tty_register_device(usb_serial_tty_driver, minor, dev);
+    }
+	if (IS_ERR(tty_dev)) {
+		retval = PTR_ERR(tty_dev);
+		goto err_port_remove;
+	}
+#else
 	tty_dev = tty_register_device(usb_serial_tty_driver, minor, dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
 		goto err_port_remove;
 	}
-
+#endif
 	usb_autopm_put_interface(port->serial->interface);
 
 	dev_info(&port->serial->dev->dev,
 		 "%s converter now attached to ttyUSB%d\n",
 		 driver->description, minor);
+#ifdef __SC_BUILD__
+    LOG_UMTS(KERN_INFO, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+            "%s %s: %s converter now attached to ttyUSB%d\n"
+            , dev_driver_string(&port->serial->dev->dev), dev_name(&port->serial->dev->dev), driver->description, minor);
+#endif
 
 	return 0;
 
@@ -115,6 +138,11 @@ static int usb_serial_device_remove(struct device *dev)
 
 	dev_info(dev, "%s converter now disconnected from ttyUSB%d\n",
 		 driver->description, minor);
+#ifdef __SC_BUILD__
+    LOG_UMTS(KERN_INFO, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+            "%s %s: %s converter now disconnected from ttyUSB%d\n"
+            , dev_driver_string(dev), dev_name(dev), driver->description, minor);
+#endif
 
 	if (!autopm_err)
 		usb_autopm_put_interface(port->serial->interface);

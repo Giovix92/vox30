@@ -41,7 +41,9 @@ int root_mountflags = MS_RDONLY | MS_SILENT;
 static char * __initdata root_device_name;
 static char __initdata saved_root_name[64];
 static int root_wait;
-
+#ifdef __SC_BUILD__
+extern int g_scm_mtd_num;
+#endif
 dev_t ROOT_DEV;
 
 static int __init load_ramdisk(char *str)
@@ -63,7 +65,10 @@ static int __init readwrite(char *str)
 {
 	if (*str)
 		return 0;
+#if !defined(__SC_BUILD__) || defined(DT_TEST)
+    /*only allow mount the rootfs with readonly*/
 	root_mountflags &= ~MS_RDONLY;
+#endif
 	return 1;
 }
 
@@ -545,6 +550,9 @@ void __init prepare_namespace(void)
 {
 	int is_floppy;
 
+#ifdef __SC_BUILD__
+    char mtd_dev[16];
+#endif
 	if (root_delay) {
 		printk(KERN_INFO "Waiting %d sec before mounting root device...\n",
 		       root_delay);
@@ -597,6 +605,11 @@ out:
 	devtmpfs_mount("dev");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
+#ifdef __SC_BUILD__
+    snprintf(mtd_dev, sizeof(mtd_dev), "/dev/mtdblock%d", g_scm_mtd_num);
+    sys_mount(mtd_dev, "/shares/rootfs", "jffs2", MS_RDONLY, NULL);
+ 
+#endif
 }
 
 static bool is_tmpfs;

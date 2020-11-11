@@ -27,6 +27,11 @@
 
 #include "br_private.h"
 
+#if defined(CONFIG_BCM_KF_RUNNER) && (defined(CONFIG_BCM_RDPA_BRIDGE) || defined(CONFIG_BCM_RDPA_BRIDGE_MODULE))
+#include "br_fp.h"
+#include "br_fp_hooks.h"
+#endif
+
 /*
  * Determine initial path cost based on speed.
  * using recommendations from 802.1d standard
@@ -241,12 +246,22 @@ static void del_nbp(struct net_bridge_port *p)
 	nbp_delete_promisc(p);
 
 	spin_lock_bh(&br->lock);
+#if defined(CONFIG_BCM_KF_BRIDGE_STP)
+	if (br->stp_enabled)
+		br_stp_off_port(p);
+	else
+		br_stp_disable_port(p);
+#else
 	br_stp_disable_port(p);
+#endif
 	spin_unlock_bh(&br->lock);
 
 	br_ifinfo_notify(RTM_DELLINK, p);
-
 	list_del_rcu(&p->list);
+
+#if defined(CONFIG_BCM_KF_INTF_BRG) && defined(CONFIG_BCM_INTF_BRG_ENABLED)
+	br_port_num_dec(br, p);
+#endif /* CONFIG_BCM_KF_INTF_BRG && CONFIG_BCM_INTF_BRG_ENABLED */
 
 	nbp_vlan_flush(p);
 	br_fdb_delete_by_port(br, p, 1);
@@ -333,9 +348,19 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->flags = BR_LEARNING | BR_FLOOD;
 	br_init_port(p);
 	br_set_state(p, BR_STATE_DISABLED);
+
+#if defined(CONFIG_BCM_KF_BRIDGE_MAC_FDB_LIMIT) && defined(CONFIG_BCM_BRIDGE_MAC_FDB_LIMIT)
+	p->min_port_fdb_entries = 0;
+	p->max_port_fdb_entries = 0;
+	p->num_port_fdb_entries = 0;
+#endif
+
 	br_stp_port_timer_init(p);
 	br_multicast_add_port(p);
 
+#if defined(CONFIG_BCM_KF_BRIDGE_STP)
+	br_stp_notify_state_port(p);
+#endif
 	return p;
 }
 
@@ -426,6 +451,10 @@ netdev_features_t br_features_recompute(struct net_bridge *br,
 	}
 	features = netdev_add_tso_features(features, mask);
 
+#if defined(CONFIG_BCM_KF_EXTSTATS)
+	features |= NETIF_F_EXTSTATS;
+#endif
+
 	return features;
 }
 
@@ -501,6 +530,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	netdev_update_features(br->dev);
 
+#if defined(CONFIG_BCM_KF_INTF_BRG) && defined(CONFIG_BCM_INTF_BRG_ENABLED)
+	br_port_num_inc(br, p);
+#endif /* CONFIG_BCM_KF_INTF_BRG && CONFIG_BCM_INTF_BRG_ENABLED */
+
 	if (br->dev->needed_headroom < dev->needed_headroom)
 		br->dev->needed_headroom = dev->needed_headroom;
 
@@ -522,6 +555,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	if (changed_addr)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
+
+#if defined(CONFIG_BCM_KF_RUNNER) && (defined(CONFIG_BCM_RDPA_BRIDGE) || defined(CONFIG_BCM_RDPA_BRIDGE_MODULE))
+		br_fp_hook(BR_FP_PORT_ADD, br, dev);
+#endif
 
 	dev_set_mtu(br->dev, br_min_mtu(br));
 
@@ -556,6 +593,15 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	p = br_port_get_rtnl(dev);
 	if (!p || p->br != br)
 		return -EINVAL;
+
+#if defined(CONFIG_BCM_KF_BRIDGE_MAC_FDB_LIMIT) && defined(CONFIG_BCM_BRIDGE_MAC_FDB_LIMIT)
+	/* Disable min limit per port in advance */
+	(void)br_set_fdb_limit(br, p, 1, 1, 0);
+#endif
+
+#if defined(CONFIG_BCM_KF_RUNNER) && (defined(CONFIG_BCM_RDPA_BRIDGE) || defined(CONFIG_BCM_RDPA_BRIDGE_MODULE))
+	br_fp_hook(BR_FP_PORT_REMOVE, br, dev);
+#endif
 
 	/* Since more than one interface can be attached to a bridge,
 	 * there still maybe an alternate path for netconsole to use;

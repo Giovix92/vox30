@@ -5,6 +5,9 @@
 CPPFLAGS_vmlinux.lds	:= -DTEXT_OFFSET=$(TEXT_OFFSET)
 AFLAGS_head.o		:= -DTEXT_OFFSET=$(TEXT_OFFSET)
 CFLAGS_efi-stub.o 	:= -DTEXT_OFFSET=$(TEXT_OFFSET)
+CFLAGS_smp_spin_table.o := -I${INC_BRCMSHARED_PUB_PATH}/bcm963xx\
+       			   -I${INC_BRCMDRIVER_PUB_PATH}/bcm963xx\
+       			   -I${INC_BRCMSHARED_PUB_PATH}/pmc
 CFLAGS_armv8_deprecated.o := -I$(src)
 
 CFLAGS_REMOVE_ftrace.o = -pg

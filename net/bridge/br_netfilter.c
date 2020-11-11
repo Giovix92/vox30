@@ -45,9 +45,16 @@
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *brnf_sysctl_header;
+#ifdef __SC_BUILD__
+//warning enable me, when you need to call iptables/ip6tables martin_huang@sdc.sercomm.com
+static int brnf_call_iptables __read_mostly = 0;
+static int brnf_call_ip6tables __read_mostly = 0;
+static int brnf_call_arptables __read_mostly = 0;
+#else
 static int brnf_call_iptables __read_mostly = 1;
 static int brnf_call_ip6tables __read_mostly = 1;
 static int brnf_call_arptables __read_mostly = 1;
+#endif
 static int brnf_filter_vlan_tagged __read_mostly = 0;
 static int brnf_filter_pppoe_tagged __read_mostly = 0;
 static int brnf_pass_vlan_indev __read_mostly = 0;

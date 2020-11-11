@@ -26,7 +26,25 @@ union nf_conntrack_nat_help {
 };
 
 struct nf_conn;
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+struct nf_conn_cnapt {
+	void *cnapt[IP_CT_DIR_MAX];
+	struct hlist_node bycnapt[IP_CT_DIR_MAX];
+	struct nf_conn *ct;
+	int service;
+};
+struct nf_conn_natlimit {
+	struct host_natlimit *host;
+	struct nf_conn *ct;
+	struct list_head list;
+	unsigned long out_jiffies;
+};
+struct nf_conn_cpt {
+	struct cpt_t *cpt;
+};
+#endif
+#endif
 /* The structure embedded in the conntrack structure. */
 struct nf_conn_nat {
 	struct hlist_node bysource;
@@ -35,6 +53,13 @@ struct nf_conn_nat {
 #if IS_ENABLED(CONFIG_NF_NAT_MASQUERADE_IPV4) || \
     IS_ENABLED(CONFIG_NF_NAT_MASQUERADE_IPV6)
 	int masq_index;
+#endif
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	struct nf_conn_cnapt ct_cnapt;
+	struct nf_conn_natlimit ct_natlimit;
+	struct nf_conn_cpt ct_cpt;
+#endif
 #endif
 };
 

@@ -305,6 +305,9 @@ static struct packet_offload ipv6_packet_offload __read_mostly = {
 static const struct net_offload sit_offload = {
 	.callbacks = {
 		.gso_segment	= ipv6_gso_segment,
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+		.gro_receive    = sit_gro_receive,
+#endif
 	},
 };
 

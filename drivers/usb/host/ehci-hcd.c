@@ -833,6 +833,10 @@ dead:
 	return IRQ_HANDLED;
 }
 
+#ifdef __SC_BUILD__
+extern int usb_traffic_count;
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -856,6 +860,10 @@ static int ehci_urb_enqueue (
 	struct list_head	qtd_list;
 
 	INIT_LIST_HEAD (&qtd_list);
+
+#ifdef __SC_BUILD__
+    usb_traffic_count++;
+#endif
 
 	switch (usb_pipetype (urb->pipe)) {
 	case PIPE_CONTROL:

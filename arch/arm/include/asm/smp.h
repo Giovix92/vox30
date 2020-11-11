@@ -123,4 +123,9 @@ struct of_cpu_method {
  */
 extern void smp_set_ops(struct smp_operations *);
 
+#if defined(CONFIG_BCM_ASTRA) && defined(CONFIG_BCM_KF_ASTRA)
+extern int set_ipi_handler(int ipinr, void *handler, char *desc);
+extern int clear_ipi_handler(int ipinr);
+#endif
+
 #endif /* ifndef __ASM_ARM_SMP_H */

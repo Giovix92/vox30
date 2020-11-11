@@ -29,13 +29,116 @@
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
-
+#ifdef __SC_BUILD__
+#include <linux/syscalls.h>
+#include <linux/kobject.h>
+#endif
 #include "hub.h"
 #include "otg_whitelist.h"
+
 
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define HUB_QUIRK_CHECK_PORT_AUTOSUSPEND	0x01
 
+#ifdef __SC_BUILD__
+#define USER_UEVENT_PID "/var/run/uevent.pid"
+typedef struct tag_OUTPUT_USB_STATE_DEV{
+    int bus;
+    char port[16];
+    int support;
+    int is_printer;
+    char name[64];
+}OUTPUT_USB_STATE_DEV;
+typedef struct tag_OUTPUT_USB_STATE{
+    OUTPUT_USB_STATE_DEV dev;
+    int used;
+}OUTPUT_USB_STATE;
+OUTPUT_USB_STATE usb_state[8] = {{{0,"",0},0},{{0,"",0},0},{{0,"",0},0},{{0,"",0},0},{{0,"",0},0},{{0,"",0},0},{{0,"",0},0},{{0,"",0},0}};
+EXPORT_SYMBOL(usb_state);
+static void usb_output_usb_state_add(int busnum, char *devpath)
+{
+    int i=0;
+    struct stat st;
+    if (sys_newlstat(USER_UEVENT_PID, &st))
+    {
+        for (i=0; i<sizeof(usb_state)/sizeof(OUTPUT_USB_STATE); i++)
+        {
+            if ((1 == usb_state[i].used) && (busnum == usb_state[i].dev.bus) && (0 == strcmp(devpath, usb_state[i].dev.port)))
+                break;
+        }
+        if (i == sizeof(usb_state)/sizeof(OUTPUT_USB_STATE))
+        {
+            for (i=0; i<sizeof(usb_state)/sizeof(OUTPUT_USB_STATE); i++)
+            {
+                if (0 == usb_state[i].used)
+                {
+                    usb_state[i].used = 1;
+                    usb_state[i].dev.bus = busnum;
+                    snprintf(usb_state[i].dev.port, sizeof(usb_state[i].dev.port), "%s", devpath);
+                    usb_state[i].dev.support = 0;
+                    usb_state[i].dev.is_printer = 0;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+static void usb_output_usb_state_remove(int busnum, char *devpath)
+{
+    int i =0;
+    struct stat st;
+    if (sys_newlstat(USER_UEVENT_PID, &st))
+    {
+        for (i=0; i<sizeof(usb_state)/sizeof(OUTPUT_USB_STATE); i++)
+        {
+            if ((usb_state[i].used == 1) && (busnum == usb_state[i].dev.bus) && (0 == strcmp(usb_state[i].dev.port, devpath)))
+            {
+                usb_state[i].used = 0;
+                break;
+            }
+        }
+    }
+}
+
+void usb_output_usb_state_update(int busnum, char *devpath)
+{
+    int i=0;
+    struct stat st;
+    if (sys_newlstat(USER_UEVENT_PID, &st))
+    {
+        for (i=0; i<sizeof(usb_state)/sizeof(OUTPUT_USB_STATE); i++)
+        {
+            if ((usb_state[i].used == 1) && (busnum == usb_state[i].dev.bus) && (0 == strcmp(usb_state[i].dev.port,devpath)))
+            {
+                usb_state[i].dev.support = 1;
+                break;
+            }
+        }
+    }
+}
+EXPORT_SYMBOL(usb_output_usb_state_update);
+
+void usb_output_usblp_state_update(int busnum, char *devpath, char *name)
+{
+    int i=0;
+    struct stat st;
+    if (sys_newlstat(USER_UEVENT_PID, &st))
+    {
+        for (i=0; i<sizeof(usb_state)/sizeof(OUTPUT_USB_STATE); i++)
+        {
+            if ((usb_state[i].used == 1) && (busnum == usb_state[i].dev.bus) && (0 == strcmp(usb_state[i].dev.port,devpath)))
+            {
+                usb_state[i].dev.support = 1;
+                usb_state[i].dev.is_printer = 1;
+                snprintf(usb_state[i].dev.name, sizeof(usb_state[i].dev.name), "%s", name);
+                break;
+            }
+        }
+    }
+}
+EXPORT_SYMBOL(usb_output_usblp_state_update);
+#endif
 /* Protect struct usb_device->state and ->children members
  * Note: Both are also protected by ->dev.sem, except that ->state can
  * change to USB_STATE_NOTATTACHED even when the semaphore isn't held. */
@@ -1663,6 +1766,10 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *hdev;
 	struct usb_hub *hub;
+#ifdef __SC_BUILD__
+    int len;
+    char message[256];
+#endif
 
 	desc = intf->cur_altsetting;
 	hdev = interface_to_usbdev(intf);
@@ -1723,6 +1830,12 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	if (hdev->level == MAX_TOPO_LEVEL) {
+#ifdef __SC_BUILD__
+#ifdef __USB_CERTIFICATE__
+        printk(KERN_EMERG "Hub Error.\n");
+        printk(KERN_EMERG "Unsupported hub.\n");
+#endif
+#endif
 		dev_err(&intf->dev,
 			"Unsupported bus topology: hub nested too deep\n");
 		return -E2BIG;
@@ -1783,8 +1896,16 @@ descriptor_error:
 		hub->quirk_check_port_auto_suspend = 1;
 
 	if (hub_configure(hub, endpoint) >= 0)
+    {
+#ifdef __SC_BUILD__
+#define USB_HUB "add@usbhub"
+        len = snprintf(message, sizeof(message), "%s/%d-%s.", USB_HUB, hdev->bus->busnum, hdev->devpath);
+        len++;
+        (void)kobject_send_uevent(message, len);
+        usb_output_usb_state_update(hdev->bus->busnum, hdev->devpath);
+#endif
 		return 0;
-
+    }
 	hub_disconnect (intf);
 	return -ENODEV;
 }
@@ -2092,6 +2213,9 @@ void usb_disconnect(struct usb_device **pdev)
 	struct usb_hub *hub = NULL;
 	int port1 = 1;
 
+#ifdef __SC_BUILD__
+    usb_output_usb_state_remove(udev->bus->busnum, udev->devpath);
+#endif
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
 	 * this quiesces everything except pending urbs.
@@ -2731,8 +2855,16 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 					USB_PORT_FEAT_C_BH_PORT_RESET);
 			usb_clear_port_feature(hub->hdev, port1,
 					USB_PORT_FEAT_C_PORT_LINK_STATE);
-			usb_clear_port_feature(hub->hdev, port1,
-					USB_PORT_FEAT_C_CONNECTION);
+            
+#if defined(CONFIG_BCM_KF_USB_HOSTS)
+			/* during reboot some times warm reset is seen and clearing this bit
+			 * is causing device detection issues*/
+			if(warm)
+				printk("+++++ BRCM skipping port_feat_c_connection for warm reset\n");
+			else
+#endif
+				usb_clear_port_feature(hub->hdev, port1,
+						USB_PORT_FEAT_C_CONNECTION);
 
 			/*
 			 * If a USB 3.0 device migrates from reset to an error
@@ -4748,7 +4880,9 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 			port_dev->child = udev;
 		spin_unlock_irq(&device_state_lock);
 		mutex_unlock(&usb_port_peer_mutex);
-
+#ifdef __SC_BUILD__
+        usb_output_usb_state_add(udev->bus->busnum, udev->devpath);
+#endif
 		/* Run it through the hoops (find a driver, etc) */
 		if (!status) {
 			status = usb_new_device(udev);

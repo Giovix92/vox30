@@ -32,6 +32,11 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+#include <sc/cnapt/nf_cnapt.h>
+#endif
+#endif
 unsigned int nf_ct_expect_hsize __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_expect_hsize);
 
@@ -257,6 +262,12 @@ struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
 
 	new->master = me;
 	atomic_set(&new->use, 1);
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	/* be careful! */
+	new->calg = NULL;
+#endif
+#endif
 	return new;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_alloc);
@@ -330,7 +341,19 @@ static void nf_ct_expect_free_rcu(struct rcu_head *head)
 void nf_ct_expect_put(struct nf_conntrack_expect *exp)
 {
 	if (atomic_dec_and_test(&exp->use))
+	{
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+		struct calg_hooks_t *hooks;
+		rcu_read_lock();
+		hooks = rcu_dereference(calg_hooks_ptr);
+		if (hooks)
+			hooks->del_expect(exp);
+		rcu_read_unlock();
+#endif
+#endif
 		call_rcu(&exp->rcu, nf_ct_expect_free_rcu);
+    }
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_put);
 

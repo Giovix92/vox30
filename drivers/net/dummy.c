@@ -149,7 +149,11 @@ static void dummy_setup(struct net_device *dev)
 	dev->flags &= ~IFF_MULTICAST;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	dev->features	|= NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO;
+#ifdef __SC_BUILD__
+	dev->features	|= NETIF_F_HIGHDMA | NETIF_F_LLTX;
+#else
 	dev->features	|= NETIF_F_HW_CSUM | NETIF_F_HIGHDMA | NETIF_F_LLTX;
+#endif
 	eth_hw_addr_random(dev);
 }
 

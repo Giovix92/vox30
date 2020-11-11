@@ -80,6 +80,9 @@ struct ip_mc_list {
 	unsigned int		sfmode;
 	struct ip_sf_list	*sources;
 	struct ip_sf_list	*tomb;
+#if defined(CONFIG_BCM_KF_MCAST_GR_SUPPRESSION)
+	unsigned int		osfmode;
+#endif
 	unsigned long		sfcount[2];
 	union {
 		struct ip_mc_list *next;
@@ -116,6 +119,9 @@ extern int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr);
 extern void ip_mc_drop_socket(struct sock *sk);
 extern int ip_mc_source(int add, int omode, struct sock *sk,
 		struct ip_mreq_source *mreqs, int ifindex);
+#ifdef __SC_BUILD__
+extern int ip_mc_msfilter_x(struct sock *sk, struct ip_msfilter_x *msf,int ifindex);
+#endif
 extern int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf,int ifindex);
 extern int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 		struct ip_msfilter __user *optval, int __user *optlen);

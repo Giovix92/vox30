@@ -107,6 +107,12 @@
 #include <linux/seq_file.h>
 #endif
 
+#ifdef __SC_BUILD__
+#define SC_IGMP_DEBUG
+#define IGMP_UNSOLICITED_REPORT_CONFIG
+#define IGMP_SEND_REPORT_PERIODIC
+#endif /* CONFIG_SCM_SUPPORT */
+
 #define IP_MAX_MEMBERSHIPS	20
 #define IP_MAX_MSF		10
 
@@ -140,7 +146,9 @@
 	 IN_DEV_CONF_GET((in_dev), FORCE_IGMP_VERSION) == 2 || \
 	 ((in_dev)->mr_v2_seen && \
 	  time_before(jiffies, (in_dev)->mr_v2_seen)))
-
+#ifdef __SC_BUILD__
+extern int sc_mcpd_process_skb(struct in_device *in_dev, struct sk_buff *skb, int protocol);
+#endif
 static int unsolicited_report_interval(struct in_device *in_dev)
 {
 	int interval_ms, interval_jiffies;
@@ -191,7 +199,179 @@ static void ip_ma_put(struct ip_mc_list *im)
 	for (pmc = rtnl_dereference(in_dev->mc_list);		\
 	     pmc != NULL;					\
 	     pmc = rtnl_dereference(pmc->next_rcu))
+#ifdef __SC_BUILD__
+#ifdef SC_IGMP_DEBUG
+#define IPSTR  "%u.%u.%u.%u"
+#define IP2STR(x)   ((unsigned char*)&x)[0], \
+                    ((unsigned char*)&x)[1], \
+                    ((unsigned char*)&x)[2], \
+                    ((unsigned char*)&x)[3]
+static unsigned int igmp_debug_enable = 0;
+#endif /* SC_IGMP_DEBUG */
 
+#ifdef IGMP_UNSOLICITED_REPORT_CONFIG
+static unsigned int igmp_unsolicited_report_count = IGMP_QUERY_ROBUSTNESS_VARIABLE;
+static unsigned int igmp_unsolicited_report_interval = IGMP_QUERY_RESPONSE_INTERVAL;
+#endif /* IGMP_UNSOLICITED_REPORT_CONFIG */
+
+#ifdef IGMP_SEND_REPORT_PERIODIC
+#define IGMP_DEFAULT_PERIODIC_TIME  60
+#define IGMP_SEND_IGMP_V2_REPORT    2
+#define IGMP_SEND_IGMP_V3_REPORT    3
+#define IGMP_ACTIVE_SEND_CLOSE      0
+#define IGMP_ACTIVE_SEND_OPEN       1
+static int igmp_periodic_time = IGMP_DEFAULT_PERIODIC_TIME;
+static int igmp_report_version = IGMP_SEND_IGMP_V2_REPORT;
+static int igmp_active_send = IGMP_ACTIVE_SEND_CLOSE;
+static char igmp_ifname_list[100] = "";
+#endif /* IGMP_SEND_REPORT_PERIODIC */
+
+#define PROC_IGMP_KERNEL_CONFIG "igmp_kernel_config"
+static struct proc_dir_entry *proc_igmp_kernel_config_entry;
+
+static int igmp_config_read_proc(struct file * file, char * buff, size_t length, loff_t *pos)
+{
+    char buf[1000] = "";
+    int len = 0;
+    int ret = 0;
+
+#ifdef SC_IGMP_DEBUG
+    len += sprintf(buf+len, "igmp_debug_enable:%d\n", igmp_debug_enable);
+#endif
+#ifdef IGMP_UNSOLICITED_REPORT_CONFIG
+    len += sprintf(buf+len, "unsolicited_report_count:%d\n", igmp_unsolicited_report_count);
+    len += sprintf(buf+len, "unsolicited_report_interval:%d\n", igmp_unsolicited_report_interval/HZ);
+#endif
+#ifdef IGMP_SEND_REPORT_PERIODIC
+    len += sprintf(buf+len, "igmp_inform_enable:%d\n", igmp_active_send);
+    len += sprintf(buf+len, "igmp_inform_version:%d\n", igmp_report_version);
+    len += sprintf(buf+len, "igmp_inform_interval:%d\n", igmp_periodic_time);
+    len += sprintf(buf+len, "igmp_inform_iflist:%s\n", igmp_ifname_list);
+#endif
+    if(*pos == 0)
+    {
+        sprintf(buff+length, buf, len);
+        ret=*pos;
+    }
+    return ret;
+}
+
+static int igmp_config_write_proc(struct file *file, const char *buffer, size_t count, loff_t *offset)
+{
+    char *str, *cmd, *value;
+
+    if (count > 0)
+    {
+        str = (char *)buffer;
+        cmd = strsep(&str, "\t \n");
+        if (!cmd)
+            goto err_out;
+
+        if (0)
+            /* do nothing */;
+#ifdef SC_IGMP_DEBUG
+        else if (strcmp(cmd, "igmp_debug_enable") == 0)
+        {
+            value = strsep(&str, "\t \n");
+            if (!value)
+                goto err_out;
+            igmp_debug_enable = simple_strtoul(value, &value, 10);
+        }
+#endif
+#ifdef IGMP_UNSOLICITED_REPORT_CONFIG
+        else if (strcmp(cmd, "unsolicited_report_count") == 0)
+        {
+            value = strsep(&str, "\t \n");
+            if (!value)
+                goto err_out;
+            igmp_unsolicited_report_count = simple_strtoul(value, &value, 10);
+        }
+        else if (strcmp(cmd, "unsolicited_report_interval") == 0)
+        {
+            value = strsep(&str, "\t \n");
+            if (!value)
+                goto err_out;
+            igmp_unsolicited_report_interval = simple_strtoul(value, &value, 10)*HZ;
+        }
+#endif
+#ifdef IGMP_SEND_REPORT_PERIODIC
+        else if (strcmp(cmd, "igmp_inform_enable") == 0)
+        {
+            value = strsep(&str, "\t \n");
+            if (!value)
+                goto err_out;
+            igmp_active_send = simple_strtoul(value, &value, 10);
+            if (igmp_active_send > 0)
+                igmp_active_send = IGMP_ACTIVE_SEND_OPEN;
+            else
+                igmp_active_send = IGMP_ACTIVE_SEND_CLOSE;
+        }
+        else if (strcmp(cmd, "igmp_inform_version") == 0)
+        {
+            value = strsep(&str, "\t \n");
+            if (!value)
+                goto err_out;
+            igmp_report_version = simple_strtoul(value, &value, 10);
+            if (3 == igmp_report_version)
+                igmp_report_version = IGMP_SEND_IGMP_V3_REPORT;
+            else
+                igmp_report_version = IGMP_SEND_IGMP_V2_REPORT;
+        }
+        else if (strcmp(cmd, "igmp_inform_interval") == 0)
+        {
+            value = strsep(&str, "\t \n");
+            if (!value)
+                goto err_out;
+            igmp_periodic_time = simple_strtoul(value, &value, 10);
+            if (igmp_periodic_time <= 0)
+                igmp_periodic_time = IGMP_DEFAULT_PERIODIC_TIME;
+        }
+        else if (strcmp(cmd, "igmp_inform_iflist") == 0)
+        {
+            value = strsep(&str, "\t \n");
+            if (!value)
+                goto err_out;
+            snprintf(igmp_ifname_list, sizeof(igmp_ifname_list), "%s", value);
+        }
+#endif
+        else
+            goto err_out;
+    }
+    return count;
+err_out:
+    printk("<0>""usage: \n");
+#ifdef SC_IGMP_DEBUG
+    printk("<0>""  igmp_debug_enable [0/1]\n");
+#endif
+#ifdef IGMP_UNSOLICITED_REPORT_CONFIG
+    printk("<0>""  unsolicited_report_count [num]\n  unsolicited_report_interval [num]\n");
+#endif
+#ifdef IGMP_SEND_REPORT_PERIODIC
+    printk("<0>""  igmp_inform_enable [0/1]\n  igmp_inform_version [2/3]\n");
+    printk("<0>""  igmp_inform_interval [num]\n  igmp_inform_iflist [ifname,ifname,ifname]\n");
+#endif
+    return -EFAULT;
+}
+static struct file_operations proc_igmp_kernel = {
+    .read= igmp_config_read_proc,
+    .write= igmp_config_write_proc,
+};
+
+static int igmp_config_proc_init(void)
+{
+    proc_igmp_kernel_config_entry = proc_create(PROC_IGMP_KERNEL_CONFIG, S_IFREG | S_IRUGO, NULL, &proc_igmp_kernel);
+
+    return 0;
+}
+
+static int igmp_config_proc_exit(void)
+{
+    remove_proc_entry(PROC_IGMP_KERNEL_CONFIG, NULL);
+
+    return 0;
+}
+
+#endif /* CONFIG_SCM_SUPPORT */
 #ifdef CONFIG_IP_MULTICAST
 
 /*
@@ -330,7 +510,9 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, unsigned int mtu)
 	int hlen = LL_RESERVED_SPACE(dev);
 	int tlen = dev->needed_tailroom;
 	unsigned int size = mtu;
-
+#ifdef __SC_BUILD__
+	int addr;
+#endif	
 	while (1) {
 		skb = alloc_skb(size + hlen + tlen,
 				GFP_ATOMIC | __GFP_NOWARN);
@@ -349,7 +531,9 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, unsigned int mtu)
 		kfree_skb(skb);
 		return NULL;
 	}
-
+#ifdef __SC_BUILD__
+	addr = inet_select_addr_x(dev, 0, RT_SCOPE_LINK);
+#endif
 	skb_dst_set(skb, &rt->dst);
 	skb->dev = dev;
 
@@ -366,7 +550,14 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, unsigned int mtu)
 	pip->frag_off = htons(IP_DF);
 	pip->ttl      = 1;
 	pip->daddr    = fl4.daddr;
+#ifdef __SC_BUILD__
+	if(addr)
+		pip->saddr    = fl4.saddr;
+	else
+		pip->saddr = 0;
+#else
 	pip->saddr    = fl4.saddr;
+#endif
 	pip->protocol = IPPROTO_IGMP;
 	pip->tot_len  = 0;	/* filled in later */
 	ip_select_ident(net, skb, NULL);
@@ -633,6 +824,9 @@ static void igmpv3_send_cr(struct in_device *in_dev)
 	/* change recs */
 	for_each_pmc_rcu(in_dev, pmc) {
 		spin_lock_bh(&pmc->lock);
+#if defined(CONFIG_BCM_KF_MCAST_GR_SUPPRESSION)
+		if ( pmc->osfmode == pmc->sfmode ) {
+#endif
 		if (pmc->sfcount[MCAST_EXCLUDE]) {
 			type = IGMPV3_BLOCK_OLD_SOURCES;
 			dtype = IGMPV3_ALLOW_NEW_SOURCES;
@@ -642,15 +836,29 @@ static void igmpv3_send_cr(struct in_device *in_dev)
 		}
 		skb = add_grec(skb, pmc, type, 0, 0);
 		skb = add_grec(skb, pmc, dtype, 0, 1);	/* deleted sources */
+#if defined(CONFIG_BCM_KF_MCAST_GR_SUPPRESSION)
+		}
+#endif
 
 		/* filter mode changes */
 		if (pmc->crcount) {
+#if defined(CONFIG_BCM_KF_MCAST_GR_SUPPRESSION)
+			if ( pmc->osfmode != pmc->sfmode ) {
+#endif
 			if (pmc->sfmode == MCAST_EXCLUDE)
 				type = IGMPV3_CHANGE_TO_EXCLUDE;
 			else
 				type = IGMPV3_CHANGE_TO_INCLUDE;
 			skb = add_grec(skb, pmc, type, 0, 0);
+#if defined(CONFIG_BCM_KF_MCAST_GR_SUPPRESSION)
+			}
+#endif
 			pmc->crcount--;
+#if defined(CONFIG_BCM_KF_MCAST_GR_SUPPRESSION)
+			if ( pmc->crcount == 0 ) {
+				pmc->osfmode = pmc->sfmode;
+			}
+#endif
 		}
 		spin_unlock_bh(&pmc->lock);
 	}
@@ -675,6 +883,9 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	__be32	dst;
 	int hlen, tlen;
 
+#ifdef __SC_BUILD__
+	int addr;
+#endif
 	if (type == IGMPV3_HOST_MEMBERSHIP_REPORT)
 		return igmpv3_send_report(in_dev, pmc);
 	else if (type == IGMP_HOST_LEAVE_MESSAGE)
@@ -687,6 +898,9 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 				   IPPROTO_IGMP, 0, dev->ifindex);
 	if (IS_ERR(rt))
 		return -1;
+#ifdef __SC_BUILD__
+	addr = inet_select_addr_x(dev, 0, RT_SCOPE_LINK);
+#endif
 
 	hlen = LL_RESERVED_SPACE(dev);
 	tlen = dev->needed_tailroom;
@@ -711,7 +925,14 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	iph->frag_off = htons(IP_DF);
 	iph->ttl      = 1;
 	iph->daddr    = dst;
+#ifdef __SC_BUILD__
+		if(addr)
+		iph->saddr    = fl4.saddr;
+		else
+		iph->saddr = 0;
+#else
 	iph->saddr    = fl4.saddr;
+#endif
 	iph->protocol = IPPROTO_IGMP;
 	ip_select_ident(net, skb, NULL);
 	((u8 *)&iph[1])[0] = IPOPT_RA;
@@ -1181,6 +1402,12 @@ static void igmp_group_dropped(struct ip_mc_list *im)
 	if (im->multiaddr == IGMP_ALL_HOSTS)
 		return;
 
+#if defined(CONFIG_BCM_KF_IGMP_RIP_ROUTER)
+	/* do not send leave for RIP */
+	if (im->multiaddr == htonl(0xE0000009L))
+		return;
+#endif
+
 	reporter = im->reporter;
 	igmp_stop_timer(im);
 
@@ -1313,6 +1540,9 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 	im->multiaddr = addr;
 	/* initial mode is (EX, empty) */
 	im->sfmode = MCAST_EXCLUDE;
+#if defined(CONFIG_BCM_KF_MCAST_GR_SUPPRESSION)
+	im->osfmode = MCAST_INCLUDE;
+#endif
 	im->sfcount[MCAST_EXCLUDE] = 1;
 	atomic_set(&im->refcnt, 1);
 	spin_lock_init(&im->lock);
@@ -1443,10 +1673,55 @@ void ip_mc_down(struct in_device *in_dev)
 		__in_dev_put(in_dev);
 	igmpv3_clear_delrec(in_dev);
 #endif
+#ifdef __SC_BUILD__
+#ifdef IGMP_SEND_REPORT_PERIODIC
+    if (del_timer(&in_dev->mr_atv_timer))
+        __in_dev_put(in_dev);
+#endif
+#endif
 
 	ip_mc_dec_group(in_dev, IGMP_ALL_HOSTS);
 }
+#ifdef __SC_BUILD__
+#ifdef IGMP_SEND_REPORT_PERIODIC
+static void igmp_atv_start_timer(struct in_device *in_dev)
+{
+    int tv = igmp_periodic_time*HZ;
 
+    if (!mod_timer(&in_dev->mr_atv_timer, jiffies+tv))
+        in_dev_hold(in_dev);
+}
+#ifdef IGMP_SEND_REPORT_PERIODIC
+static void igmp_atv_timer_expire(unsigned long data)
+{
+    struct in_device *in_dev = (struct in_device *)data;
+
+    if (IGMP_ACTIVE_SEND_CLOSE == igmp_active_send || !strstr(igmp_ifname_list, in_dev->dev->name))
+    {
+        igmp_atv_start_timer(in_dev);
+        __in_dev_put(in_dev);
+        return;
+    }
+
+    if (IGMP_SEND_IGMP_V3_REPORT == igmp_report_version)
+        igmpv3_send_report(in_dev, NULL);
+    else
+    {
+        struct ip_mc_list   *im;
+        for_each_pmc_rcu(in_dev, im) {
+            if (im->multiaddr == IGMP_ALL_HOSTS)
+                continue;
+            igmp_send_report(in_dev, im, IGMPV2_HOST_MEMBERSHIP_REPORT);
+        }
+    }
+    igmp_atv_start_timer(in_dev);
+    __in_dev_put(in_dev);
+}
+#endif
+
+#endif
+
+#endif
 void ip_mc_init_dev(struct in_device *in_dev)
 {
 	ASSERT_RTNL();
@@ -1458,7 +1733,12 @@ void ip_mc_init_dev(struct in_device *in_dev)
 			(unsigned long)in_dev);
 	in_dev->mr_qrv = sysctl_igmp_qrv;
 #endif
-
+#ifdef __SC_BUILD__
+#ifdef IGMP_SEND_REPORT_PERIODIC
+    setup_timer(&in_dev->mr_atv_timer, igmp_atv_timer_expire, (unsigned long)in_dev);
+    igmp_atv_start_timer(in_dev);
+#endif
+#endif
 	spin_lock_init(&in_dev->mc_tomb_lock);
 }
 
@@ -2104,6 +2384,97 @@ done:
 		err = ip_mc_leave_group(sk, &imr);
 	return err;
 }
+#ifdef __SC_BUILD__
+int ip_mc_msfilter_x(struct sock *sk, struct ip_msfilter_x *msf, int ifindex)
+{
+    int err = 0;
+    struct ip_mreqn imr;
+    __be32 addr = msf->imsf_multiaddr;
+    struct ip_mc_socklist *pmc;
+    struct in_device *in_dev;
+    struct inet_sock *inet = inet_sk(sk);
+    struct ip_sf_socklist *newpsl, *psl;
+    struct net *net = sock_net(sk);
+    int leavegroup = 0;
+	   
+    if (!ipv4_is_multicast(addr))
+        return -EINVAL;
+    if (msf->imsf_fmode != MCAST_INCLUDE &&
+        msf->imsf_fmode != MCAST_EXCLUDE)
+        return -EINVAL;
+
+    rtnl_lock();
+
+    imr.imr_multiaddr.s_addr = msf->imsf_multiaddr;
+    imr.imr_address.s_addr = msf->imsf_interface;
+    imr.imr_ifindex = ifindex;
+    in_dev = ip_mc_find_dev(net, &imr);
+	
+    if (!in_dev) {
+        err = -ENODEV;
+        goto done;
+    }
+
+     /* special case - (INCLUDE, empty) == LEAVE_GROUP */
+    if (msf->imsf_fmode == MCAST_INCLUDE && msf->imsf_numsrc == 0) {
+        leavegroup = 1;
+        goto done;
+    }
+
+   for_each_pmc_rtnl(inet, pmc) {
+        if (pmc->multi.imr_multiaddr.s_addr == msf->imsf_multiaddr &&
+            pmc->multi.imr_ifindex == imr.imr_ifindex)
+            break;
+    }
+   if (!pmc) {     /* must have a prior join */
+        err = -EINVAL;
+        goto done;
+    }
+    if (msf->imsf_numsrc) {
+        newpsl = sock_kmalloc(sk, IP_SFLSIZE(msf->imsf_numsrc),
+                               GFP_KERNEL);
+        if (!newpsl) {
+            err = -ENOBUFS;
+            goto done;
+        }
+        newpsl->sl_max = newpsl->sl_count = msf->imsf_numsrc;
+        memcpy(newpsl->sl_addr, msf->imsf_slist,
+            msf->imsf_numsrc * sizeof(msf->imsf_slist[0]));
+        err = ip_mc_add_src(in_dev, &msf->imsf_multiaddr,
+            msf->imsf_fmode, newpsl->sl_count, newpsl->sl_addr, 0);
+       if (err) {
+           sock_kfree_s(sk, newpsl, IP_SFLSIZE(newpsl->sl_max));
+           goto done;
+        }
+     }
+	 else 
+	 {
+        newpsl = NULL;
+        (void) ip_mc_add_src(in_dev, &msf->imsf_multiaddr,
+                     msf->imsf_fmode, 0, NULL, 0);     
+	  }
+        psl = rtnl_dereference(pmc->sflist);
+    if (psl) {
+        (void) ip_mc_del_src(in_dev, &msf->imsf_multiaddr, pmc->sfmode,
+            psl->sl_count, psl->sl_addr, 0);
+        /* decrease mem now to avoid the memleak warning */
+         atomic_sub(IP_SFLSIZE(psl->sl_max), &sk->sk_omem_alloc);
+         kfree_rcu(psl, rcu);
+    } 
+	else
+         (void) ip_mc_del_src(in_dev, &msf->imsf_multiaddr, pmc->sfmode,
+             0, NULL, 0);
+     rcu_assign_pointer(pmc->sflist, newpsl);
+     pmc->sfmode = msf->imsf_fmode;
+     err = 0;
+done:
+    rtnl_unlock();
+    if (leavegroup)
+        err = ip_mc_leave_group(sk, &imr);
+    return err;
+}
+#endif
+
 
 int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 {
@@ -2731,7 +3102,9 @@ static int __net_init igmp_net_init(struct net *net)
 		       err);
 		goto out_sock;
 	}
-
+#ifdef __SC_BUILD__
+    igmp_config_proc_init();
+#endif
 	return 0;
 
 out_sock:
@@ -2746,7 +3119,11 @@ static void __net_exit igmp_net_exit(struct net *net)
 {
 	remove_proc_entry("mcfilter", net->proc_net);
 	remove_proc_entry("igmp", net->proc_net);
+#ifdef __SC_BUILD__
+    igmp_config_proc_exit();
+#endif
 	inet_ctl_sock_destroy(net->ipv4.mc_autojoin_sk);
+
 }
 
 static struct pernet_operations igmp_net_ops = {

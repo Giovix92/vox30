@@ -8,6 +8,9 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
+#ifdef CONFIG_CRASH_LOG
+#include <linux/hal_wd.h>
+#endif
 
 #define KSYM_NAME_LEN 128
 #define KSYM_SYMBOL_LEN (sizeof("%s+%#lx/%#lx [%s]") + (KSYM_NAME_LEN - 1) + \
@@ -122,7 +125,34 @@ static inline void print_symbol(const char *fmt, unsigned long addr)
 
 static inline void print_ip_sym(unsigned long ip)
 {
+#if defined(CONFIG_BCM_KF_EXTRA_DEBUG)
+#if defined(CONFIG_ARM)
+    if (((ip & 0xF0000000) == 0xc0000000))
+#elif defined (CONFIG_MIPS)
+    if (((ip & 0xF0000000) == 0x80000000))
+#else
+    if ((ip & 0xfffffff000000000) == 0xffffffc000000000 || (ip & 0xfffffff000000000) == 0xffffffb000000000)
+#endif
+    {
+        printk("[<%p>] %pS\n", (void *) ip, (void *) ip);
+#ifdef CONFIG_CRASH_LOG
+        SC_LOG_MSG_TO_BUFF("[<%p>] %pS\n", (void *) ip, (void *) ip);
+#endif
+    }
+    else
+    {
+    	printk("[<%p>] (suspected corrupt symbol)\n", (void *) ip);
+#ifdef CONFIG_CRASH_LOG
+        SC_LOG_MSG_TO_BUFF("[<%p>] (suspected corrupt symbol)\n", (void *) ip);
+#endif
+    }
+#else
+
 	printk("[<%p>] %pS\n", (void *) ip, (void *) ip);
+#ifdef CONFIG_CRASH_LOG
+    SC_LOG_MSG_TO_BUFF("[<%p>] %pS\n", (void *) ip, (void *) ip);
+#endif
+#endif
 }
 
 #endif /*_LINUX_KALLSYMS_H*/

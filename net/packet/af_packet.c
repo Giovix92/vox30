@@ -89,6 +89,10 @@
 #include <linux/errqueue.h>
 #include <linux/net_tstamp.h>
 #include <linux/percpu.h>
+#ifdef __SC_BUILD__
+#include <linux/bcm_skb_defines.h>
+#include <net/qos_cls.h>
+#endif
 #ifdef CONFIG_INET
 #include <net/inet_common.h>
 #endif
@@ -228,7 +232,9 @@ struct packet_skb_cb {
 		};
 	} sa;
 };
-
+#ifdef __SC_BUILD__
+extern int ppp_pbit;
+#endif
 #define PACKET_SKB_CB(__skb)	((struct packet_skb_cb *)((__skb)->cb))
 
 #define GET_PBDQC_FROM_RB(x)	((struct tpacket_kbdq_core *)(&(x)->prb_bdqc))
@@ -1624,7 +1630,9 @@ static int packet_sendmsg_spkt(struct socket *sock, struct msghdr *msg,
 	__be16 proto = 0;
 	int err;
 	int extra_len = 0;
-
+#ifdef __SC_BUILD__
+    struct sercomm_head *psh;
+#endif
 	/*
 	 *	Get and verify the address.
 	 */
@@ -1713,7 +1721,10 @@ retry:
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-
+#ifdef __SC_BUILD__
+    psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+    psh->egress_mark = sk->sk_sc_mark;
+#endif
 	sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
 
 	if (unlikely(extra_len == 4))
@@ -2132,6 +2143,9 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	struct page *page;
 	void *data;
 	int err;
+#ifdef __SC_BUILD__
+    struct sercomm_head *psh;
+#endif
 
 	ph.raw = frame;
 
@@ -2139,6 +2153,10 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->dev = dev;
 	skb->priority = po->sk.sk_priority;
 	skb->mark = po->sk.sk_mark;
+#ifdef __SC_BUILD__
+    psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+    psh->egress_mark = po->sk.sk_sc_mark;
+#endif
 	sock_tx_timestamp(&po->sk, &skb_shinfo(skb)->tx_flags);
 	skb_shinfo(skb)->destructor_arg = ph.raw;
 
@@ -2423,7 +2441,9 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	int hlen, tlen;
 	int extra_len = 0;
 	ssize_t n;
-
+#ifdef __SC_BUILD__
+    struct sercomm_head *psh;
+#endif
 	/*
 	 *	Get and verify the address.
 	 */
@@ -2555,7 +2575,10 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-
+#ifdef __SC_BUILD__
+    psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+    psh->egress_mark = sk->sk_sc_mark;
+#endif
 	packet_pick_tx_queue(dev, skb);
 
 	if (po->has_vnet_hdr) {
@@ -2583,7 +2606,27 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 
 	if (unlikely(extra_len == 4))
 		skb->no_fcs = 1;
-
+#ifdef __SC_BUILD__
+    if(proto == __constant_htons(ETH_P_PPP_DISC)) // ppp discovery
+    {
+#ifdef CONFIG_SUPPORT_FON
+#ifdef CONFIG_BR_IGMP_SNOOP
+        skb->mark = SKBMARK_SET_Q_PRIO(skb->mark, 5);
+#else
+        skb->mark = SKBMARK_SET_Q_PRIO(skb->mark, 4);
+#endif
+#else
+#ifdef CONFIG_BR_IGMP_SNOOP
+        skb->mark = SKBMARK_SET_Q_PRIO(skb->mark, 4);
+#else
+        skb->mark = SKBMARK_SET_Q_PRIO(skb->mark, 3);
+#endif
+#endif
+        psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+        if(ppp_pbit)
+            set_egress_8021p((char *)psh, ppp_pbit);
+    }
+#endif
 	err = po->xmit(skb);
 	if (err > 0 && (err = net_xmit_errno(err)) != 0)
 		goto out_unlock;
@@ -2688,6 +2731,7 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 {
 	struct packet_sock *po = pkt_sk(sk);
 	struct net_device *dev_curr;
+
 	__be16 proto_curr;
 	bool need_rehook;
 	struct net_device *dev = NULL;
@@ -2736,6 +2780,8 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 
 		po->num = proto;
 		po->prot_hook.type = proto;
+#if !defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+#endif
 
 		if (unlikely(unlisted)) {
 			dev_put(dev);

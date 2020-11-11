@@ -84,7 +84,14 @@
 #define SIOCWANDEV	0x894A		/* get/set netdev parameters	*/
 
 #define SIOCOUTQNSD	0x894B		/* output queue size (not sent only) */
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+#define SIOCGIFDOSFLAGS	0x894C 	/* get dos flags			*/
+#define SIOCSIFDOSFLAGS	0x894D		/* set dos flags			*/
+#endif
+#define SIOCGIFFRAGMENTFLAGS 0x894E /* get fragment flags*/
+#define SIOCSIFFRAGMENTFLAGS 0x894F /* set fragment flags*/
+#endif
 /* ARP cache control calls. */
 		    /*  0x8950 - 0x8952  * obsolete calls, don't re-use */
 #define SIOCDARP	0x8953		/* delete ARP table entry	*/
@@ -127,6 +134,18 @@
 /* hardware time stamping: parameters in linux/net_tstamp.h */
 #define SIOCSHWTSTAMP	0x89b0		/* set and get config		*/
 #define SIOCGHWTSTAMP	0x89b1		/* get config			*/
+
+#if !defined(CONFIG_BCM_IN_KERNEL) || defined(CONFIG_BCM_KF_MISC_IOCTLS) || defined(CONFIG_BCM_KF_WANDEV)
+/***********************BRCM global ioctl calls*****************************/
+#define SIOC_BRCM_GLOBAL_BASE    0x89c0
+#endif
+#if !defined(CONFIG_BCM_IN_KERNEL) || defined(CONFIG_BCM_KF_MISC_IOCTLS)
+#define SIOCGIFTRANSSTART  (SIOC_BRCM_GLOBAL_BASE+0)    /* Used by SNMP */
+#define SIOCCIFSTATS       (SIOC_BRCM_GLOBAL_BASE+1)    /* Clear stats of a device */
+#endif
+#if !defined(CONFIG_BCM_IN_KERNEL) || defined(CONFIG_BCM_KF_WANDEV)
+#define SIOCDEVISWANDEV    (SIOC_BRCM_GLOBAL_BASE+2)
+#endif
 
 /* Device private ioctl calls */
 

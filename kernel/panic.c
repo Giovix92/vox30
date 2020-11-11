@@ -25,6 +25,9 @@
 #include <linux/nmi.h>
 #include <linux/console.h>
 
+#ifdef CONFIG_CRASH_LOG
+#include <linux/hal_wd.h>
+#endif
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
 
@@ -35,17 +38,28 @@ static int pause_on_oops_flag;
 static DEFINE_SPINLOCK(pause_on_oops_lock);
 static bool crash_kexec_post_notifiers;
 int panic_on_warn __read_mostly;
-
+#ifdef __SC_BUILD__
+#ifndef CONFIG_DEBUG_BUGVERBOSE
+#define CONFIG_DEBUG_BUGVERBOSE
+#endif
+#endif
 int panic_timeout = CONFIG_PANIC_TIMEOUT;
 EXPORT_SYMBOL_GPL(panic_timeout);
 
 ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
 
 EXPORT_SYMBOL(panic_notifier_list);
+#ifdef __SC_BUILD__
+extern long do_post_in_panic(long time);
+#endif
 
 static long no_blink(int state)
 {
+#ifdef __SC_BUILD__
+    return do_post_in_panic(state);
+#else
 	return 0;
+#endif
 }
 
 /* Returns how long it waited in ms */
@@ -168,6 +182,9 @@ void panic(const char *fmt, ...)
 		 */
 		pr_emerg("Rebooting in %d seconds..", panic_timeout);
 
+#ifdef CONFIG_CRASH_LOG
+		sc_boot_flag = REBOOT_PANIC_TIMEOUT ;
+#endif
 		for (i = 0; i < panic_timeout * 1000; i += PANIC_TIMER_STEP) {
 			touch_nmi_watchdog();
 			if (i >= i_next) {
@@ -183,6 +200,9 @@ void panic(const char *fmt, ...)
 		 * shutting down.  But if there is a chance of
 		 * rebooting the system it will be rebooted.
 		 */
+#ifdef CONFIG_CRASH_LOG
+		sc_boot_flag = REBOOT_PANIC_TIMEOUT ;
+#endif
 		emergency_restart();
 	}
 #ifdef __sparc__

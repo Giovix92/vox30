@@ -4,7 +4,9 @@
 #include <linux/netpoll.h>
 #include <linux/export.h>
 #include "vlan.h"
-
+#ifdef __SC_BUILD__
+#include <linux/sercomm.h>
+#endif
 bool vlan_do_receive(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
@@ -12,6 +14,10 @@ bool vlan_do_receive(struct sk_buff **skbp)
 	u16 vlan_id = skb_vlan_tag_get_id(skb);
 	struct net_device *vlan_dev;
 	struct vlan_pcpu_stats *rx_stats;
+#ifdef __SC_BUILD__
+    struct sercomm_head *psh;
+    char* q = NULL;
+#endif
 
 	vlan_dev = vlan_find_dev(skb->dev, vlan_proto, vlan_id);
 	if (!vlan_dev)
@@ -22,6 +28,21 @@ bool vlan_do_receive(struct sk_buff **skbp)
 		return false;
 
 	skb->dev = vlan_dev;
+#ifdef __SC_BUILD__
+    if(skb && skb->dev)
+    {
+        psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+        q = strchr(skb->dev->name, '.');
+        if(q)
+        {
+            q++;
+            if(q && *q != '0')
+            {
+                psh->mark = SCMARK_SET_PORT(psh->mark, 0xf);//special port mark for ip phone vlan
+            }
+        }
+    }
+#endif
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST)) {
 		/* Our lower layer thinks this is not local, let's make sure.
 		 * This allows the VLAN to have a different MAC than the

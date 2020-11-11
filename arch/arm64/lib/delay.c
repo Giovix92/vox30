@@ -37,7 +37,16 @@ inline void __const_udelay(unsigned long xloops)
 {
 	unsigned long loops;
 
+#ifdef CONFIG_BCM_KF_ARM64_BCM963XX
+#if !defined(CONFIG_BRCM_IKOS)
+	// lpj_fine initialized in time_init() for bcm arm64
+	loops = xloops * lpj_fine * HZ;
+#else
+    loops = xloops * loops_per_jiffy * HZ;
+#endif
+#else
 	loops = xloops * loops_per_jiffy * HZ;
+#endif
 	__delay(loops >> 32);
 }
 EXPORT_SYMBOL(__const_udelay);

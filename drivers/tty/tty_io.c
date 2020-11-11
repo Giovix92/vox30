@@ -109,7 +109,9 @@
 
 #define TTY_PARANOIA_CHECK 1
 #define CHECK_TTY_COUNT 1
-
+#ifdef __SC_BUILD__
+int ttycount = 0; int ttycount_158E = 0;
+#endif
 struct ktermios tty_std_termios = {	/* for the benefit of tty drivers  */
 	.c_iflag = ICRNL | IXON,
 	.c_oflag = OPOST | ONLCR,
@@ -1164,7 +1166,18 @@ static inline ssize_t do_tty_write(
 		ret = -EFAULT;
 		if (copy_from_user(tty->write_buf, buf, size))
 			break;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_DEBUG
 		ret = write(tty, file, tty->write_buf, size);
+#else
+        if(tty->driver && tty->driver->major == 4 && tty->driver->minor_start == 64) //ttyS0
+            ret = size;
+        else
+            ret = write(tty, file, tty->write_buf, size);
+#endif
+#else
+		ret = write(tty, file, tty->write_buf, size);
+#endif
 		if (ret <= 0)
 			break;
 		written += ret;
@@ -1340,6 +1353,54 @@ static void pty_line_name(struct tty_driver *driver, int index, char *p)
  *
  *	Locking: None
  */
+#ifdef __SC_BUILD__
+static void tty_line_name_huawei(struct tty_driver *driver, int index, char *p)
+
+{
+
+    if(ttycount == 0) { 
+
+        sprintf(p, "%s%d_modem", driver->name, index + driver->name_base); 
+
+        ttycount = ttycount +1;
+
+    } else if (ttycount == 1) { 
+
+        sprintf(p, "%s%d_diag", driver->name, index + driver->name_base);
+
+        ttycount = ttycount +1;
+
+    } else if (ttycount == 2)
+
+    { sprintf(p, "%s%d_pcui", driver->name, index + driver->name_base);
+
+        ttycount = 0;
+
+    }
+
+}
+
+
+static void tty_line_name_huawei_158E(struct tty_driver *driver, int index, char *p)
+
+{
+
+    if(ttycount_158E == 0) {
+
+        sprintf(p, "%s%d_diag", driver->name, index + driver->name_base);
+
+        ttycount_158E = ttycount_158E +1;
+
+    } else if (ttycount_158E == 1) {
+
+        sprintf(p, "%s%d_pcui", driver->name, index + driver->name_base);
+
+        ttycount_158E = 0;
+
+    }
+
+}
+#endif
 static ssize_t tty_line_name(struct tty_driver *driver, int index, char *p)
 {
 	if (driver->flags & TTY_DRIVER_UNNUMBERED_NODE)
@@ -3341,7 +3402,69 @@ EXPORT_SYMBOL_GPL(tty_register_device_attr);
  *
  *	Locking: ??
  */
+#ifdef __SC_BUILD__
+struct device *tty_register_device_huawei(struct tty_driver *driver, unsigned index, struct device *device)
 
+{
+
+    char name[64];
+
+    dev_t dev = MKDEV(driver->major, driver->minor_start) + index;
+
+    if (index >= driver->num) {
+
+        printk(KERN_ERR "Attempt to register invalid tty line number " " (%d).\n", index);
+
+        return ERR_PTR(-EINVAL);
+
+    }
+
+    if (driver->type == TTY_DRIVER_TYPE_PTY)
+
+        pty_line_name(driver, index, name);
+
+    else
+
+        tty_line_name_huawei(driver, index, name);
+
+    return device_create(tty_class, device, dev, NULL, name);
+
+}
+
+EXPORT_SYMBOL(tty_register_device_huawei);
+
+
+struct device *tty_register_device_huawei_158E(struct tty_driver *driver, unsigned index,struct device *device)
+
+{
+
+char name[64];
+
+dev_t dev = MKDEV(driver->major, driver->minor_start) + index;
+
+if (index >= driver->num) {
+
+printk(KERN_ERR "Attempt to register invalid tty line number " " (%d).\n", index);
+
+return ERR_PTR(-EINVAL);
+
+}
+
+if (driver->type == TTY_DRIVER_TYPE_PTY)
+
+pty_line_name(driver, index, name);
+
+else
+
+tty_line_name_huawei_158E(driver, index, name);
+
+return device_create(tty_class, device, dev, NULL, name);
+
+}
+
+EXPORT_SYMBOL(tty_register_device_huawei_158E);
+
+#endif
 void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
 	device_destroy(tty_class,

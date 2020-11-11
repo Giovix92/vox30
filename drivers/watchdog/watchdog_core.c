@@ -151,7 +151,9 @@ int watchdog_register_device(struct watchdog_device *wdd)
 			return ret;
 		}
 	}
-
+#if defined(CONFIG_BCM_KF_WDT)	
+	(void)devno;	
+#else	
 	devno = wdd->cdev.dev;
 	wdd->dev = device_create(watchdog_class, wdd->parent, devno,
 					NULL, "watchdog%d", wdd->id);
@@ -161,6 +163,7 @@ int watchdog_register_device(struct watchdog_device *wdd)
 		ret = PTR_ERR(wdd->dev);
 		return ret;
 	}
+#endif	
 
 	return 0;
 }
@@ -185,11 +188,25 @@ void watchdog_unregister_device(struct watchdog_device *wdd)
 	ret = watchdog_dev_unregister(wdd);
 	if (ret)
 		pr_err("error unregistering /dev/watchdog (err=%d)\n", ret);
+
+#if defined(CONFIG_BCM_KF_WDT)		   
+	(void)devno;	
+#else	
 	device_destroy(watchdog_class, devno);
 	ida_simple_remove(&watchdog_ida, wdd->id);
 	wdd->dev = NULL;
+#endif
+		
 }
 EXPORT_SYMBOL_GPL(watchdog_unregister_device);
+
+#if defined(CONFIG_BCM_KF_WDT)
+void watchdog_force_disable( void )
+{
+	watchdog_dev_force_disable();
+}
+EXPORT_SYMBOL_GPL(watchdog_force_disable);
+#endif
 
 static int __init watchdog_init(void)
 {

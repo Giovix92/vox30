@@ -48,6 +48,13 @@
 #include <linux/uio.h>
 
 #include <asm/uaccess.h>
+#ifdef __SC_BUILD__
+#include <linux/slog.h>
+#endif
+#ifdef CONFIG_CRASH_LOG
+#include <linux/hal_wd.h>
+void machine_restart_reason(void);
+#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>
@@ -61,6 +68,11 @@ int console_printk[4] = {
 	CONSOLE_LOGLEVEL_MIN,		/* minimum_console_loglevel */
 	CONSOLE_LOGLEVEL_DEFAULT,	/* default_console_loglevel */
 };
+
+#ifdef __SC_BUILD__
+int filter_loglevel = 7;
+#endif
+
 
 /*
  * Low level drivers may need that to know if they can schedule in
@@ -267,7 +279,15 @@ static u32 clear_idx;
 static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
 static char *log_buf = __log_buf;
 static u32 log_buf_len = __LOG_BUF_LEN;
-
+#ifdef CONFIG_CRASH_LOG
+char temp_log_buf[__LOG_BUF_LEN] = {0};
+#define TEMP_LOG_MAK (__LOG_BUF_LEN-1)
+#define TEMP_LOG_BUF(idx) (temp_log_buf[(idx) & TEMP_LOG_MAK])
+EXPORT_SYMBOL(temp_log_buf);
+unsigned int stack_buf_len = 0;
+char stack_log_buf[SC_STACK_LOG_SIZE] = {0};
+EXPORT_SYMBOL(stack_log_buf);
+#endif
 /* Return log buffer address */
 char *log_buf_addr_get(void)
 {
@@ -1372,6 +1392,17 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 	case SYSLOG_ACTION_SIZE_BUFFER:
 		error = log_buf_len;
 		break;
+#ifdef __SC_BUILD__
+	case 11:	
+		error = -EINVAL;
+		if (len < 1 || len > 8)
+			goto out;
+		if (len < minimum_console_loglevel)
+			len = minimum_console_loglevel;
+		filter_loglevel = len;
+		error = 0;
+		break;
+#endif
 	default:
 		error = -EINVAL;
 		break;
@@ -1474,6 +1505,11 @@ static int console_trylock_for_printk(void)
 {
 	unsigned int cpu = smp_processor_id();
 
+#if defined(CONFIG_BCM_KF_PRINTK_INT_ENABLED) && defined(CONFIG_BCM_PRINTK_INT_ENABLED)
+	if(oops_in_progress || early_boot_irqs_disabled ||
+	   preempt_count() > 1 || irqs_disabled())
+		return 0;
+#endif
 	if (!console_trylock())
 		return 0;
 	/*
@@ -1902,6 +1938,42 @@ DEFINE_PER_CPU(printk_func_t, printk_func);
 
 #endif /* CONFIG_PRINTK */
 
+#if defined(CONFIG_BCM_KF_EXTRA_DEBUG)
+
+/* This fucntion is same as printk, but is defined always
+ * and is intended to be used in binary only modules, to avoid
+ * dependency on CONFIG_PRINTK
+ */
+
+__visible int bcm_printk(const char *fmt, ...)
+{
+#ifdef CONFIG_PRINTK
+	printk_func_t vprintk_func;
+	va_list args;
+	int r;
+
+	va_start(args, fmt);
+
+	/*
+	 * If a caller overrides the per_cpu printk_func, then it needs
+	 * to disable preemption when calling printk(). Otherwise
+	 * the printk_func should be set to the default. No need to
+	 * disable preemption here.
+	 */
+	vprintk_func = this_cpu_read(printk_func);
+	r = vprintk_func(fmt, args);
+
+	va_end(args);
+
+	return r;
+#else
+	return 0;
+#endif
+}
+EXPORT_SYMBOL(bcm_printk);
+
+#endif /* CONFIG_BCM_KF_EXTRA_DEBUG */
+
 #ifdef CONFIG_EARLY_PRINTK
 struct console *early_console;
 
@@ -2143,11 +2215,16 @@ static void console_cont_flush(char *text, size_t size)
 		goto out;
 
 	len = cont_print_text(text, size);
+#if defined(CONFIG_BCM_KF_PRINTK_INT_ENABLED) && defined(CONFIG_BCM_PRINTK_INT_ENABLED)
+	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
+	call_console_drivers(cont.level, text, len);
+#else
 	raw_spin_unlock(&logbuf_lock);
 	stop_critical_timings();
 	call_console_drivers(cont.level, text, len);
 	start_critical_timings();
 	local_irq_restore(flags);
+#endif
 	return;
 out:
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
@@ -2246,13 +2323,17 @@ skip:
 		console_idx = log_next(console_idx);
 		console_seq++;
 		console_prev = msg->flags;
+#if defined(CONFIG_BCM_KF_PRINTK_INT_ENABLED) && defined(CONFIG_BCM_PRINTK_INT_ENABLED)
+		raw_spin_unlock_irqrestore(&logbuf_lock, flags);
+		call_console_drivers(level, text, len);
+#else
 		raw_spin_unlock(&logbuf_lock);
 
 		stop_critical_timings();	/* don't trace print latency */
 		call_console_drivers(level, text, len);
 		start_critical_timings();
 		local_irq_restore(flags);
-
+#endif
 		if (do_cond_resched)
 			cond_resched();
 	}
@@ -2717,7 +2798,73 @@ bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 	return true;
 }
 EXPORT_SYMBOL(printk_timed_ratelimit);
+#ifdef __SC_BUILD__
+static atomic_t buffer_used = ATOMIC_INIT(1);
+static char *buf = NULL;
+void log_module(char *pri, int type, int id, int sec, char *module, const char *fmt, ...)
+{
+    char sync_flag[8] = "";
+    char stmp_pri[8] = "<0>"; 
+    int length = 0;
+    int tmppri = 0; 
+    va_list arg; 
+    char *pbuf;
+    char pre_sign = ((type & 0xFF) == CRIT_LOG) ? CRIT_PRE_SIGN : NORM_PRE_SIGN; 
+    char suf_sign = ((type & 0xFF) == CRIT_LOG) ? CRIT_SUF_SIGN : NORM_SUF_SIGN; 
 
+    if(buf == NULL)
+    {
+        buf = kmalloc(MAX_SIZE_PER_LOG, GFP_ATOMIC);
+    }
+    if(!buf)
+        return;
+
+    if(!atomic_dec_and_test(&buffer_used))
+    {
+        pbuf = kmalloc(MAX_SIZE_PER_LOG, GFP_ATOMIC);
+        if(!pbuf)
+            return;
+    }
+    else
+    {
+        pbuf = buf;
+    }
+    if (((type & 0xFF) == CRIT_LOG) && (type & SYNC_CRIT_FLAG)) 
+        snprintf(sync_flag, sizeof(sync_flag), "%c", SYNC_CRIT_FLAG_SIGN); 
+
+    if ( (id == LOG_NONUSE_ID) || (sec == LOG_NONUSE_BLOCK_TIME)) 
+        length = snprintf(pbuf, MAX_SIZE_PER_LOG, "%c%s%s%c ", pre_sign, module, sync_flag, suf_sign); 
+    else 
+        length = snprintf(pbuf, MAX_SIZE_PER_LOG, "%c%s-%d,%d%s%c ", pre_sign, module, id, sec, sync_flag, suf_sign); 
+    
+    va_start(arg, fmt); 
+    vsnprintf(pbuf+length, MAX_SIZE_PER_LOG-length, fmt, arg);
+    va_end(arg); 
+    if (pri != NULL && pri[0] == '<' && pri[1] >= '0' && pri[1] <= '7' && pri[2] == '>') 
+    {
+        tmppri = pri[1] - '0';
+        if (tmppri > filter_loglevel && (type & 0xFF)== CRIT_LOG )
+        {   
+            stmp_pri[1] = filter_loglevel + '0'; 
+            printk("%s%s", stmp_pri, pbuf);
+        } 
+        else if (tmppri <= filter_loglevel)
+        {
+            printk("%s%s", pri, pbuf);
+        }
+    } 
+    else
+    {
+        printk("<0>%s", pbuf);
+    }
+    if(unlikely(pbuf != buf))
+        kfree(pbuf);
+    else
+        atomic_set(&buffer_used, 1);
+}
+
+EXPORT_SYMBOL(log_module);
+#endif
 static DEFINE_SPINLOCK(dump_list_lock);
 static LIST_HEAD(dump_list);
 
@@ -2791,9 +2938,12 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 {
 	struct kmsg_dumper *dumper;
 	unsigned long flags;
-
+#ifdef CONFIG_CRASH_LOG
+	static int restart_flag = 0;
+#else
 	if ((reason > KMSG_DUMP_OOPS) && !always_kmsg_dump)
 		return;
+#endif
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(dumper, &dump_list, list) {
@@ -2817,6 +2967,13 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 		dumper->active = false;
 	}
 	rcu_read_unlock();
+#ifdef CONFIG_CRASH_LOG
+	printk(KERN_EMERG "====sc_kmsg_dump====\n");
+	if(restart_flag == 0){
+		restart_flag++;
+		machine_restart_reason();
+	}
+#endif
 }
 
 /**
@@ -2999,6 +3156,114 @@ out:
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_get_buffer);
 
+#ifdef CONFIG_CRASH_LOG
+void __log_stack_to_ram(char * str_ptr,unsigned int start, unsigned int src_len,char *dst_addr,unsigned int dst_len)
+{
+    int i = 0;
+    unsigned int addr_len = 0;
+    addr_len += sprintf(dst_addr + addr_len,"=====%s_start==\n",str_ptr);
+    for (i = 0; i < src_len  ; i++) 
+    {
+        dst_addr[addr_len++] = stack_log_buf[start + i];
+    }
+    addr_len += sprintf(dst_addr + addr_len,"=====%s_end==\n",str_ptr);
+    dst_addr[dst_len - 2] = '=';
+    dst_addr[dst_len - 1] = '=';
+    return ;
+}
+
+void log_stack_to_ram(void)
+{
+    unsigned int start = 0;
+    unsigned int count = 0;
+    unsigned int log_len = 0;
+
+    count = SC_STACK_LOG_SIZE-256;
+    log_len = strlen(stack_log_buf);
+
+    if(log_len < count){
+        start = 0;
+        count = log_len;
+    }
+    __log_stack_to_ram("stack",start,count,(char *)BOOT_STACK_ADDRESS,SC_STACK_LOG_SIZE);       
+
+    return ;
+}
+EXPORT_SYMBOL(log_stack_to_ram);
+
+void __log_dmesg_to_ram(char * str_ptr,unsigned int start, unsigned int src_len,char *dst_addr,unsigned int dst_len)
+{
+    unsigned int i = 0;	
+    unsigned int  addr_len = 0;
+    addr_len += sprintf(dst_addr + addr_len,"=====%s_start==\n",str_ptr);    
+    for (i = 0; i < src_len  ; i++) {
+        dst_addr[addr_len++] = TEMP_LOG_BUF(start + i);
+    }
+
+    addr_len += sprintf(dst_addr + addr_len,"=====%s_end==\n",str_ptr);
+
+    dst_addr[dst_len - 2] = '=';
+    dst_addr[dst_len - 1] = '=';
+    return ;
+}
+
+void log_dmesg_to_ram(void)
+{
+    unsigned int log_len = 0;
+    unsigned int start,count;
+
+    struct kmsg_dumper dumper = { .active = 1 };
+    size_t len;
+    char buf[768];
+    unsigned int i = 0;
+
+    kmsg_dump_rewind_nolock(&dumper);
+    while (kmsg_dump_get_line_nolock(&dumper, 1, buf, sizeof(buf), &len)) {
+        if(len > 768)
+            len = 768;
+
+        for(i = 0; i < len ; i++){
+            TEMP_LOG_BUF(log_len) = buf[i];
+            log_len ++;
+        }
+        //        TEMP_LOG_BUF(log_len) = '\n';
+        //        log_len ++;
+    }
+
+    count = SC_DMESG_LOG_SIZE -256;
+    if(log_len > count){
+        start = log_len  - count;
+    }else{
+        start = 0;
+        count = log_len;
+    }
+
+    __log_dmesg_to_ram("dmesg",start,count,(unsigned char *)BOOT_LOG_ADDRESS,SC_DMESG_LOG_SIZE);	
+
+    return ;
+}
+EXPORT_SYMBOL(log_dmesg_to_ram);
+
+static int record = 0;
+void machine_restart_reason(void)
+{
+    if(record == 0){
+        record++;
+        unsigned long  *p = (unsigned long *)BOOT_FREE_ADDRESS;
+        *p = 0x55aa0000 | sc_boot_flag;
+        *(p+1)  = 0x55aa0000 | sc_boot_flag; 
+
+        printk("==machine_restart_reason =reboot_reason  %d==\n",sc_boot_flag);
+
+        if((sc_boot_flag & 0xFF) > REBOOT_TRIGGER_BY_USER)
+        {
+            log_dmesg_to_ram();
+            log_stack_to_ram();
+        }
+    }
+}
+EXPORT_SYMBOL(machine_restart_reason);
+#endif
 /**
  * kmsg_dump_rewind_nolock - reset the interator (unlocked version)
  * @dumper: registered kmsg dumper

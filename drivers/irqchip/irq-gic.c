@@ -820,7 +820,12 @@ static int gic_irq_domain_xlate(struct irq_domain *d,
 {
 	unsigned long ret = 0;
 
+#if defined(CONFIG_BCM_KF_GIC_NOOFNODE) && \
+	defined(CONFIG_BCM_GIC_NOOFNODE)
+	if (d->of_node != controller && d->of_node)
+#else
 	if (d->of_node != controller)
+#endif
 		return -EINVAL;
 	if (intsize < 3)
 		return -EINVAL;

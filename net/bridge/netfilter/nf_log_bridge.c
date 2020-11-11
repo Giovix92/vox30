@@ -15,7 +15,15 @@
 
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_log.h>
-
+#ifdef __SC_BUILD__
+static void nf_log_bridge_packet(struct net *net, u_int8_t pf,
+				 unsigned int hooknum,
+				 const struct sk_buff *skb,
+				 const struct net_device *in,
+				 const struct net_device *out,
+				 const struct nf_loginfo *loginfo,
+				 const char *prefix, const char *suffix)
+#else
 static void nf_log_bridge_packet(struct net *net, u_int8_t pf,
 				 unsigned int hooknum,
 				 const struct sk_buff *skb,
@@ -23,20 +31,36 @@ static void nf_log_bridge_packet(struct net *net, u_int8_t pf,
 				 const struct net_device *out,
 				 const struct nf_loginfo *loginfo,
 				 const char *prefix)
+#endif
 {
 	switch (eth_hdr(skb)->h_proto) {
 	case htons(ETH_P_IP):
+#ifdef __SC_BUILD__
+		nf_log_packet_x(net, NFPROTO_IPV4, hooknum, skb, in, out,
+			      loginfo, suffix,"%s",  prefix);
+#else
 		nf_log_packet(net, NFPROTO_IPV4, hooknum, skb, in, out,
 			      loginfo, "%s", prefix);
+#endif
 		break;
 	case htons(ETH_P_IPV6):
+#ifdef __SC_BUILD__
+		nf_log_packet_x(net, NFPROTO_IPV6, hooknum, skb, in, out,
+			      loginfo, suffix,"%s",  prefix);
+#else
 		nf_log_packet(net, NFPROTO_IPV6, hooknum, skb, in, out,
 			      loginfo, "%s", prefix);
+#endif
 		break;
 	case htons(ETH_P_ARP):
 	case htons(ETH_P_RARP):
+#ifdef __SC_BUILD__
+		nf_log_packet_x(net, NFPROTO_ARP, hooknum, skb, in, out,
+			      loginfo, suffix,"%s",  prefix);
+#else
 		nf_log_packet(net, NFPROTO_ARP, hooknum, skb, in, out,
 			      loginfo, "%s", prefix);
+#endif
 		break;
 	}
 }

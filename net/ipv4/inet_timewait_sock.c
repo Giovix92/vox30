@@ -217,6 +217,10 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
 		tw->tw_transparent  = inet->transparent;
 		tw->tw_prot	    = sk->sk_prot_creator;
 		atomic64_set(&tw->tw_cookie, atomic64_read(&sk->sk_cookie));
+#ifdef __SC_BUILD__
+		tw->app_id  = sk->app_id;
+		tw->flow_id	    = sk->flow_id;
+#endif
 		twsk_net_set(tw, sock_net(sk));
 		setup_timer(&tw->tw_timer, tw_timer_handler, (unsigned long)tw);
 		/*

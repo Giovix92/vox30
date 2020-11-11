@@ -22,6 +22,54 @@
 #include <asm/uaccess.h>
 #include "br_private.h"
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+#include <linux/blog.h>
+#endif
+#if defined(CONFIG_BCM_KF_WL)
+#if defined(PKTC)
+#include <osl.h>
+#include <wl_pktc.h>
+extern unsigned long (*wl_pktc_req_hook)(int req_id, unsigned long param0, unsigned long param1, unsigned long param2);
+#endif /* PKTC */
+#include <linux/bcm_skb_defines.h>
+#endif
+
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+
+static struct rtnl_link_stats64 *br_dev_get_c_b_stats(struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	return &br->c_b_stats;
+}
+
+
+static void br_dev_update_blog_stats(struct net_device * dev_p, 
+                                     BlogStats_t * blogStats_p)
+{
+	struct rtnl_link_stats64 * c_b_stats_p;
+
+	if ( dev_p == (struct net_device *)NULL )
+		return;
+
+	c_b_stats_p = br_dev_get_c_b_stats(dev_p);
+
+	c_b_stats_p->rx_packets += blogStats_p->rx_packets;
+	c_b_stats_p->tx_packets += blogStats_p->tx_packets;
+	c_b_stats_p->rx_bytes   += blogStats_p->rx_bytes;
+	c_b_stats_p->tx_bytes   += blogStats_p->tx_bytes;
+	c_b_stats_p->multicast  += blogStats_p->multicast;
+#if defined(CONFIG_BCM_KF_EXTSTATS)	
+    c_b_stats_p->tx_multicast_packets += blogStats_p->tx_multicast_packets;
+    c_b_stats_p->rx_multicast_bytes   += blogStats_p->rx_multicast_bytes;
+    c_b_stats_p->tx_multicast_bytes   += blogStats_p->tx_multicast_bytes;
+#endif	
+
+	return;
+}
+
+#endif /* CONFIG_BLOG */
+
 #define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
 			 NETIF_F_GSO_MASK | NETIF_F_HW_CSUM)
 
@@ -47,6 +95,28 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		rcu_read_unlock();
 		return NETDEV_TX_OK;
 	}
+
+#if defined(CONFIG_BCM_KF_EXTSTATS) && defined(CONFIG_BLOG)
+	blog_lock();
+	blog_link(IF_DEVICE, blog_ptr(skb), (void*)dev, DIR_TX, skb->len);
+	blog_unlock();
+
+	/* Gather general TX statistics */
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
+
+	/* Gather packet specific packet data using pkt_type calculations from the ethernet driver */
+	switch (skb->pkt_type) {
+	case PACKET_BROADCAST:
+		dev->stats.tx_broadcast_packets++;
+		break;
+
+	case PACKET_MULTICAST:
+		dev->stats.tx_multicast_packets++;
+		dev->stats.tx_multicast_bytes += skb->len;
+		break;
+	}
+#endif
 
 	u64_stats_update_begin(&brstats->syncp);
 	brstats->tx_packets++;
@@ -80,7 +150,44 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		else
 			br_flood_deliver(br, skb, false);
 	} else if ((dst = __br_fdb_get(br, dest, vid)) != NULL)
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	{
+		blog_lock();
+		blog_link(BRIDGEFDB, blog_ptr(skb), (void*)dst, BLOG_PARAM1_DSTFDB, 0);
+		blog_unlock();
+#if defined(CONFIG_BCM_KF_WL)
+#if defined(PKTC)
+		if (wl_pktc_req_hook && (dst->dst != NULL) &&
+			(BLOG_GET_PHYTYPE(dst->dst->dev->path.hw_port_type) == BLOG_WLANPHY) && 
+			wl_pktc_req_hook(PKTC_TBL_GET_TX_MODE, 0, 0, 0))
+		{
+			struct net_device *dst_dev_p = dst->dst->dev;
+			unsigned long chainIdx = wl_pktc_req_hook(PKTC_TBL_UPDATE, (unsigned long)&(dst->addr.addr[0]), (unsigned long)dst_dev_p, 0);
+			if (chainIdx != PKTC_INVALID_CHAIN_IDX)
+			{
+				// Update chainIdx in blog
+				if (skb->blog_p != NULL)
+				{
+					skb->blog_p->wfd.nic_ucast.is_tx_hw_acc_en = 1;
+					skb->blog_p->wfd.nic_ucast.is_wfd = 1;
+					skb->blog_p->wfd.nic_ucast.is_chain = 1;
+					skb->blog_p->wfd.nic_ucast.wfd_idx = ((chainIdx & PKTC_WFD_IDX_BITMASK) >> PKTC_WFD_IDX_BITPOS);
+					skb->blog_p->wfd.nic_ucast.chain_idx = chainIdx;
+					//printk("%s: Added ChainEntryIdx 0x%x Dev %s blogSrcAddr 0x%x blogDstAddr 0x%x DstMac %x:%x:%x:%x:%x:%x "
+					//       "wfd_q %d wl_metadata %d wl 0x%x\n", __FUNCTION__,
+					//        chainIdx, dst->dst->dev->name, skb->blog_p->rx.tuple.saddr, skb->blog_p->rx.tuple.daddr,
+					//        dst->addr.addr[0], dst->addr.addr[1], dst->addr.addr[2], dst->addr.addr[3], dst->addr.addr[4],
+					//        dst->addr.addr[5], skb->blog_p->wfd_queue, skb->blog_p->wl_metadata, skb->blog_p->wl);
+				}
+			}
+		}
+#endif
+#endif
 		br_deliver(dst->dst, skb);
+	}        
+#else
+		br_deliver(dst->dst, skb);
+#endif
 	else
 		br_flood_deliver(br, skb, true);
 
@@ -151,6 +258,33 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 	struct net_bridge *br = netdev_priv(dev);
 	struct pcpu_sw_netstats tmp, sum = { 0 };
 	unsigned int cpu;
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+    {
+        struct rtnl_link_stats64 *c_b_stats_p;
+        BlogStats_t bStats;
+
+        /* Copy the cummulative blog stats */
+        c_b_stats_p = br_dev_get_c_b_stats(dev);
+        memcpy(stats, c_b_stats_p, sizeof(*stats));
+        /* fetch current running blog stats from flows */
+        memset(&bStats, 0, sizeof(BlogStats_t));
+        blog_lock();
+        blog_notify(FETCH_NETIF_STATS, (void*)dev,
+                (unsigned long)&bStats, BLOG_PARAM2_NO_CLEAR);
+        blog_unlock();
+
+        stats->rx_packets += bStats.rx_packets;
+        stats->tx_packets += bStats.tx_packets;
+        stats->rx_bytes   += bStats.rx_bytes;
+        stats->tx_bytes   += bStats.tx_bytes;
+        stats->multicast  += bStats.multicast;
+    #if defined(CONFIG_BCM_KF_EXTSTATS)	
+        stats->tx_multicast_packets += bStats.tx_multicast_packets;
+        stats->rx_multicast_bytes   += bStats.rx_multicast_bytes;
+        stats->tx_multicast_bytes   += bStats.tx_multicast_bytes;
+    #endif	
+    }
+#endif
 
 	for_each_possible_cpu(cpu) {
 		unsigned int start;
@@ -166,11 +300,17 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 		sum.rx_packets += tmp.rx_packets;
 	}
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	stats->tx_bytes   += sum.tx_bytes;
+	stats->tx_packets += sum.tx_packets;
+	stats->rx_bytes   += sum.rx_bytes;
+	stats->rx_packets += sum.rx_packets;
+#else
 	stats->tx_bytes   = sum.tx_bytes;
 	stats->tx_packets = sum.tx_packets;
 	stats->rx_bytes   = sum.rx_bytes;
 	stats->rx_packets = sum.rx_packets;
-
+#endif
 	return stats;
 }
 
@@ -368,6 +508,11 @@ void br_dev_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	dev->put_stats = br_dev_update_blog_stats;
+	dev->clr_stats = net_dev_clear_stats;
+#endif
+
 	dev->netdev_ops = &br_netdev_ops;
 	dev->destructor = br_dev_free;
 	dev->ethtool_ops = &br_ethtool_ops;
@@ -400,8 +545,20 @@ void br_dev_setup(struct net_device *dev)
 	br->bridge_hello_time = br->hello_time = 2 * HZ;
 	br->bridge_forward_delay = br->forward_delay = 15 * HZ;
 	br->ageing_time = 300 * HZ;
+#if defined(CONFIG_BCM_KF_BRIDGE_COUNTERS)
+	br->mac_entry_discard_counter = 0;
+#endif
 
 	br_netfilter_rtable_init(br);
 	br_stp_timer_init(br);
 	br_multicast_init(br);
+
+#if defined(CONFIG_BCM_KF_NETFILTER)
+	br->num_fdb_entries = 0;
+#endif
+
+#if defined(CONFIG_BCM_KF_BRIDGE_MAC_FDB_LIMIT) && defined(CONFIG_BCM_BRIDGE_MAC_FDB_LIMIT)
+	br->max_br_fdb_entries = BR_MAX_FDB_ENTRIES;
+	br->used_br_fdb_entries = 0;
+#endif
 }

@@ -59,6 +59,7 @@ static void dump_ipv4_packet(struct nf_log_buf *m,
 	/* Max length: 40 "SRC=255.255.255.255 DST=255.255.255.255 " */
 	nf_log_buf_add(m, "SRC=%pI4 DST=%pI4 ", &ih->saddr, &ih->daddr);
 
+#ifndef __SC_BUILD__
 	/* Max length: 46 "LEN=65535 TOS=0xFF PREC=0xFF TTL=255 ID=65535 " */
 	nf_log_buf_add(m, "LEN=%u TOS=0x%02X PREC=0x%02X TTL=%u ID=%u ",
 		       ntohs(ih->tot_len), ih->tos & IPTOS_TOS_MASK,
@@ -96,7 +97,7 @@ static void dump_ipv4_packet(struct nf_log_buf *m,
 			nf_log_buf_add(m, "%02X", op[i]);
 		nf_log_buf_add(m, ") ");
 	}
-
+#endif
 	switch (ih->protocol) {
 	case IPPROTO_TCP:
 		if (nf_log_dump_tcp_header(m, skb, ih->protocol,
@@ -272,6 +273,7 @@ static void dump_ipv4_packet(struct nf_log_buf *m,
 	/* maxlen = 230+   91  + 230 + 252 = 803 */
 }
 
+#ifndef __SC_BUILD__
 static void dump_ipv4_mac_header(struct nf_log_buf *m,
 			    const struct nf_loginfo *info,
 			    const struct sk_buff *skb)
@@ -308,13 +310,22 @@ fallback:
 	}
 	nf_log_buf_add(m, " ");
 }
-
+#endif
+#ifdef __SC_BUILD__
+static void nf_log_ip_packet(struct net *net, u_int8_t pf,
+			     unsigned int hooknum, const struct sk_buff *skb,
+			     const struct net_device *in,
+			     const struct net_device *out,
+			     const struct nf_loginfo *loginfo,
+			     const char *prefix, const char * suffix)
+#else
 static void nf_log_ip_packet(struct net *net, u_int8_t pf,
 			     unsigned int hooknum, const struct sk_buff *skb,
 			     const struct net_device *in,
 			     const struct net_device *out,
 			     const struct nf_loginfo *loginfo,
 			     const char *prefix)
+#endif
 {
 	struct nf_log_buf *m;
 
@@ -326,15 +337,23 @@ static void nf_log_ip_packet(struct net *net, u_int8_t pf,
 
 	if (!loginfo)
 		loginfo = &default_loginfo;
-
+#ifdef __SC_BUILD__
+	nf_log_dump_packet_common(m, pf, hooknum, skb, in,
+				  out, loginfo, prefix, suffix);
+#else
 	nf_log_dump_packet_common(m, pf, hooknum, skb, in,
 				  out, loginfo, prefix);
-
+#endif
+#ifndef __SC_BUILD__
 	if (in != NULL)
 		dump_ipv4_mac_header(m, loginfo, skb);
 
+#endif
 	dump_ipv4_packet(m, loginfo, skb, 0);
-
+#ifdef __SC_BUILD__
+    if(suffix)
+        nf_log_buf_add(m, "%s", suffix);
+#endif
 	nf_log_buf_close(m);
 }
 

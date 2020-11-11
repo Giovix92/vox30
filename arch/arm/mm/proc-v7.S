@@ -592,7 +592,6 @@ __v7_ca15mp_proc_info:
 	.long	0xff0ffff0
 	__v7_proc __v7_ca15mp_proc_info, __v7_ca15mp_setup
 	.size	__v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
-
 	/*
 	 * Broadcom Corporation Brahma-B15 processor.
 	 */

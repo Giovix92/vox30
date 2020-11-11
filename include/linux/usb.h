@@ -1893,7 +1893,13 @@ extern void usb_led_activity(enum usb_led_event ev);
 #else
 static inline void usb_led_activity(enum usb_led_event ev) {}
 #endif
-
+#ifdef __SC_BUILD__
+/*
+ *for sc_drv module control the usb led
+ * */
+extern void usb_output_usb_state_update(int busnum, char *devpath);
+extern void usb_output_usblp_state_update(int busnum, char *devpath, char *name);
+#endif
 #endif  /* __KERNEL__ */
 
 #endif

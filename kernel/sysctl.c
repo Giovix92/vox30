@@ -95,7 +95,9 @@
 #endif
 
 #if defined(CONFIG_SYSCTL)
-
+#ifdef __SC_BUILD__
+extern int core_enable;
+#endif
 /* External variables not in a header file. */
 extern int suid_dumpable;
 #ifdef CONFIG_COREDUMP
@@ -195,8 +197,11 @@ static int proc_dostring_coredump(struct ctl_table *table, int write,
 
 #ifdef CONFIG_MAGIC_SYSRQ
 /* Note: sysrq code uses it's own private copy */
+#ifdef __SC_BUILD__
+int __sysrq_enabled = 0;
+#else
 static int __sysrq_enabled = CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE;
-
+#endif
 static int sysrq_sysctl_handler(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp,
 				loff_t *ppos)
@@ -476,6 +481,15 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#ifdef __SC_BUILD__
+	{
+		.procname	= "core_enable",
+		.data		= &core_enable,
+		.maxlen 	= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 	{
 		.procname	= "core_pattern",
 		.data		= core_pattern,

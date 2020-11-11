@@ -13,7 +13,12 @@
 struct xt_log_info {
 	unsigned char level;
 	unsigned char logflags;
+#ifdef __SC_BUILD__
+	char prefix[256];
+	char suffix[256];
+#else
 	char prefix[30];
+#endif
 };
 
 #endif /* _XT_LOG_H */

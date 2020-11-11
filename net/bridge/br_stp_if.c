@@ -19,7 +19,6 @@
 #include "br_private.h"
 #include "br_private_stp.h"
 
-
 /* Port id is composed of priority and port number.
  * NB: some bits of priority are dropped to
  *     make room for more ports.
@@ -122,6 +121,39 @@ void br_stp_disable_port(struct net_bridge_port *p)
 		br_become_root_bridge(br);
 }
 
+#if defined(CONFIG_BCM_KF_BRIDGE_STP)
+/* called under bridge lock */
+void br_stp_off_port(struct net_bridge_port *p)
+{
+	struct net_bridge *br = p->br;
+	int wasroot;
+
+	wasroot = br_is_root_bridge(br);
+	br_become_designated_port(p);
+	br_set_state(p, BR_STATE_OFF);
+	p->topology_change_ack = 0;
+	p->config_pending = 0;
+
+	br_log_state(p);
+	br_ifinfo_notify(RTM_NEWLINK, p);
+	p->state = BR_STATE_DISABLED;   /* so when ifconfig up will traverse thru correct state machine */
+
+	del_timer(&p->message_age_timer);
+	del_timer(&p->forward_delay_timer);
+	del_timer(&p->hold_timer);
+
+	br_fdb_delete_by_port(br, p, 0);
+	br_multicast_disable_port(p);
+
+	br_configuration_update(br);
+
+	br_port_state_selection(br);
+
+	if (br_is_root_bridge(br) && !wasroot)
+		br_become_root_bridge(br);
+}
+#endif
+
 static void br_stp_start(struct net_bridge *br)
 {
 	int r;
@@ -152,6 +184,10 @@ static void br_stp_start(struct net_bridge *br)
 	}
 
 	spin_unlock_bh(&br->lock);
+#if defined(CONFIG_BCM_KF_BRIDGE_STP)
+	/* STP enabled, send notification for all ports */
+	br_stp_notify_state_bridge(br);
+#endif   
 }
 
 static void br_stp_stop(struct net_bridge *br)
@@ -171,6 +207,10 @@ static void br_stp_stop(struct net_bridge *br)
 	}
 
 	br->stp_enabled = BR_NO_STP;
+#if defined(CONFIG_BCM_KF_BRIDGE_STP)
+	/* STP disabled, send notification for all ports */
+	br_stp_notify_state_bridge(br);
+#endif
 }
 
 void br_stp_set_enabled(struct net_bridge *br, unsigned long val)
@@ -231,6 +271,16 @@ bool br_stp_recalculate_bridge_id(struct net_bridge *br)
 	/* user has chosen a value so keep it */
 	if (br->dev->addr_assign_type == NET_ADDR_SET)
 		return false;
+
+#if defined(CONFIG_BCM_KF_BRIDGE_STP)
+	/* if the current bridge address is being used by 
+	   a member device then keep it */
+	list_for_each_entry(p, &br->port_list, list) {
+		if (0 == memcmp(br->bridge_id.addr, p->dev->dev_addr, ETH_ALEN)) {
+			return false;
+		}
+	}
+#endif
 
 	list_for_each_entry(p, &br->port_list, list) {
 		if (addr == br_mac_zero ||

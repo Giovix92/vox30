@@ -703,7 +703,12 @@ static int proc_sys_readdir(struct file *file, struct dir_context *ctx)
 	ctl_dir = container_of(head, struct ctl_dir, header);
 
 	if (!dir_emit_dots(file, ctx))
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+/*CVE-2016-9191 */
+		goto out;
+#else
 		return 0;
+#endif
 
 	pos = 2;
 
@@ -713,6 +718,9 @@ static int proc_sys_readdir(struct file *file, struct dir_context *ctx)
 			break;
 		}
 	}
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+out:
+#endif
 	sysctl_head_finish(head);
 	return 0;
 }

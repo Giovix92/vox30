@@ -54,7 +54,11 @@ struct tcphdr {
 	__be16	window;
 	__sum16	check;
 	__be16	urg_ptr;
+#if defined(CONFIG_MIPS_BCM963XX) && defined(CONFIG_BCM_KF_UNALIGNED_EXCEPTION)
+} LINUX_NET_PACKED;
+#else
 };
+#endif
 
 /*
  *	The union cast uses a gcc extension to avoid aliasing problems
@@ -64,7 +68,11 @@ struct tcphdr {
 union tcp_word_hdr { 
 	struct tcphdr hdr;
 	__be32 		  words[5];
-}; 
+#if defined(CONFIG_MIPS_BCM963XX) && defined(CONFIG_BCM_KF_UNALIGNED_EXCEPTION)
+} LINUX_NET_PACKED;
+#else
+};
+#endif
 
 #define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) 
 
@@ -113,7 +121,20 @@ enum {
 #define TCP_TIMESTAMP		24
 #define TCP_NOTSENT_LOWAT	25	/* limit number of unsent bytes in write queue */
 #define TCP_CC_INFO		26	/* Get Congestion Control (optional) info */
+#if defined(CONFIG_BCM_MPTCP) && defined(CONFIG_BCM_KF_MPTCP)
+#define MPTCP_ENABLED		42
+#endif
 
+#if defined(CONFIG_BCM_KF_SPEEDYGET) && defined(CONFIG_BCM_SPEEDYGET)
+#define TCP_NOCOPY      27 /* Don't copy buffer to user space */
+#endif
+#ifdef __SC_BUILD__
+#define TCP_RES             28
+#define TCP_OPEN            29
+#define TCP_COUNT_FLAG      30
+#define TCP_COUNT           31
+#define TCP_NOCOPY_LEN      32
+#endif
 struct tcp_repair_opt {
 	__u32	opt_code;
 	__u32	opt_val;

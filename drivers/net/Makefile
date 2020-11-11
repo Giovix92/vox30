@@ -49,6 +49,9 @@ obj-$(CONFIG_PPP_SYNC_TTY) += ppp/
 obj-$(CONFIG_PPPOE) += ppp/
 obj-$(CONFIG_PPPOL2TP) += ppp/
 obj-$(CONFIG_PPTP) += ppp/
+ifdef BCM_KF # defined CONFIG_BCM_KF_ACCEL_PPTP
+#obj-$(CONFIG_ACCEL_PPTP) += accel-pptp/
+endif # BCM_KF # defined CONFIG_BCM_KF_ACCEL_PPTP
 obj-$(CONFIG_SLIP) += slip/
 obj-$(CONFIG_SLHC) += slip/
 obj-$(CONFIG_NET_SB1000) += sb1000.o

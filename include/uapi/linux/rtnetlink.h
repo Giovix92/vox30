@@ -138,7 +138,10 @@ enum {
 #define RTM_DELNSID RTM_DELNSID
 	RTM_GETNSID = 90,
 #define RTM_GETNSID RTM_GETNSID
-
+#ifdef __SC_BUILD__
+    RTM_RPEEVENT = 0xFE,
+    RTM_RPECMD = 0xFF,
+#endif
 	__RTM_MAX,
 #define RTM_MAX		(((__RTM_MAX + 3) & ~3) - 1)
 };

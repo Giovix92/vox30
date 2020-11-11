@@ -19,25 +19,196 @@
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
 #include <linux/netfilter_bridge.h>
+#if defined(CONFIG_BCM_KF_FBOND) && (defined(CONFIG_BCM_FBOND) || defined(CONFIG_BCM_FBOND_MODULE))
+#include <linux/export.h>
+#endif
 #include "br_private.h"
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+#include <linux/blog.h>
+#endif
 
 static int deliver_clone(const struct net_bridge_port *prev,
 			 struct sk_buff *skb,
 			 void (*__packet_hook)(const struct net_bridge_port *p,
 					       struct sk_buff *skb));
 
+#if defined(CONFIG_BCM_KF_WL)
+static __inline__ int shouldBypassStp (const struct sk_buff *skb, int state) {
+	if (skb->pkt_type == PACKET_BROADCAST || skb->pkt_type == PACKET_MULTICAST)
+		return 0;
+	if (state == BR_STATE_DISABLED)
+		return 0;
+	return ( (skb->protocol == htons(0x888e) /* ETHER_TYPE_802_1X */) || 
+	         (skb->protocol == htons(0x88c7) /* ETHER_TYPE_802_1X_PREAUTH */) ||
+	         (skb->protocol == htons(0x886c) /* ETHER_TYPE_BRCM */ ) );
+}
+#endif
+
 /* Don't forward packets to originating port or forwarding disabled */
+#if defined(CONFIG_BCM_KF_FBOND) && (defined(CONFIG_BCM_FBOND) || defined(CONFIG_BCM_FBOND_MODULE))
+static inline int should_deliver(const struct net_bridge_port *p,
+				 const struct sk_buff *skb, int state)
+#else
 static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
+#endif
 {
+#if defined(CONFIG_BCM_KF_WANDEV)
+#if !defined(CONFIG_BCM_WAN_2_WAN_FWD_ENABLED)
+	/*
+	* Do not forward any packets received from one WAN interface
+	* to another in multiple PVC case
+	*/
+	if( (skb->dev->priv_flags & p->dev->priv_flags) & IFF_WANDEV )
+	{
+		return 0;
+	}
+#endif
+
+	if ((skb->dev->priv_flags & IFF_WANDEV) == 0 &&
+	     (p->dev->priv_flags   & IFF_WANDEV) == 0)
+	{
+		struct net_device *sdev = skb->dev;
+		struct net_device *ddev = p->dev;
+
+#if defined(CONFIG_BCM_KF_NETDEV_PATH)
+		/* From LAN to LAN */
+		/* Do not forward any packets to virtual interfaces on the same
+		 * real interface of the originating virtual interface.
+		 */
+		while (!netdev_path_is_root(sdev))
+		{
+			sdev = netdev_path_next_dev(sdev);
+		}
+
+		while (!netdev_path_is_root(ddev))
+		{
+			ddev = netdev_path_next_dev(ddev);
+		}
+#endif
+
+		if (sdev == ddev)
+		{
+			return 0;
+		}
+
+		if (skb->pkt_type == PACKET_BROADCAST)
+		{
+#if defined(CONFIG_BCM_KF_ENET_SWITCH)
+			if (sdev->priv_flags & IFF_HW_SWITCH & ddev->priv_flags)
+			{
+				/* both source and destination are IFF_HW_SWITCH 
+				   if they are also on the same switch, reject the packet */
+				if (!((sdev->priv_flags & IFF_EXT_SWITCH) ^ (ddev->priv_flags & IFF_EXT_SWITCH)))
+				{
+					return 0;
+				}
+			}
+#endif /* CONFIG_BCM_KF_ENET_SWITCH */
+		}
+	}
+#endif /* CONFIG_BCM_KF_WANDEV */
+
+#if (defined(CONFIG_BCM_MCAST) || defined(CONFIG_BCM_MCAST_MODULE)) && defined(CONFIG_BCM_KF_MCAST)
+	if ( br_bcm_mcast_should_deliver != NULL )
+	{
+		if ( 0 == br_bcm_mcast_should_deliver(p->br->dev->ifindex, skb, p->dev,
+#if defined(CONFIG_BRIDGE_IGMP_SNOOPING)
+		      p->multicast_router == 2 || (p->multicast_router == 1 && timer_pending(&p->multicast_router_timer))) )
+#else
+		      false) )
+#endif
+		{
+			return 0;
+		}
+	}
+#endif
+
+#if defined(CONFIG_BCM_KF_FBOND) && (defined(CONFIG_BCM_FBOND) || defined(CONFIG_BCM_FBOND_MODULE))
+#if defined(CONFIG_BCM_KF_WL)
+	return (((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
+	        br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
+	        ((state == BR_STATE_FORWARDING) || shouldBypassStp(skb, state)));
+#else
+	return (((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
+	        br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
+	        state == BR_STATE_FORWARDING);
+#endif
+#elif defined(CONFIG_BCM_KF_WL)
+	return (((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
+	        br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
+	        ((p->state == BR_STATE_FORWARDING) || shouldBypassStp(skb, p->state)));
+#else
 	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
 		br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
 		p->state == BR_STATE_FORWARDING;
+#endif
 }
+
+#if defined(CONFIG_BCM_KF_FBOND) && (defined(CONFIG_BCM_FBOND) || defined(CONFIG_BCM_FBOND_MODULE))
+typedef struct net_device *(* br_fb_process_hook_t)(struct sk_buff *skb_p, uint16_t h_proto, struct net_device *txDev);
+static br_fb_process_hook_t __rcu br_fb_process_hook;
+
+void br_fb_bind(br_fb_process_hook_t brFbProcessHook)
+{
+   if ( NULL == brFbProcessHook ) {
+      printk("br_fb_bind: invalid FB process hook\n");
+   }
+   printk("br_fb_bind: FB process hook bound to %p\n", brFbProcessHook );
+   RCU_INIT_POINTER(br_fb_process_hook, brFbProcessHook);
+}
+
+static const struct net_bridge_port *br_fb_process(const struct net_bridge_port *to, struct sk_buff *skb)
+{
+	br_fb_process_hook_t fbProcessHook;
+	struct net_device *newDev;
+	int state = to->state;
+	const struct net_bridge_port *txPrt = to;
+
+	if ( NULL == txPrt ) {
+		return NULL;
+	}
+
+	fbProcessHook = rcu_dereference(br_fb_process_hook);
+	if ( fbProcessHook ) {
+		newDev = fbProcessHook(skb, TYPE_ETH, txPrt->dev);
+		if ( newDev ) {
+			state = BR_STATE_FORWARDING;
+			txPrt = br_port_get_rcu(newDev);
+			if ( NULL == txPrt ) {
+				txPrt = to;
+			}
+		}
+	}
+
+	if (should_deliver(txPrt, skb, state)) {
+		return txPrt;
+	}
+	else {
+		return NULL;
+	}
+}
+EXPORT_SYMBOL(br_fb_bind);
+#endif
+
+#ifdef CONFIG_BCM_KF_MISC_BACKPORTS
+static inline unsigned packet_length(const struct sk_buff *skb)
+{
+	return skb->len - (skb->protocol == htons(ETH_P_8021Q) ? VLAN_HLEN : 0);
+}
+#endif
 
 int br_dev_queue_push_xmit(struct sock *sk, struct sk_buff *skb)
 {
+#ifdef CONFIG_BCM_KF_MISC_BACKPORTS
+	/* is_skb_forwardable() is assuming skb->len already has ETH_LEN and
+	 * that is not correct here and this can cause the packets >MTU 
+	 * to be forwarded, adding proper checks
+	 */
+	if((packet_length(skb) > skb->dev->mtu ) && !skb_is_gso(skb)) {
+#else
 	if (!is_skb_forwardable(skb->dev, skb)) {
+#endif
 		kfree_skb(skb);
 	} else {
 		skb_push(skb, ETH_HLEN);
@@ -68,7 +239,15 @@ static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 	skb->dev = to->dev;
 
 	if (unlikely(netpoll_tx_running(to->br->dev))) {
+#ifdef CONFIG_BCM_KF_MISC_BACKPORTS
+		/* is_skb_forwardable() is assuming skb->len already has ETH_LEN and
+		 * that is not correct here, this can cause the packets >MTU 
+		 * to be forwarded, adding proper checks
+		 */
+		if (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))
+#else
 		if (!is_skb_forwardable(skb->dev, skb))
+#endif
 			kfree_skb(skb);
 		else {
 			skb_push(skb, ETH_HLEN);
@@ -107,7 +286,12 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 /* called with rcu_read_lock */
 void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
+#if defined(CONFIG_BCM_KF_FBOND) && (defined(CONFIG_BCM_FBOND) || defined(CONFIG_BCM_FBOND_MODULE))
+	to = br_fb_process(to, skb);
+	if ( to ) {
+#else
 	if (to && should_deliver(to, skb)) {
+#endif
 		__br_deliver(to, skb);
 		return;
 	}
@@ -119,7 +303,12 @@ EXPORT_SYMBOL_GPL(br_deliver);
 /* called with rcu_read_lock */
 void br_forward(const struct net_bridge_port *to, struct sk_buff *skb, struct sk_buff *skb0)
 {
+#if defined(CONFIG_BCM_KF_FBOND) && (defined(CONFIG_BCM_FBOND) || defined(CONFIG_BCM_FBOND_MODULE))
+	to = br_fb_process(to, skb);
+	if ( to ) {
+#else
 	if (should_deliver(to, skb)) {
+#endif   
 		if (skb0)
 			deliver_clone(to, skb, __br_forward);
 		else
@@ -137,12 +326,18 @@ static int deliver_clone(const struct net_bridge_port *prev,
 					       struct sk_buff *skb))
 {
 	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
-
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	struct sk_buff *skb2 = skb;
+#endif
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb) {
 		dev->stats.tx_dropped++;
 		return -ENOMEM;
 	}
+
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	blog_clone(skb2, blog_ptr(skb));
+#endif
 
 	__packet_hook(prev, skb);
 	return 0;
@@ -156,7 +351,11 @@ static struct net_bridge_port *maybe_deliver(
 {
 	int err;
 
+#if defined(CONFIG_BCM_KF_FBOND) && (defined(CONFIG_BCM_FBOND) || defined(CONFIG_BCM_FBOND_MODULE))
+	if (!should_deliver(p, skb, p->state))
+#else
 	if (!should_deliver(p, skb))
+#endif
 		return prev;
 
 	if (!prev)
@@ -180,6 +379,20 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	struct net_bridge_port *p;
 	struct net_bridge_port *prev;
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	Blog_t * blog_p = blog_ptr(skb);
+
+	if (blog_p && !blog_p->rx.multicast)
+	{
+#if defined(CONFIG_BCM_KF_INTF_BRG) && defined (CONFIG_BCM_INTF_BRG_ENABLED)
+		/* Keep blog for interface-based bridging. */
+		if (!is_interface_br(br, skb))
+#endif /* CONFIG_BCM_KF_INTF_BRG && CONFIG_BCM_INTF_BRG_ENABLED */
+		{
+			blog_skip(skb, blog_skip_reason_br_flood);
+		}
+	}
+#endif
 	prev = NULL;
 
 	list_for_each_entry_rcu(p, &br->port_list, list) {

@@ -5,7 +5,11 @@
 #include <linux/threads.h>
 #include <asm/irq.h>
 
+#if defined(CONFIG_BCM_ASTRA) && defined(CONFIG_BCM_KF_ASTRA)
+#define NR_IPI	16
+#else
 #define NR_IPI	8
+#endif
 
 typedef struct {
 	unsigned int __softirq_pending;

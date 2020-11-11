@@ -29,7 +29,11 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_nat.h>
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+#include <sc/cnapt/nf_cnapt.h>
+#endif
+#endif
 static DEFINE_SPINLOCK(nf_nat_lock);
 
 static DEFINE_MUTEX(nf_nat_proto_mutex);
@@ -681,6 +685,26 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 	if (nat == NULL || nat->ct == NULL)
 		return;
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+    1
+	if (nat) {
+		void (*hook_fn)(struct nf_conn *);
+    	
+		hook_fn = rcu_dereference(cnapt_cleanup_ct_hook);
+		if (hook_fn)
+			(*hook_fn)(ct);
+		
+		hook_fn = rcu_dereference(natlimit_cleanup_ct_hook);
+		if (hook_fn)
+			(*hook_fn)(ct);
+    	
+		hook_fn = rcu_dereference(cpt_cleanup_ct_hook);
+		if (hook_fn)
+			(*hook_fn)(ct);
+	}
+#endif
+#endif
 	NF_CT_ASSERT(nat->ct->status & IPS_SRC_NAT_DONE);
 
 	spin_lock_bh(&nf_nat_lock);

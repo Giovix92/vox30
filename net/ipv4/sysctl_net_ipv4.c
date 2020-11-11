@@ -760,6 +760,32 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &one
 	},
+#ifdef __SC_BUILD__ 
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+/*
+    {
+        .ctl_name   = NET_IPV4_IPFRAG_MAX_TOTAL,
+        .procname   = "ipfrag_max_total",
+        .data       = &sysctl_ipfrag_count_max,
+        .maxlen     = sizeof(int),
+        .mode       = 0644,
+        .proc_handler   = proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
+        .extra1     = &zero
+    },
+    {
+        .ctl_name   = NET_IPV4_IPFRAG_MAX_PER_IP,
+        .procname   = "ipfrag_max_per_ip",
+        .data       = &sysctl_ipfrag_count_per_ip_max,
+        .maxlen     = sizeof(int),
+        .mode       = 0644,
+        .proc_handler   = proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
+        .extra1     = &zero
+    },
+*/
+#endif
+#endif
 	{ }
 };
 

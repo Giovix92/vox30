@@ -79,6 +79,9 @@
 #include <linux/mroute.h>
 #include <linux/netlink.h>
 #include <linux/tcp.h>
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+#include <linux/blog.h>
+#endif
 
 int sysctl_ip_default_ttl __read_mostly = IPDEFTTL;
 EXPORT_SYMBOL(sysctl_ip_default_ttl);
@@ -312,9 +315,16 @@ int ip_mc_output(struct sock *sk, struct sk_buff *skb)
 		   ) {
 			struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 			if (newskb)
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+			{
+				blog_clone(skb, blog_ptr(newskb));
+#endif
 				NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING,
 					sk, newskb, NULL, newskb->dev,
 					dev_loopback_xmit);
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+			}
+#endif
 		}
 
 		/* Multicasts with ttl 0 must not go beyond the host */
@@ -500,7 +510,16 @@ int ip_fragment(struct sock *sk, struct sk_buff *skb,
 	int err = 0;
 
 	dev = rt->dst.dev;
-
+#ifdef __SC_BUILD__
+	if(dev->fragment_flags)
+	{
+		IP_INC_STATS(dev_net(dev), IPSTATS_MIB_FRAGFAILS);
+		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
+			  htonl(ip_skb_dst_mtu(skb)));
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
+#endif
 	/*
 	 *	Point into the IP datagram header.
 	 */
@@ -517,6 +536,17 @@ int ip_fragment(struct sock *sk, struct sk_buff *skb,
 		kfree_skb(skb);
 		return -EMSGSIZE;
 	}
+
+#if defined(CONFIG_BCM_KF_IP)
+   /* 
+    * Do not fragment the packets going to 4in6 tunnel:
+    * RFC2473 sec 7.2: fragmentation should happen in tunnel
+    */
+    if (strstr(dev->name, "ip6tnl"))
+    {
+        return output(sk, skb);
+    }
+#endif    
 
 	/*
 	 *	Setup starting values.
@@ -706,6 +736,9 @@ slow_path:
 			BUG();
 		left -= len;
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+		blog_xfer(skb2, skb);
+#endif
 		/*
 		 *	Fill in the new header fields.
 		 */
@@ -1525,7 +1558,11 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 	struct net *net = sock_net(sk);
 	struct sk_buff *nskb;
 	int err;
-
+#ifdef __SC_BUILD__
+    int appid = 0;
+    int flowid = 0;
+    struct sercomm_head *psh;
+#endif
 	if (__ip_options_echo(&replyopts.opt.opt, skb, sopt))
 		return;
 
@@ -1553,7 +1590,11 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))
 		return;
-
+#ifdef __SC_BUILD__
+    psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+    appid = SCMARK_GET_APPID(psh->mark);
+    flowid = SCMARK_GET_FLOWID(psh->mark); //backup the app id
+#endif
 	inet_sk(sk)->tos = arg->tos;
 
 	sk->sk_priority = skb->priority;
@@ -1569,6 +1610,12 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 
 	nskb = skb_peek(&sk->sk_write_queue);
 	if (nskb) {
+#ifdef __SC_BUILD__
+        psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+        psh->mark = SCMARK_SET_APPID(psh->mark, appid);
+        psh->mark = SCMARK_SET_FLOWID(psh->mark, flowid); //restore app id flow id
+
+#endif
 		if (arg->csumoffset >= 0)
 			*((__sum16 *)skb_transport_header(nskb) +
 			  arg->csumoffset) = csum_fold(csum_add(nskb->csum,

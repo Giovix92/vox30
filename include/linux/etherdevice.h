@@ -406,5 +406,24 @@ static inline int eth_skb_pad(struct sk_buff *skb)
 {
 	return skb_put_padto(skb, ETH_ZLEN);
 }
+#ifdef __SC_BUILD__
+/**
+ *  * compare_ether_addr mask - Compare two Ethernet addresses with mask
+ *   * @addr1: Pointer to a six-byte array containing the Ethernet address
+ *    * @addr2: Pointer other six-byte array containing the Ethernet address
+ *     * @mask: Pointer other six-byte array containing the Ethernet address mask
+ *      *
+ *       * Compare two ethernet addresses with mask, returns 0 if equal
+ *        * Add for iptables mac wildcard.Boone Shen - 091230.
+ *         */
+static inline unsigned compare_ether_addr_msk(const u8 *addr1, const u8 *addr2 ,const u8 *mask)
+{
+    const u16 *a = (const u16 *) addr1;
+    const u16 *b = (const u16 *) addr2;
+    const u16 *c = (const u16 *) mask;
 
+    BUILD_BUG_ON(ETH_ALEN != 6);
+    return (((a[0] ^ b[0]) & c[0]) | ((a[1] ^ b[1]) & c[1]) | ((a[2] ^ b[2]) & c[2])) != 0;
+}
+#endif
 #endif	/* _LINUX_ETHERDEVICE_H */

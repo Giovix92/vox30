@@ -46,6 +46,14 @@
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM_USBNET_ACCELERATION) && defined(CONFIG_BLOG))
+#include <linux/nbuff.h> 
+#include <linux/blog.h>
+#endif
+
+#ifdef __SC_BUILD__
+#include <linux/slog.h>
+#endif
 #define DRIVER_VERSION		"22-Aug-2005"
 
 
@@ -323,6 +331,30 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 		return;
 	}
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM_USBNET_ACCELERATION) && defined(CONFIG_BLOG))
+	if(skb->clone_fc_head == NULL)
+	{
+		/* Make sure fcache does not expand the skb->data if clone_fc_head
+		 * is not set by the dongle driver's(ex:rndis_host.c, asix.c etc..)
+		 * we expect dongle/class drivers using fcache to set minumun headroom
+		 * available for all packets in an aggregated skb by calling 
+		 * skb_clone_headers_set() before calling usbnet_skb_return.
+		 *
+		 * Ex:rndis based drivers have 8 bytes spacig between 2 packets in an
+		 * aggreated skb. we can call skb_clone_ headers_set(skb, 8) in
+		 * rndis_rx_fixup();
+		 * By setting this we are telling fcache or enet driver can expand
+		 * skb->data for upto 8 bytes. This is helpful to avoid packet
+		 * copy incase of LAN VLAN's, External Switch tag's  etc..
+		 *   
+		 */
+		skb_clone_headers_set(skb, 0);
+	}
+	if (PKT_DONE == blog_sinit(skb, skb->dev, TYPE_ETH, 0, BLOG_USBPHY)) {
+		return;
+	}
+#endif
+
 	skb->protocol = eth_type_trans (skb, dev->net);
 	dev->net->stats.rx_packets++;
 	dev->net->stats.rx_bytes += skb->len;
@@ -334,7 +366,11 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 	if (skb_defer_rx_timestamp(skb))
 		return;
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM_USBNET_ACCELERATION) && defined(CONFIG_BLOG))
+	status = netif_receive_skb(skb);
+#else
 	status = netif_rx (skb);
+#endif
 	if (status != NET_RX_SUCCESS)
 		netif_dbg(dev, rx_err, dev->net,
 			  "netif_rx status %d\n", status);
@@ -454,6 +490,10 @@ void usbnet_defer_kevent (struct usbnet *dev, int work)
 }
 EXPORT_SYMBOL_GPL(usbnet_defer_kevent);
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM96838))
+int bcm_usb_hw_align_size = 1024;
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 static void rx_complete (struct urb *urb);
@@ -472,13 +512,26 @@ static int rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 		return -ENOLINK;
 	}
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM96838))
+	skb = __netdev_alloc_skb_ip_align(dev->net, size + bcm_usb_hw_align_size, flags);
+#else
 	skb = __netdev_alloc_skb_ip_align(dev->net, size, flags);
+#endif
+
 	if (!skb) {
 		netif_dbg(dev, rx_err, dev->net, "no rx skb\n");
 		usbnet_defer_kevent (dev, EVENT_RX_MEMORY);
 		usb_free_urb (urb);
 		return -ENOMEM;
 	}
+
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM96838))
+    {
+        unsigned int aligned_len = (unsigned int)skb->data;
+        aligned_len = bcm_usb_hw_align_size - (aligned_len & (bcm_usb_hw_align_size - 1));
+		skb_reserve(skb, aligned_len);
+    }
+#endif
 
 	entry = (struct skb_data *) skb->cb;
 	entry->urb = urb;
@@ -1293,6 +1346,21 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 	unsigned long		flags;
 	int retval;
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM_USBNET_ACCELERATION) && defined(CONFIG_BLOG))
+	if(skb)
+	{
+		struct sk_buff *orig_skb = skb;
+		skb = nbuff_xlate((pNBuff_t )skb);
+		if (skb == NULL)
+		{
+			dev->net->stats.tx_dropped++;
+			nbuff_free((pNBuff_t) orig_skb);
+			return NETDEV_TX_OK;
+		}
+		blog_emit( skb, net, TYPE_ETH, 0, BLOG_USBPHY );
+	}
+#endif
+
 	if (skb)
 		skb_tx_timestamp(skb);
 
@@ -1308,6 +1376,33 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 			goto drop;
 		}
 	}
+
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM963268))
+	/* on 63268 if TX buffer is not 4 byte aligned then some times 
+	 * USB descriptors are corrupted beacuse of a BUG in hW
+	 * for unaligned buffers copy data to a new aligned buffer
+	 */
+	if (((unsigned int)skb->data & 0x3) ) {
+		struct sk_buff	*oskb = skb;
+		int newheadroom = skb_headroom(oskb);
+		/* create a new skb from an existing skb 
+		 * and adjust the data pointer to be word aligned
+		 */
+		newheadroom += newheadroom%4;  
+		skb = skb_copy_expand(oskb, newheadroom, 1, GFP_ATOMIC);
+		dev_kfree_skb_any(oskb);
+
+		if ( unlikely(!skb) )
+			goto drop;
+
+		if (unlikely((unsigned int)skb->data & 0x3))
+		{
+			printk(KERN_WARNING"%s: unaligned skb->data=%p \n", __func__,
+				 skb->data);
+			goto drop;
+		}
+	}
+#endif
 
 	if (!(urb = usb_alloc_urb (0, GFP_ATOMIC))) {
 		netif_dbg(dev, tx_err, dev->net, "no urb\n");
@@ -1531,6 +1626,12 @@ void usbnet_disconnect (struct usb_interface *intf)
 		   intf->dev.driver->name,
 		   xdev->bus->bus_name, xdev->devpath,
 		   dev->driver_info->description);
+#ifdef __SC_BUILD__
+    LOG_UMTS(KERN_INFO, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+            "%s : unregister '%s' at usb-%s-%s, %s\n"
+            , dev->net->name, intf->dev.driver->name, xdev->bus->bus_name, xdev->devpath,
+            dev->driver_info->description);
+#endif
 
 	net = dev->net;
 	unregister_netdev (net);
@@ -1655,6 +1756,9 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	net->ethtool_ops = &usbnet_ethtool_ops;
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM96838))
+    printk("+++++ &bcm_usb_hw_align_size =%p \n", &bcm_usb_hw_align_size);
+#endif
 	// allow device-specific bind/init procedures
 	// NOTE net->name still not usable ...
 	if (info->bind) {
@@ -1674,8 +1778,11 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 			strcpy(net->name, "wlan%d");
 		/* WWAN devices should always be named "wwan%d" */
 		if ((dev->driver_info->flags & FLAG_WWAN) != 0)
+#ifdef __SC_BUILD__
+			strcpy(net->name, "usb%d");
+#else
 			strcpy(net->name, "wwan%d");
-
+#endif
 		/* devices that cannot do ARP */
 		if ((dev->driver_info->flags & FLAG_NOARP) != 0)
 			net->flags |= IFF_NOARP;
@@ -1735,6 +1842,12 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 		   xdev->bus->bus_name, xdev->devpath,
 		   dev->driver_info->description,
 		   net->dev_addr);
+#ifdef __SC_BUILD__
+    LOG_UMTS(KERN_INFO, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+            "%s : register '%s' at usb-%s-%s, %s, %pM\n"
+            , net->name, udev->dev.driver->name, xdev->bus->bus_name, xdev->devpath,
+            dev->driver_info->description, net->dev_addr);
+#endif
 
 	// ok, it's ready to go.
 	usb_set_intfdata (udev, dev);

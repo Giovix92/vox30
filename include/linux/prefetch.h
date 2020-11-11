@@ -61,4 +61,42 @@ static inline void prefetch_range(void *addr, size_t len)
 #endif
 }
 
+#if defined(CONFIG_BCM_KF_ARM_PLD)
+#if defined(CONFIG_BCM_KF_ARM_BCM963XX) && (defined(CONFIG_BCM963138) || defined(CONFIG_BCM963148))
+static inline void bcm_prefetch(const void * addr, const int cachelines)
+{
+	switch (cachelines) {
+	default:
+	case 4:
+		__asm__ __volatile__("pld\t%a0" : : "p"(addr + (L1_CACHE_BYTES * 3)) : "cc");
+	case 3:
+		__asm__ __volatile__("pld\t%a0" : : "p"(addr + (L1_CACHE_BYTES * 2)) : "cc");
+	case 2:
+		__asm__ __volatile__("pld\t%a0" : : "p"(addr + (L1_CACHE_BYTES * 1)) : "cc");
+	case 1:
+		__asm__ __volatile__("pld\t%a0" : : "p"(addr + (L1_CACHE_BYTES * 0)) : "cc");
+	}
+	return;
+}
+#elif defined(CONFIG_BCM_KF_ARM64_BCM963XX) && defined(CONFIG_BCM94908)
+static inline void bcm_prefetch(const void * addr, const int cachelines)
+{
+	switch (cachelines) {
+	default:
+	case 4:
+		__asm__ __volatile__("prfm pldl1keep, %a0" : : "p"(addr + (L1_CACHE_BYTES * 3)) : "cc");
+	case 3:
+		__asm__ __volatile__("prfm pldl1keep, %a0" : : "p"(addr + (L1_CACHE_BYTES * 2)) : "cc");
+	case 2:
+		__asm__ __volatile__("prfm pldl1keep, %a0" : : "p"(addr + (L1_CACHE_BYTES * 1)) : "cc");
+	case 1:
+		__asm__ __volatile__("prfm pldl1keep, %a0" : : "p"(addr + (L1_CACHE_BYTES * 0)) : "cc");
+	}
+	return;
+}
+#else
+static inline void bcm_prefetch(const void * addr, const int cachelines) { }
+#endif
+#endif /* defined(CONFIG_BCM_KF_ARM_PLD) */
+
 #endif

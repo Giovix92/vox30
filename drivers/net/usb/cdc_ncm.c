@@ -52,7 +52,9 @@
 #include <linux/usb/usbnet.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/cdc_ncm.h>
-
+#ifdef __SC_BUILD__
+#include <linux/slog.h>
+#endif
 #if IS_ENABLED(CONFIG_USB_NET_CDC_MBIM)
 static bool prefer_mbim = true;
 #else
@@ -1489,11 +1491,23 @@ cdc_ncm_speed_change(struct usbnet *dev,
 			   "%u mbit/s downlink %u mbit/s uplink\n",
 			   (unsigned int)(rx_speed / 1000000U),
 			   (unsigned int)(tx_speed / 1000000U));
+#ifdef __SC_BUILD__
+            LOG_UMTS(KERN_INFO, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+                    KBUILD_MODNAME" : %s: %u mbit/s downlink %u mbit/s uplink\n"
+                    , netdev_name(dev->net), (unsigned int)(rx_speed / 1000000U),
+                    (unsigned int)(tx_speed / 1000000U));
+#endif
 	} else {
 		netif_info(dev, link, dev->net,
 			   "%u kbit/s downlink %u kbit/s uplink\n",
 			   (unsigned int)(rx_speed / 1000U),
 			   (unsigned int)(tx_speed / 1000U));
+#ifdef __SC_BUILD__
+            LOG_UMTS(KERN_INFO, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+                    KBUILD_MODNAME" : %s: %u kbit/s downlink %u kbit/s uplink\n"
+                    , netdev_name(dev->net), (unsigned int)(rx_speed / 1000U),
+                    (unsigned int)(tx_speed / 1000U));
+#endif
 	}
 }
 
@@ -1526,6 +1540,11 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		netif_info(dev, link, dev->net,
 			   "network connection: %sconnected\n",
 			   !!event->wValue ? "" : "dis");
+#ifdef __SC_BUILD__
+        LOG_UMTS(KERN_INFO, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+                KBUILD_MODNAME" : %s: network connection: %sconnected\n"
+                , netdev_name(dev->net), !!event->wValue ? "" : "dis");
+#endif
 		usbnet_link_change(dev, !!event->wValue, 0);
 		break;
 
@@ -1542,6 +1561,11 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		dev_dbg(&dev->udev->dev,
 			"NCM: unexpected notification 0x%02x!\n",
 			event->bNotificationType);
+#ifdef __SC_BUILD__
+        LOG_UMTS(KERN_ERR, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+                KBUILD_MODNAME" unexpected notification 0x%02x!\n"
+                , event->bNotificationType);
+#endif
 		break;
 	}
 }
@@ -1561,7 +1585,8 @@ static const struct driver_info cdc_ncm_info = {
 static const struct driver_info wwan_info = {
 	.description = "Mobile Broadband Network Device",
 	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET
-			| FLAG_WWAN,
+			| FLAG_WWAN
+            ,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
 	.manage_power = usbnet_manage_power,

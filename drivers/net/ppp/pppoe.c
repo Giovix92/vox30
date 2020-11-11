@@ -77,7 +77,9 @@
 #include <linux/file.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-
+#ifdef __SC_BUILD__
+#include <linux/bcm_skb_defines.h>
+#endif
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -88,7 +90,10 @@
 #define PPPOE_HASH_BITS 4
 #define PPPOE_HASH_SIZE (1 << PPPOE_HASH_BITS)
 #define PPPOE_HASH_MASK	(PPPOE_HASH_SIZE - 1)
-
+#ifdef __SC_BUILD__
+int ppp_pbit = 0;
+EXPORT_SYMBOL(ppp_pbit);
+#endif
 static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb);
 
 static const struct proto_ops pppoe_ops;
@@ -497,7 +502,11 @@ static int pppoe_disc_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto abort;
 
 	ph = pppoe_hdr(skb);
+#if defined(CONFIG_BCM_KF_PPP)
+	if ((ph->code != PADT_CODE) || (ph->sid))
+#else
 	if (ph->code != PADT_CODE)
+#endif /* CONFIG_BCM_KF_PPP */
 		goto abort;
 
 	pn = pppoe_pernet(dev_net(dev));
@@ -930,7 +939,14 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	struct net_device *dev = po->pppoe_dev;
 	struct pppoe_hdr *ph;
 	int data_len = skb->len;
+#ifdef __SC_BUILD__
+    unsigned char *data;
+    int proto;
+    struct sercomm_head *psh;
 
+    data = skb->data;
+    proto = (data[0] << 8) + data[1];
+#endif
 	/* The higher-level PPP code (ppp_unregister_channel()) ensures the PPP
 	 * xmit operations conclude prior to an unregistration call.  Thus
 	 * sk->sk_state cannot change, so we don't need to do lock_sock().
@@ -966,8 +982,29 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 
 	dev_hard_header(skb, dev, ETH_P_PPP_SES,
 			po->pppoe_pa.remote, NULL, data_len);
-
+#ifdef __SC_BUILD__
+    if(proto != 0x0021 && proto != 0x0057)   // not IP session or IPv6 session
+    {
+#ifdef CONFIG_SUPPORT_FON
+#ifdef CONFIG_BR_IGMP_SNOOP
+        skb->mark = SKBMARK_SET_Q_PRIO(skb->mark, 5);
+#else
+        skb->mark = SKBMARK_SET_Q_PRIO(skb->mark, 4);
+#endif
+#else
+#ifdef CONFIG_BR_IGMP_SNOOP
+        skb->mark = SKBMARK_SET_Q_PRIO(skb->mark, 4);
+#else
+        skb->mark = SKBMARK_SET_Q_PRIO(skb->mark, 3);
+#endif
+#endif
+        psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+        if(ppp_pbit)
+            set_egress_8021p((char *)psh, ppp_pbit);
+    }
+#endif
 	dev_queue_xmit(skb);
+
 	return 1;
 
 abort:
@@ -1153,18 +1190,60 @@ static const struct pppox_proto pppoe_proto = {
 	.ioctl	= pppoe_ioctl,
 	.owner	= THIS_MODULE,
 };
+#ifdef __SC_BUILD__
+static ssize_t ppp_pbit_read(struct file *file, char __user *buf, size_t count, loff_t* offset)
+{
+    int len = 0;
+    len = sprintf(buf,"%d\n",ppp_pbit);
+    return len;
+}
 
+static ssize_t ppp_pbit_write (struct file *file, const char __user *buffer, size_t count, loff_t* offset)
+{
+    char cmd[32];
+    int pbit = 0;
+    int j;
+    memset(cmd, 0, sizeof(cmd));
+    if (count > (sizeof(cmd) - 1))
+        count = (sizeof(cmd) - 1);
+    if (copy_from_user (&cmd, buffer, count))
+    {
+        return -EFAULT;
+    }
+    for(j = 0; j < strlen(cmd); j++)
+        if(cmd[j] == '\n')
+            cmd[j] = '\0';
+    if(strlen(cmd))
+    {
+        pbit = simple_strtol(cmd, NULL, 10);
+        if(pbit)
+        {
+            ppp_pbit = pbit;
+        }
+    }
+    return count;
+}
+#endif
+#ifdef __SC_BUILD__
+struct file_operations proc_pbit_fops = 
+{
+    .read = ppp_pbit_read,
+    .write = ppp_pbit_write,
+};
+#endif
 static __net_init int pppoe_init_net(struct net *net)
 {
 	struct pppoe_net *pn = pppoe_pernet(net);
 	struct proc_dir_entry *pde;
-
 	rwlock_init(&pn->hash_lock);
 
 	pde = proc_create("pppoe", S_IRUGO, net->proc_net, &pppoe_seq_fops);
 #ifdef CONFIG_PROC_FS
 	if (!pde)
 		return -ENOMEM;
+#endif
+#ifdef __SC_BUILD__
+    pde = proc_create("ppp_pbit" ,0644, net->proc_net, &proc_pbit_fops);
 #endif
 
 	return 0;

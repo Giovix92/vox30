@@ -185,6 +185,9 @@ static ssize_t mtdchar_read(struct file *file, char __user *buf, size_t count,
 		case MTD_FILE_MODE_RAW:
 		{
 			struct mtd_oob_ops ops;
+#if defined(CONFIG_BCM_KF_MTD_IOCTL_FIX)
+			memset(&ops, 0x00, sizeof(ops));
+#endif
 
 			ops.mode = MTD_OPS_RAW;
 			ops.datbuf = kbuf;
@@ -279,6 +282,9 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
 		case MTD_FILE_MODE_RAW:
 		{
 			struct mtd_oob_ops ops;
+#if defined(CONFIG_BCM_KF_MTD_IOCTL_FIX)
+			memset(&ops, 0x00, sizeof(ops));
+#endif
 
 			ops.mode = MTD_OPS_RAW;
 			ops.datbuf = kbuf;
@@ -386,8 +392,11 @@ static int mtdchar_writeoob(struct file *file, struct mtd_info *mtd,
 	ops.ooboffs = start & (mtd->writesize - 1);
 	ops.datbuf = NULL;
 	ops.mode = (mfi->mode == MTD_FILE_MODE_RAW) ? MTD_OPS_RAW :
+#if defined(CONFIG_BCM_KF_MTD_OOB_AUTO)
+		MTD_OPS_AUTO_OOB;
+#else
 		MTD_OPS_PLACE_OOB;
-
+#endif
 	if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
 		return -EINVAL;
 
@@ -426,8 +435,11 @@ static int mtdchar_readoob(struct file *file, struct mtd_info *mtd,
 	ops.ooboffs = start & (mtd->writesize - 1);
 	ops.datbuf = NULL;
 	ops.mode = (mfi->mode == MTD_FILE_MODE_RAW) ? MTD_OPS_RAW :
+#if defined(CONFIG_BCM_KF_MTD_OOB_AUTO)
+		MTD_OPS_AUTO_OOB;
+#else
 		MTD_OPS_PLACE_OOB;
-
+#endif
 	if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
 		return -EINVAL;
 
@@ -723,6 +735,9 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		struct mtd_oob_buf buf;
 		struct mtd_oob_buf __user *buf_user = argp;
 
+#if defined(CONFIG_BCM_KF_MTD_IOCTL_FIX)
+		memset(&buf, 0x00, sizeof(buf));
+#endif
 		/* NOTE: writes return length to buf_user->length */
 		if (copy_from_user(&buf, argp, sizeof(buf)))
 			ret = -EFAULT;
@@ -737,6 +752,9 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		struct mtd_oob_buf buf;
 		struct mtd_oob_buf __user *buf_user = argp;
 
+#if defined(CONFIG_BCM_KF_MTD_IOCTL_FIX)
+		memset(&buf, 0x00, sizeof(buf));
+#endif
 		/* NOTE: writes return length to buf_user->start */
 		if (copy_from_user(&buf, argp, sizeof(buf)))
 			ret = -EFAULT;

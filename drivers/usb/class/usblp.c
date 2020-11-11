@@ -1086,7 +1086,11 @@ static int usblp_probe(struct usb_interface *intf,
 	struct usblp *usblp;
 	int protocol;
 	int retval;
-
+#ifdef __SC_BUILD__
+    char printer_name[32];
+    char message[256];
+    int len = 0;
+#endif
 	/* Malloc and start initializing usblp structure so we can use it
 	 * directly. */
 	usblp = kzalloc(sizeof(struct usblp), GFP_KERNEL);
@@ -1181,7 +1185,14 @@ static int usblp_probe(struct usb_interface *intf,
 		usblp->current_protocol,
 		le16_to_cpu(usblp->dev->descriptor.idVendor),
 		le16_to_cpu(usblp->dev->descriptor.idProduct));
-
+#ifdef __SC_BUILD__
+#define ADD_USBLP "add@usblp"
+    snprintf(printer_name, sizeof(printer_name), "%s %s", usblp->dev->manufacturer, usblp->dev->product);
+    len = snprintf(message, sizeof(message), "%s/%d-%s-%s.", ADD_USBLP, usblp->dev->bus->busnum, usblp->dev->devpath, printer_name);
+    len ++;
+    (void)kobject_send_uevent(message, len);
+    usb_output_usblp_state_update(usblp->dev->bus->busnum, usblp->dev->devpath, printer_name);
+#endif
 	return 0;
 
 abort_intfdata:
@@ -1351,7 +1362,17 @@ static int usblp_cache_device_id_string(struct usblp *usblp)
 static void usblp_disconnect(struct usb_interface *intf)
 {
 	struct usblp *usblp = usb_get_intfdata(intf);
+#ifdef __SC_BUILD__
+    char printer_name[32];
+    char message[256];
+    int len = 0;
 
+#define REMOVE_USBLP "remove@usblp"
+    snprintf(printer_name, sizeof(printer_name), "%s %s", usblp->dev->manufacturer, usblp->dev->product);
+    len = snprintf(message, sizeof(message), "%s/%d-%s-%s.", REMOVE_USBLP, usblp->dev->bus->busnum, usblp->dev->devpath, printer_name);
+    len ++;
+    (void)kobject_send_uevent(message, len);
+#endif
 	usb_deregister_dev(intf, &usblp_class);
 
 	if (!usblp || !usblp->dev) {

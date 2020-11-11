@@ -36,6 +36,7 @@ static struct nf_loginfo default_loginfo = {
 };
 
 /* One level of recursion won't kill us */
+#ifndef __SC_BUILD__
 static void dump_ipv6_packet(struct nf_log_buf *m,
 			     const struct nf_loginfo *info,
 			     const struct sk_buff *skb, unsigned int ip6hoff,
@@ -284,7 +285,6 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 	if (recurse && skb->mark)
 		nf_log_buf_add(m, "MARK=0x%x ", skb->mark);
 }
-
 static void dump_ipv6_mac_header(struct nf_log_buf *m,
 				 const struct nf_loginfo *info,
 				 const struct sk_buff *skb)
@@ -340,13 +340,22 @@ fallback:
 		nf_log_buf_add(m, " ");
 	}
 }
-
+#endif
+#ifdef __SC_BUILD__
+static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
+			      unsigned int hooknum, const struct sk_buff *skb,
+			      const struct net_device *in,
+			      const struct net_device *out,
+			      const struct nf_loginfo *loginfo,
+			      const char *prefix, const char *suffix)
+#else
 static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 			      unsigned int hooknum, const struct sk_buff *skb,
 			      const struct net_device *in,
 			      const struct net_device *out,
 			      const struct nf_loginfo *loginfo,
 			      const char *prefix)
+#endif
 {
 	struct nf_log_buf *m;
 
@@ -359,14 +368,19 @@ static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 	if (!loginfo)
 		loginfo = &default_loginfo;
 
+#ifdef __SC_BUILD__
+	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out,
+				  loginfo, prefix, suffix);
+#else
 	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out,
 				  loginfo, prefix);
-
+#endif
+#ifndef __SC_BUILD__
 	if (in != NULL)
 		dump_ipv6_mac_header(m, loginfo, skb);
 
 	dump_ipv6_packet(m, loginfo, skb, skb_network_offset(skb), 1);
-
+#endif
 	nf_log_buf_close(m);
 }
 

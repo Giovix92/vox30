@@ -203,6 +203,11 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 	char *xbuf[XBUFSIZE];
 	int ret = -ENOMEM;
 
+#if defined(CONFIG_BCM_KF_IP)
+/* disable testing spu alg*/
+	return 0;
+#endif
+
 	result = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
 	if (!result)
 		return ret;
@@ -3709,7 +3714,9 @@ test_done:
 	return rc;
 
 notest:
+#if !defined(CONFIG_BCM_KF_IP)
 	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
+#endif
 	return 0;
 non_fips_alg:
 	return -EINVAL;

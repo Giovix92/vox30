@@ -15,6 +15,7 @@ NAME = Series 4800
 # o Look for make include files relative to root of kernel src
 MAKEFLAGS += -rR --include-dir=$(CURDIR)
 
+BRCMDRIVERS_DIR_RELATIVE = ../../bcmdrivers
 # Avoid funny character set dependencies
 unexport LC_ALL
 LC_COLLATE=C
@@ -298,7 +299,18 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+BCM_FATAL_CC_WARNING_FLAGS := -Werror -Wfatal-errors -Wno-date-time -Wno-declaration-after-statement -Wno-switch-bool
+
+# BCM_KBUILD_CFLAGS is used when building the Linux kernel (not bcmdrivers)
+BCM_KBUILD_CFLAGS := -g $(BCM_FATAL_CC_WARNING_FLAGS)
+
+# lauterbach setting
+#HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -fomit-frame-pointer
+
+else # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 HOSTCXXFLAGS = -O2
 
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
@@ -434,9 +446,13 @@ export MODVERDIR := $(if $(KBUILD_EXTMOD),$(firstword $(KBUILD_EXTMOD))/).tmp_ve
 
 # Files to ignore in find ... statements
 
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+	# exclude *prebuilt* directories from being cleaned as they contain
+	# fw objects in HND profile release builds.
 export RCS_FIND_IGNORE := \( -name SCCS -o -name BitKeeper -o -name .svn -o    \
-			  -name CVS -o -name .pc -o -name .hg -o -name .git \) \
+			  -name CVS -o -name .pc -o -name .hg -o -name .git -o -name '*prebuilt*' \) \
 			  -prune -o
+endif # BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 export RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn \
 			 --exclude CVS --exclude .pc --exclude .hg --exclude .git
 
@@ -562,9 +578,54 @@ libs-y		:= lib/
 core-y		:= usr/
 endif # KBUILD_EXTMOD
 
-ifeq ($(dot-config),1)
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 # Read in config
 -include include/config/auto.conf
+export HPATH 	:= $(TOPDIR)/include
+export CONFIG_SYSTEM := linux
+ifeq ($(strip $(CONFIG_BRCM_IKOS)),)
+brcmdrivers-y	:= $(INC_BRCMBOARDPARMS_PATH)/$(BRCM_BOARD)/ $(BRCMDRIVERS_DIR_RELATIVE)/ $(INC_UTILS_PATH)/  $(INC_FLASH_PATH)/
+brcmdrivers-y	+= $(INC_SPI_PATH)/
+# Other chip specific compilations
+ifneq ($(findstring _$(strip $(BRCM_CHIP))_,_6838_6848_6858_63138_63148_47189_6836_),)
+brcmdrivers-y += $(SHARED_DIR)/opensource/drv/
+endif
+ifneq ($(findstring _$(strip $(BRCM_CHIP))_,_6838_6848_6858_63138_63148_4908_6836_),)
+ifneq "$(wildcard $(PROJECT_DIR)/target )" ""
+brcmdrivers-y += $(PROJECT_DIR)/target/bdmf/ $(PROJECT_DIR)/target/rdpa/ $(PROJECT_DIR)/target/rdpa_gpl/
+endif
+endif
+brcmdrivers-y += $(SHARED_DIR)/opensource/drivers/
+else
+brcmdrivers-y	:= $(BRCMDRIVERS_DIR_RELATIVE)/ $(INC_UTILS_PATH)/
+endif
+
+ifneq ($(CONFIG_BCM_PMC),)
+brcmdrivers-$(CONFIG_BCM_PMC) += $(SHARED_DIR)/opensource/pmc/impl$(CONFIG_BCM_PMC_IMPL)/
+endif
+
+ifneq ($(CONFIG_BUZZZ),)
+brcmdrivers-$(CONFIG_BUZZZ) += $(BRCMDRIVERS_DIR)/broadcom/char/buzzz/
+endif
+
+ifeq ($(KBUILD_VERBOSE),1)
+$(info * bcmdrivers-y = $(brcmdrivers-y))
+$(info * bcmdrivers-m = $(brcmdrivers-m))
+$(info * INC_BRCMBOARDPARMS_PATH = $(INC_BRCMBOARDPARMS_PATH))
+$(info * BRCM_BOARD = $(BRCM_BOARD))
+$(info * BRCMDRIVERS_DIR = $(BRCMDRIVERS_DIR))
+$(info * INC_SPI_PATH = $(INC_SPI_PATH))
+$(info * INC_FLASH_PATH = $(INC_FLASH_PATH))
+endif
+BRCMDRIVERS	:= $(brcmdrivers-y)
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
+
+ifeq ($(dot-config),1)
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+else # BCM_KF
+# Read in config
+-include include/config/auto.conf
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 
 ifeq ($(KBUILD_EXTMOD),)
 # Read in dependencies to all Kconfig* files, make sure to run
@@ -579,7 +640,11 @@ $(KCONFIG_CONFIG) include/config/auto.conf.cmd: ;
 # if auto.conf.cmd is missing then we are probably in a cleaned tree so
 # we execute the config step to be sure to catch updated Kconfig files
 include/config/%.conf: $(KCONFIG_CONFIG) include/config/auto.conf.cmd
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig ARCH=$(ARCH)
+else # BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
+endif # BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 else
 # external modules needs include/generated/autoconf.h and include/config/auto.conf
 # but do not care if they are up-to-date. Use auto.conf to trigger the test
@@ -605,7 +670,12 @@ endif # $(dot-config)
 # command line.
 # This allow a user to issue only 'make' to build a kernel including modules
 # Defaults to vmlinux, but the arch makefile usually adds further targets
+
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+all: bcm_vmlinux
+else  # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 all: vmlinux
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 
 include arch/$(SRCARCH)/Makefile
 
@@ -616,7 +686,106 @@ KBUILD_AFLAGS	+= $(call cc-option,-fno-PIE)
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,)
 else
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+KERNEL_DEBUG ?= 0
+ifneq ($(strip $(BRCM_KERNEL_DEBUG)$(KERNEL_DEBUG)),0)
+ifeq ($(KBUILD_VERBOSE),1)
+$(info "Compiling gdb symbols into kernel (-g)")
+endif
+KBUILD_CFLAGS	+= -g 
+endif
+ifneq ($(strip $(KERNEL_DEBUG)), 0)
+ifeq ($(KBUILD_VERBOSE),1)
+$(info "Setting optimization to debug levels (-O1)")
+endif
+KBUILD_CFLAGS	+= -O1 
+KBUILD_AFLAGS	+= -gdwarf-4
+KBUILD_CFLAGS += -Wno-uninitialized
+
+# Kernel does not compile with -O0. Set optimizatin to -O1 and disable all other optimizations
+# except for the ones which result in errors when compiling kernel
+KBUILD_CFLAGS += -fno-branch-count-reg
+KBUILD_CFLAGS += -fno-combine-stack-adjustments 
+KBUILD_CFLAGS += -fno-common
+KBUILD_CFLAGS += -fno-compare-elim
+KBUILD_CFLAGS += -fno-cprop-registers 
+KBUILD_CFLAGS += -fno-dce 
+KBUILD_CFLAGS += -fno-defer-pop 
+KBUILD_CFLAGS += -fno-delayed-branch
+KBUILD_CFLAGS += -fno-delete-null-pointer-checks 
+KBUILD_CFLAGS += -fno-dse 
+KBUILD_CFLAGS += -fno-early-inlining
+#KBUILD_CFLAGS += -fno-forward-propagate 
+KBUILD_CFLAGS += -fno-gcse-lm 
+KBUILD_CFLAGS += -fno-guess-branch-probability
+KBUILD_CFLAGS += -fno-if-conversion 
+KBUILD_CFLAGS += -fno-if-conversion2
+KBUILD_CFLAGS += -fno-inline-functions-called-once 
+KBUILD_CFLAGS += -fno-ipa-profile 
+KBUILD_CFLAGS += -fno-ipa-pure-const
+KBUILD_CFLAGS += -fno-ipa-reference 
+KBUILD_CFLAGS += -fno-ivopts
+KBUILD_CFLAGS += -fno-jump-tables 
+KBUILD_CFLAGS += -fno-math-errno
+KBUILD_CFLAGS += -fno-merge-constants 
+KBUILD_CFLAGS += -fno-move-loop-invariants
+KBUILD_CFLAGS += -fno-omit-frame-pointer
+KBUILD_CFLAGS += -fno-peephole
+KBUILD_CFLAGS += -fno-prefetch-loop-arrays
+KBUILD_CFLAGS += -fno-rename-registers
+#KBUILD_CFLAGS += -fno-rtti
+KBUILD_CFLAGS += -fno-sched-critical-path-heuristic 
+KBUILD_CFLAGS += -fno-sched-dep-count-heuristic 
+KBUILD_CFLAGS += -fno-sched-group-heuristic 
+KBUILD_CFLAGS += -fno-sched-interblock
+KBUILD_CFLAGS += -fno-sched-last-insn-heuristic 
+KBUILD_CFLAGS += -fno-sched-rank-heuristic
+KBUILD_CFLAGS += -fno-sched-spec
+KBUILD_CFLAGS += -fno-sched-spec-insn-heuristic 
+KBUILD_CFLAGS += -fno-sched-stalled-insns-dep 
+KBUILD_CFLAGS += -fno-short-enums 
+KBUILD_CFLAGS += -fno-signed-zeros
+KBUILD_CFLAGS += -fno-split-ivs-in-unroller 
+KBUILD_CFLAGS += -fno-split-wide-types
+#KBUILD_CFLAGS += -fno-no-threadsafe-statics 
+KBUILD_CFLAGS += -fno-toplevel-reorder
+KBUILD_CFLAGS += -fno-trapping-math 
+KBUILD_CFLAGS += -fno-tree-bit-ccp
+#KBUILD_CFLAGS += -fno-tree-ccp
+KBUILD_CFLAGS += -fno-tree-ch 
+KBUILD_CFLAGS += -fno-tree-copy-prop
+KBUILD_CFLAGS += -fno-tree-copyrename 
+KBUILD_CFLAGS += -fno-tree-cselim 
+KBUILD_CFLAGS += -fno-tree-dce
+KBUILD_CFLAGS += -fno-tree-dominator-opts 
+KBUILD_CFLAGS += -fno-tree-dse
+KBUILD_CFLAGS += -fno-tree-forwprop 
+KBUILD_CFLAGS += -fno-tree-fre
+KBUILD_CFLAGS += -fno-tree-loop-if-convert
+KBUILD_CFLAGS += -fno-tree-loop-im
+KBUILD_CFLAGS += -fno-tree-loop-ivcanon 
+KBUILD_CFLAGS += -fno-tree-loop-optimize
+KBUILD_CFLAGS += -fno-tree-phiprop
+KBUILD_CFLAGS += -fno-tree-pta
+KBUILD_CFLAGS += -fno-tree-reassoc
+KBUILD_CFLAGS += -fno-tree-scev-cprop 
+KBUILD_CFLAGS += -fno-tree-sink 
+KBUILD_CFLAGS += -fno-tree-slp-vectorize
+KBUILD_CFLAGS += -fno-tree-sra
+KBUILD_CFLAGS += -fno-tree-ter
+KBUILD_CFLAGS += -fno-tree-vect-loop-version
+KBUILD_CFLAGS += -fno-unit-at-a-time
+KBUILD_CFLAGS += -fno-var-tracking
+KBUILD_CFLAGS += -fno-var-tracking-assignments
+KBUILD_CFLAGS += -fno-web 
+
+CONFIG_FRAME_WARN = 0
+else
 KBUILD_CFLAGS	+= -O2
+endif
+else # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
+KBUILD_CFLAGS	+= -O2
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 endif
 
 # Tell gcc to never replace conditional load with a non-conditional one
@@ -782,7 +951,39 @@ ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC)), y)
 	KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO
 	KBUILD_AFLAGS += -DCC_HAVE_ASM_GOTO
 endif
-
+#add _SC_BUILD_ Macro for compile sercomm patch.
+KCFLAGS += -D__SC_BUILD__ 
+KCFLAGS += -D$(PRODUCT_TYPE) 
+KCFLAGS += -D$(SC_CUSTOMER) 
+KCFLAGS += -DSC_NAND_FLASH_SIZE=$(SC_NAND_FLASH_SIZE)
+KCFLAGS += -DCONFIG_SUPPORT_SPI_FIREWALL
+ifeq ($(CONFIG_SUPPORT_UBUS), 1)
+KCFLAGS += -DCONFIG_SUPPORT_UBUS
+endif
+ifeq ($(CONFIG_SUPPORT_IPERF), 1)
+KCFLAGS += -DCONFIG_SUPPORT_IPERF
+endif
+ifeq ($(CONFIG_IPV6_FIX_INTERFACE), 1)
+KCFLAGS += -DCONFIG_IPV6_FIX_INTERFACE
+endif
+ifeq ($(CONFIG_BRCM_SUPPORT_VMUX), 1)
+KCFLAGS += -DCONFIG_BRCM_SUPPORT_VMUX
+endif
+ifeq ($(CONFIG_SUPPORT_FON), 1)
+KCFLAGS += -DCONFIG_SUPPORT_FON
+endif
+ifeq ($(CONFIG_SUPPORT_DEBUG), 1)
+KCFLAGS += -DCONFIG_SUPPORT_DEBUG
+endif
+ifeq ($(VOX30_SFP), 1)
+KCFLAGS += -DVOX30_SFP
+endif
+ifeq ($(VOX_LED_SPEC),1)
+KCFLAGS += -DVOX_LED_SPEC
+endif
+ifeq ($(CONFIG_CRASH_LOG),1)
+KCFLAGS += -DCONFIG_CRASH_LOG
+endif
 include scripts/Makefile.kasan
 include scripts/Makefile.extrawarn
 
@@ -792,11 +993,19 @@ KBUILD_CPPFLAGS += $(ARCH_CPPFLAGS) $(KCPPFLAGS)
 KBUILD_AFLAGS   += $(ARCH_AFLAGS)   $(KAFLAGS)
 KBUILD_CFLAGS   += $(ARCH_CFLAGS)   $(KCFLAGS)
 
+ifneq ($(strip $(BCA_HNDROUTER)),)
+KBUILD_CFLAGS   += -DBCA_HNDROUTER
+endif
+
 # Use --build-id when available.
 LDFLAGS_BUILD_ID = $(patsubst -Wl$(comma)%,%,\
 			      $(call cc-ldoption, -Wl$(comma)--build-id,))
 KBUILD_LDFLAGS_MODULE += $(LDFLAGS_BUILD_ID)
 LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
+
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+LDFLAGS_vmlinux += -z max-page-size=0x8000 -Map vmlinux.map
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
@@ -826,6 +1035,10 @@ export INSTALL_DTBS_PATH ?= $(INSTALL_PATH)/dtbs/$(KERNELRELEASE)
 # relocations required by build roots.  This is not defined in the
 # makefile but the argument can be passed to make if needed.
 #
+
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+INSTALL_MOD_PATH := $(PROFILE_DIR)/modules
+endif  # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 
 MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
@@ -888,17 +1101,42 @@ export mod_sign_cmd
 
 ifeq ($(KBUILD_EXTMOD),)
 core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/
+# sercomm hooks
+core-y 		+= sc/
 
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
+		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
+		     $(brcmdrivers-y) $(brcmdrivers-m) \
+		     $(net-y) $(net-m) $(libs-y) $(libs-m)))
+
+vmlinux-dirs-1	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
+		     $(core-y) $(core-m) $(drivers-y) $(drivers-m)))
+
+brcmdriver-dirs	:= $(patsubst %/,%,$(filter %/, \
+		     $(brcmdrivers-y) $(brcmdrivers-m)))
+
+vmlinux-dirs-2	:= $(patsubst %/,%,$(filter %/, \
+		     $(net-y) $(net-m) $(libs-y) $(libs-m)))
+
+vmlinux-alldirs	:= $(sort $(vmlinux-dirs) $(patsubst %/,%,$(filter %/, \
+		     $(init-) $(core-) $(drivers-) $(net-) $(libs-)))) \
+		     $(brcmdrivers-n) $(brcmdrivers-)
+else # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
 		     $(net-y) $(net-m) $(libs-y) $(libs-m)))
 
 vmlinux-alldirs	:= $(sort $(vmlinux-dirs) $(patsubst %/,%,$(filter %/, \
 		     $(init-) $(core-) $(drivers-) $(net-) $(libs-))))
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 
 init-y		:= $(patsubst %/, %/built-in.o, $(init-y))
 core-y		:= $(patsubst %/, %/built-in.o, $(core-y))
 drivers-y	:= $(patsubst %/, %/built-in.o, $(drivers-y))
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+brcmdrivers-y   := $(patsubst %/, %/built-in.o, $(brcmdrivers-y))
+endif  # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
 net-y		:= $(patsubst %/, %/built-in.o, $(net-y))
 libs-y1		:= $(patsubst %/, %/lib.a, $(libs-y))
 libs-y2		:= $(patsubst %/, %/built-in.o, $(libs-y))
@@ -906,7 +1144,16 @@ libs-y		:= $(libs-y1) $(libs-y2)
 
 # Externally visible symbols (used by link-vmlinux.sh)
 export KBUILD_VMLINUX_INIT := $(head-y) $(init-y)
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+export KBUILD_VMLINUX_MAIN := $(core-y) $(libs-y) $(drivers-y) $(brcmdrivers-y) $(net-y)
+ifeq ($(KBUILD_VERBOSE),1)
+$(info *******************************)
+$(info * vmlinux-main: $(KBUILD_VMLINUX_MAIN))
+$(info * brcmdrivers-y: $(brcmdrivers-y))
+endif
+else  # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 export KBUILD_VMLINUX_MAIN := $(core-y) $(libs-y) $(drivers-y) $(net-y)
+endif  # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 export KBUILD_LDS          := arch/$(SRCARCH)/kernel/vmlinux.lds
 export LDFLAGS_vmlinux
 # used by scripts/pacmage/Makefile
@@ -917,6 +1164,20 @@ vmlinux-deps := $(KBUILD_LDS) $(KBUILD_VMLINUX_INIT) $(KBUILD_VMLINUX_MAIN)
 # Final link of vmlinux
       cmd_link-vmlinux = $(CONFIG_SHELL) $< $(LD) $(LDFLAGS) $(LDFLAGS_vmlinux)
 quiet_cmd_link-vmlinux = LINK    $@
+
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+# vmlinux image - including updated kernel symbols
+
+.PHONY: bcm_vmlinux
+
+bcm_vmlinux: vmlinux | prepare_bcm_driver
+
+# Ensure that prepare_bcm_driver is run before vmlinux starts.  prepare_bcm_driver
+# creates all of the bcmdriver symlinks.  Note that vmlinux performs actions on 
+# its normal prerequisites, so this must be added as order-only.
+vmlinux : | prepare_bcm_driver
+
+endif  # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 
 # Include targets which we want to
 # execute if the rest of the kernel build went well.
@@ -937,7 +1198,22 @@ endif
 
 # The actual objects are generated when descending,
 # make sure no implicit rule kicks in
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+ifeq ($(KBUILD_VERBOSE),1)
+$(info * vmlinux-init: $(KBUILD_VMLINUX_INIT))
+$(info * vmlinux-main: $(KBUILD_VMLINUX_MAIN))
+$(info * vmlinux-lds: $(KBUILD_LDS))
+$(info *)
+$(info * vmlinux-dirs-1: $(vmlinux-dirs-1))
+$(info * brcmdriver-dirs: $(brcmdriver-dirs))
+$(info * vmlinux-dirs-2: $(vmlinux-dirs-2))
+$(info *)
+$(info $(sort $(KBUILD_VMLINUX_INIT) $(KBUILD_VMLINUX_MAIN)) $(KBUILD_LDS): $(vmlinux-dirs-1) $(brcmdriver-dirs) $(vmlinux-dirs-2));
+endif
+$(sort $(KBUILD_VMLINUX_INIT) $(KBUILD_VMLINUX_MAIN)) $(KBUILD_LDS): $(vmlinux-dirs-1) $(brcmdriver-dirs) $(vmlinux-dirs-2);
+else  # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 $(sort $(vmlinux-deps)): $(vmlinux-dirs) ;
+endif  # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 
 # Handle descending into subdirectories listed in $(vmlinux-dirs)
 # Preset locale variables to speed up the build process. Limit locale
@@ -945,9 +1221,27 @@ $(sort $(vmlinux-deps)): $(vmlinux-dirs) ;
 # make menuconfig etc.
 # Error messages still appears in the original language
 
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+PHONY += $(vmlinux-dirs-1)
+$(vmlinux-dirs-1): prepare scripts
+	$(Q)$(MAKE) BCM_KBUILD_CMDLINE_FLAGS='$(BCM_KBUILD_CFLAGS)' $(build)=$@
+
+PHONY += $(brcmdriver-dirs)
+$(brcmdriver-dirs): $(vmlinux-dirs-1) | prepare_bcm_driver
+ifdef NO_BRCMDRIVER_PARALLEL
+	$(Q)$(MAKE) -j1 $(build)=$@
+else
+	$(Q)$(MAKE) $(build)=$@
+endif
+
+PHONY += $(vmlinux-dirs-2)
+$(vmlinux-dirs-2): $(brcmdriver-dirs)
+	$(Q)$(MAKE) BCM_KBUILD_CMDLINE_FLAGS='$(BCM_KBUILD_CFLAGS)' $(build)=$@
+else  # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 PHONY += $(vmlinux-dirs)
 $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
+endif  # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFIL
 
 define filechk_kernel.release
 	echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
@@ -966,6 +1260,18 @@ include/config/kernel.release: include/config/auto.conf FORCE
 
 # Listed in dependency order
 PHONY += prepare archprepare prepare0 prepare1 prepare2 prepare3
+
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+PHONY += prepare_bcm_driver
+$(brcmdrivers-y): | prepare_bcm_driver
+
+prepare_bcm_driver:
+	$(Q)$(MAKE) -C $(BRCMDRIVERS_DIR) symlinks
+
+version_info:
+	$(Q)$(MAKE) -C $(BRCMDRIVERS_DIR) version_info
+
+endif # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 
 # prepare3 is used to check if we are building in a separate output directory,
 # and if so do:
@@ -993,7 +1299,11 @@ prepare0: archprepare FORCE
 	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+prepare: prepare0 | prepare_bcm_driver
+else # BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 prepare: prepare0
+endif # BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 
 # Generate some files
 # ---------------------------------------------------------------------------
@@ -1077,6 +1387,12 @@ headers_check: headers_install
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi HDRCHECK=1
 	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi/asm $(hdr-dst) HDRCHECK=1
 
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+nvram_3k: all
+	@mv $(CURDIR)/vmlinux $(CURDIR)/vmlinux_secureboot
+	@mv $(CURDIR)/vmlinux.restore $(CURDIR)/vmlinux
+endif # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
+
 # ---------------------------------------------------------------------------
 # Kernel selftest
 
@@ -1100,18 +1416,35 @@ all: modules
 # using awk while concatenating to the final file.
 
 PHONY += modules
+
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+
+$(vmlinux-dirs-2) $(if $(KBUILD_BUILTIN),vmlinux) modules.builtin : | prepare_bcm_driver
+
+modules: $(vmlinux-dirs-2) $(if $(KBUILD_BUILTIN),vmlinux) modules.builtin
+	$(Q)$(AWK) '!x[$$0]++' $(vmlinux-dirs:%=%/modules.order) > $(objtree)/modules.order
+	@$(kecho) '  Building modules, stage 2.';
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.fwinst obj=firmware __fw_modbuild
+else  # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux) modules.builtin
 	$(Q)$(AWK) '!x[$$0]++' $(vmlinux-dirs:%=$(objtree)/%/modules.order) > $(objtree)/modules.order
 	@$(kecho) '  Building modules, stage 2.';
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.fwinst obj=firmware __fw_modbuild
+endif # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 
 modules.builtin: $(vmlinux-dirs:%=%/modules.builtin)
 	$(Q)$(AWK) '!x[$$0]++' $^ > $(objtree)/modules.builtin
 
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+%/modules.builtin: include/config/auto.conf | prepare_bcm_driver
+	$(Q)$(MAKE) $(modbuiltin)=$*
+else # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 %/modules.builtin: include/config/auto.conf
 	$(Q)$(MAKE) $(modbuiltin)=$*
 
+endif # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 
 # Target to prepare building external modules
 PHONY += modules_prepare
@@ -1119,20 +1452,32 @@ modules_prepare: prepare scripts
 
 # Target to install modules
 PHONY += modules_install
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+modules_install: _modinst_
+ifeq ($(KBUILD_VERBOSE),1)
+$(info "1 install-dir is $(install-dir)")
+$(info "1 INSTALL_MOD_DIR is $(INSTALL_MOD_DIR)")
+$(info "1 MODLIB is $(MODLIB)")
+endif
+else # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 modules_install: _modinst_ _modinst_post
+endif # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 
 PHONY += _modinst_
 _modinst_:
 	@rm -rf $(MODLIB)/kernel
 	@rm -f $(MODLIB)/source
 	@mkdir -p $(MODLIB)/kernel
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 	@ln -s `cd $(srctree) && /bin/pwd` $(MODLIB)/source
+else # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 	@if [ ! $(objtree) -ef  $(MODLIB)/build ]; then \
 		rm -f $(MODLIB)/build ; \
 		ln -s $(CURDIR) $(MODLIB)/build ; \
 	fi
 	@cp -f $(objtree)/modules.order $(MODLIB)/
 	@cp -f $(objtree)/modules.builtin $(MODLIB)/
+endif # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
 
 # This depmod is only for convenience to give the initial
@@ -1195,6 +1540,9 @@ $(clean-dirs):
 
 vmlinuxclean:
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/link-vmlinux.sh clean
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+	rm -f vmlinux.map
+endif # BCM_KF #CONFIG_BCM_KF_MISC_MAKEFILE
 
 clean: archclean vmlinuxclean
 
@@ -1394,6 +1742,14 @@ PHONY += modules_install
 modules_install: _emodinst_ _emodinst_post
 
 install-dir := $(if $(INSTALL_MOD_DIR),$(INSTALL_MOD_DIR),extra)
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+ifeq ($(KBUILD_VERBOSE),1)
+$(info "2 install-dir is $(install-dir)")
+$(info "2 INSTALL_MOD_DIR is $(INSTALL_MOD_DIR)")
+$(info "2 MODLIB is $(MODLIB)")
+endif
+endif # BCM_KF # CONFIG_BCM_KF_MISC_MAKEFILE
+
 PHONY += _emodinst_
 _emodinst_:
 	$(Q)mkdir -p $(MODLIB)/$(install-dir)
@@ -1406,7 +1762,11 @@ _emodinst_post: _emodinst_
 clean-dirs := $(addprefix _clean_,$(KBUILD_EXTMOD))
 
 PHONY += $(clean-dirs) clean
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+$(clean-dirs): | prepare_bcm_driver 
+else # BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 $(clean-dirs):
+endif # BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 	$(Q)$(MAKE) $(clean)=$(patsubst _clean_%,%,$@)
 
 clean:	rm-dirs := $(MODVERDIR)
@@ -1438,6 +1798,17 @@ clean: $(clean-dirs)
 		-o -name '*.symtypes' -o -name 'modules.order' \
 		-o -name modules.builtin -o -name '.tmp_*.o.*' \
 		-o -name '*.gcno' \) -type f -print | xargs rm -f
+ifdef BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
+	@echo Cleaning bcmdrivers
+	@find . $(BRCMDRIVERS) $(RCS_FIND_IGNORE) \
+		\( -name '*.[oas]' -o -name '*.ko' -o -name '.*.cmd' \
+		-o -name '.*.d' -o -name '.*.tmp' -o -name '*.mod.c' \
+		-o -name '*.symtypes' -o -name 'modules.order' \
+		-o -name modules.builtin -o -name '.tmp_*.o.*' \
+		-o -name '*.gcno' \) -type f -print | xargs rm -f
+	@echo Cleaning bcmlinks
+	$(Q)$(MAKE) -C $(BRCMDRIVERS_DIR) cleanlinks
+endif # BCM_KF # defined(CONFIG_BCM_KF_MISC_MAKEFILE)
 
 # Generate tags for editors
 # ---------------------------------------------------------------------------

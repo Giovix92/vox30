@@ -33,6 +33,12 @@
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <linux/rculist_nulls.h>
 
+#if defined(CONFIG_BCM_KF_DPI) && defined(CONFIG_BCM_DPI_MODULE)
+#include <linux/dpi.h>
+#endif
+#ifdef __SC_BUILD__ 
+#include <sc/sc_spi.h>
+#endif
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
@@ -167,6 +173,63 @@ ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BCM_KF_NETFILTER) && defined(CONFIG_BLOG)
+static int ct_blog_query(struct nf_conn *ct, BlogCtTime_t *ct_time_p)
+{
+	int ret = -1;
+	if (ct->blog_key[BLOG_PARAM1_DIR_ORIG] != BLOG_KEY_FC_INVALID || 
+		ct->blog_key[BLOG_PARAM1_DIR_REPLY] != BLOG_KEY_FC_INVALID) {
+		blog_query(QUERY_FLOWTRACK, (void*)ct, 
+	                ct->blog_key[BLOG_PARAM1_DIR_ORIG],
+		            ct->blog_key[BLOG_PARAM1_DIR_REPLY], (unsigned long) ct_time_p);
+		if (ct_time_p->intv != 0) {
+			ret = 0;
+		}
+		else
+		{
+			if (net_ratelimit())
+				printk("Warning: ct_time_p->intv %d ct->blog_key[BLOG_PARAM1_DIR_ORIG %d] 0x%x "
+					"ct->blog_key[BLOG_PARAM1_DIR_REPLY %d] 0x%x\n",
+					ct_time_p->intv, BLOG_PARAM1_DIR_ORIG, ct->blog_key[BLOG_PARAM1_DIR_ORIG], 
+					BLOG_PARAM1_DIR_REPLY, ct->blog_key[BLOG_PARAM1_DIR_REPLY]);
+		}
+    }
+	return ret;
+}
+
+static inline long ct_blog_calc_timeout(struct nf_conn *ct, 
+		BlogCtTime_t *ct_time_p)
+{
+	long ct_time;
+
+	blog_lock();
+	/* When a flow is in flow cache, calculate displayed timout value, using
+	 * the ct timeout value and idle jiffies */
+	if (ct_time_p->flags.valid &&
+		(ct->blog_key[BLOG_PARAM1_DIR_ORIG] != BLOG_KEY_FC_INVALID || 
+		ct->blog_key[BLOG_PARAM1_DIR_REPLY] != BLOG_KEY_FC_INVALID)) {
+		/* ct timeout value */
+		if (ct->timeout.expires > ct->prev_timeout.expires)
+			ct_time = (long)(ct->timeout.expires - ct->prev_timeout.expires);
+		else
+			ct_time = (long)((ULONG_MAX - ct->prev_timeout.expires) + ct->timeout.expires);
+
+		ct_time = ct_time - ct_time_p->idle_jiffies;
+		
+		if( (ct_time_p->proto == IPPROTO_UDP && test_bit(IPS_SEEN_REPLY_BIT, &ct->status))
+			 || ct_time < 0)
+		{	 
+			 ct_time = (long)(ct_time_p->extra_jiffies- ct_time_p->idle_jiffies);
+		}
+	}
+	else
+		ct_time = (long)(ct->timeout.expires - jiffies);
+
+	blog_unlock();
+	return ct_time;
+}
+#endif
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -175,6 +238,10 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	const struct nf_conntrack_l3proto *l3proto;
 	const struct nf_conntrack_l4proto *l4proto;
 	int ret = 0;
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BCM_KF_NETFILTER) && defined(CONFIG_BLOG)
+	BlogCtTime_t ct_time;
+	long ctExpiryVal = 0;
+#endif
 
 	NF_CT_ASSERT(ct);
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
@@ -190,11 +257,26 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	NF_CT_ASSERT(l4proto);
 
 	ret = -ENOSPC;
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BCM_KF_NETFILTER) && defined(CONFIG_BLOG)
+	if (timer_pending(&ct->timeout))
+	{
+		memset(&ct_time, 0, sizeof(ct_time));
+		if (ct_blog_query(ct, &ct_time) == 0)
+		    ctExpiryVal = ct_blog_calc_timeout(ct, &ct_time)/HZ;
+		else
+		   ctExpiryVal = (long)(ct->timeout.expires - jiffies)/HZ;
+	}
+	seq_printf(s, "%-8s %u %-8s %u %ld ",
+			   l3proto->name, nf_ct_l3num(ct),
+			   l4proto->name, nf_ct_protonum(ct),
+			   ctExpiryVal);
+#else
 	seq_printf(s, "%-8s %u %-8s %u %ld ",
 		   l3proto->name, nf_ct_l3num(ct),
 		   l4proto->name, nf_ct_protonum(ct),
 		   timer_pending(&ct->timeout)
 		   ? (long)(ct->timeout.expires - jiffies)/HZ : 0);
+#endif
 
 	if (l4proto->print_conntrack)
 		l4proto->print_conntrack(s, ct);
@@ -226,7 +308,14 @@ static int ct_seq_show(struct seq_file *s, void *v)
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	seq_printf(s, "mark=%u ", ct->mark);
 #endif
-
+#ifdef __SC_BUILD__
+	if (seq_printf(s, "local=%d ", ct->local))
+		goto release;
+	if (seq_printf(s, "input device index =%d ", ct->ifindex[IP_CT_DIR_ORIGINAL]))
+		goto release;
+    if (seq_printf(s, "ouput device index =%d ", ct->ifindex[IP_CT_DIR_REPLY]))
+		goto release;
+#endif
 	ct_show_secctx(s, ct);
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
@@ -235,6 +324,13 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 	ct_show_delta_time(s, ct);
 
+#if defined(CONFIG_BCM_KF_XT_MATCH_LAYER7) && \
+	(defined(CONFIG_NETFILTER_XT_MATCH_LAYER7) || defined(CONFIG_NETFILTER_XT_MATCH_LAYER7_MODULE))
+	if(ct->layer7.app_proto &&
+		seq_printf(s, "l7proto=%s ", ct->layer7.app_proto))
+		return -ENOSPC;
+#endif
+	
 	seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use));
 
 	if (seq_has_overflowed(s))
@@ -266,6 +362,128 @@ static const struct file_operations ct_file_ops = {
 	.llseek  = seq_lseek,
 	.release = seq_release_net,
 };
+
+#if defined(CONFIG_BCM_KF_DPI) && defined(CONFIG_BCM_DPI_MODULE)
+static void *ct_dpi_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(RCU)
+{
+	struct ct_iter_state *st = seq->private;
+
+	st->time_now = ktime_to_ns(ktime_get_real());
+	rcu_read_lock();
+	if (*pos == 0)
+		return SEQ_START_TOKEN;
+
+	return ct_get_idx(seq, *pos);
+}
+
+static void *ct_dpi_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	if (v == SEQ_START_TOKEN)
+		return ct_get_idx(s, *pos);
+
+	(*pos)++;
+	return ct_get_next(s, v);
+}
+
+static void ct_dpi_seq_stop(struct seq_file *s, void *v)
+	__releases(RCU)
+{
+	rcu_read_unlock();
+}
+
+static int ct_dpi_seq_show(struct seq_file *s, void *v)
+{
+	struct nf_conntrack_tuple_hash *hash;
+	struct nf_conn *ct;
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
+	int ret = 0;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(s, "app_id mac dev_id us_pkt us_byte us_ts ds_pkt ds_byte ds_ts status us_tuple ds_tuple\n");
+		return 0;
+	}
+
+	if (!dpi_ops)
+		return 0;
+
+	hash = v;
+	ct = nf_ct_tuplehash_to_ctrack(hash);
+
+	NF_CT_ASSERT(ct);
+	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
+		return 0;
+
+	/* only print if app & dev exist, and only for DIR_ORIGINAL */
+	if (!ct->dpi.app || !ct->dpi.dev || NF_CT_DIRECTION(hash))
+		goto release;
+
+	ret = -ENOSPC;
+
+	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
+	NF_CT_ASSERT(l3proto);
+	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
+	NF_CT_ASSERT(l4proto);
+
+	dpi_ops->print_flow(s, ct);
+
+	if (!DPI_IS_CT_INIT_FROM_WAN(ct)) {
+		/* LAN-side */
+		conntrack_dpi_seq_print_stats(s, ct, IP_CT_DIR_ORIGINAL);
+		conntrack_dpi_seq_print_stats(s, ct, IP_CT_DIR_REPLY);
+	} else {
+		/* WAN-side */
+		conntrack_dpi_seq_print_stats(s, ct, IP_CT_DIR_REPLY);
+		conntrack_dpi_seq_print_stats(s, ct, IP_CT_DIR_ORIGINAL);
+	}
+
+	seq_printf(s, " %lX ", ct->dpi.flags);
+
+	if (!DPI_IS_CT_INIT_FROM_WAN(ct)) {
+		print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+			    l3proto, l4proto);
+		print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+			    l3proto, l4proto);
+	} else {
+		print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+			    l3proto, l4proto);
+		print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+			    l3proto, l4proto);
+	}
+
+	seq_puts(s, "\n");
+
+	if (seq_has_overflowed(s))
+		goto release;
+
+	ret = 0;
+release:
+	nf_ct_put(ct);
+	return ret;
+}
+
+static const struct seq_operations ct_dpi_seq_ops = {
+	.start = ct_dpi_seq_start,
+	.next  = ct_dpi_seq_next,
+	.stop  = ct_dpi_seq_stop,
+	.show  = ct_dpi_seq_show
+};
+
+static int ct_dpi_open(struct inode *inode, struct file *file)
+{
+	return seq_open_net(inode, file, &ct_dpi_seq_ops,
+			sizeof(struct ct_iter_state));
+}
+
+static const struct file_operations ct_dpi_file_ops = {
+	.owner   = THIS_MODULE,
+	.open    = ct_dpi_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_net,
+};
+#endif /* defined(CONFIG_BCM_KF_DPI) && defined(CONFIG_BCM_DPI_MODULE) */
 
 static void *ct_cpu_seq_start(struct seq_file *seq, loff_t *pos)
 {
@@ -372,8 +590,19 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 			  &ct_cpu_seq_fops);
 	if (!pde)
 		goto out_stat_nf_conntrack;
+#if defined(CONFIG_BCM_KF_DPI) && defined(CONFIG_BCM_DPI_MODULE)
+	pde = proc_create("nf_conntrack_dpi", 0440, net->proc_net,
+			  &ct_dpi_file_ops);
+	if (!pde)
+		goto out_nf_conntrack_dpi;
+#endif
+
 	return 0;
 
+#if defined(CONFIG_BCM_KF_DPI) && defined(CONFIG_BCM_DPI_MODULE)
+out_nf_conntrack_dpi:
+	remove_proc_entry("nf_conntrack", net->proc_net_stat);
+#endif
 out_stat_nf_conntrack:
 	remove_proc_entry("nf_conntrack", net->proc_net);
 out_nf_conntrack:
@@ -382,6 +611,9 @@ out_nf_conntrack:
 
 static void nf_conntrack_standalone_fini_proc(struct net *net)
 {
+#if defined(CONFIG_BCM_KF_DPI) && defined(CONFIG_BCM_DPI_MODULE)
+	remove_proc_entry("nf_conntrack_dpi", net->proc_net);
+#endif
 	remove_proc_entry("nf_conntrack", net->proc_net_stat);
 	remove_proc_entry("nf_conntrack", net->proc_net);
 }
@@ -396,6 +628,20 @@ static void nf_conntrack_standalone_fini_proc(struct net *net)
 }
 #endif /* CONFIG_NF_CONNTRACK_PROCFS */
 
+#ifdef __SC_BUILD__
+int nf_conntrack_normal_threshold = -1;
+int nf_conntrack_normal_drop_count = 0;
+int nf_conntrack_early_drop_count = 0;
+int nf_conntrack_current_language_id = 0;
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+int nf_conntrack_ip_land = 0;
+int nf_conntrack_brdcst_src = 0;
+int nf_conntrack_fw_block_enable = 0;
+int nf_conntrack_dmz_enable = 0;
+int nf_conntrack_port_scan_max = 0;
+unsigned int nf_conntrack_block_time = 0;
+#endif
+#endif
 /* Sysctl support */
 
 #ifdef CONFIG_SYSCTL
@@ -450,6 +696,92 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#ifdef __SC_BUILD__
+	{
+		.procname	= "nf_conntrack_port_scan_max",
+		.data		= &nf_conntrack_port_scan_max,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+/*
+	{
+		.procname	= "nf_conntrack_normal_threshold",
+		.data		= &nf_conntrack_normal_threshold,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_high_prio_count",
+		.data		= &nf_conntrack_high_prio_count,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_normal_drop_count",
+		.data		= &nf_conntrack_normal_drop_count,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_early_drop_count",
+		.data		= &nf_conntrack_early_drop_count,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+*/
+
+	{
+		.procname	= "nf_conntrack_current_language_id",
+		.data		= &nf_conntrack_current_language_id,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	{
+		.procname	= "nf_conntrack_ip_land",
+		.data		= &nf_conntrack_ip_land,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_brdcst_src",
+		.data		= &nf_conntrack_brdcst_src,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_fw_block",
+		.data		= &nf_conntrack_fw_block_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_block_time",
+		.data		= &nf_conntrack_block_time,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "nf_conntrack_dmz_enable",
+		.data		= &nf_conntrack_dmz_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+#endif
 	{ }
 };
 
@@ -611,3 +943,13 @@ void need_conntrack(void)
 {
 }
 EXPORT_SYMBOL_GPL(need_conntrack);
+#ifdef __SC_BUILD__
+EXPORT_SYMBOL_GPL(nf_conntrack_ip_land);
+EXPORT_SYMBOL_GPL(nf_conntrack_brdcst_src);
+EXPORT_SYMBOL_GPL(nf_conntrack_block_time);
+EXPORT_SYMBOL_GPL(nf_conntrack_fw_block_enable);
+EXPORT_SYMBOL_GPL(nf_conntrack_dmz_enable);
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+EXPORT_SYMBOL_GPL(nf_conntrack_port_scan_max);
+#endif
+#endif

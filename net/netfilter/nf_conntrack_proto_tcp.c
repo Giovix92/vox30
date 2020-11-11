@@ -32,11 +32,22 @@
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
+#ifdef __SC_BUILD__ 
+#include <sc/sc_spi.h>
+#endif
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+#include <linux/blog.h>
+#endif
+
+#if defined(CONFIG_BCM_KF_NETFILTER)
+static int nf_ct_tcp_be_liberal __read_mostly = 1;
+#else
 /* "Be conservative in what you do,
     be liberal in what you accept from others."
     If it's non-zero, we mark only out of window RST segments as INVALID. */
 static int nf_ct_tcp_be_liberal __read_mostly = 0;
+#endif
 
 /* If it is set to zero, we disable picking up already established
    connections. */
@@ -46,7 +57,16 @@ static int nf_ct_tcp_loose __read_mostly = 1;
    ACK from the destination. If this number is reached, a shorter timer
    will be started. */
 static int nf_ct_tcp_max_retrans __read_mostly = 3;
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+int nf_ct_tcp_syn_flood_enable __read_mostly = 0;
+int nf_ct_tcp_syn_flood_speed __read_mostly = 200;
+int nf_ct_tcp_fin_flood_enable __read_mostly = 0;
+int nf_ct_tcp_fin_flood_speed __read_mostly = 200;
+int nf_ct_tcp_port_scan_enable __read_mostly = 0;
+int nf_ct_tcp_syn_with_data_enable __read_mostly = 0;
+#endif
+#endif
   /* FIXME: Examine ipfilter's timeouts and conntrack transitions more
      closely.  They're more complex. --RR */
 
@@ -67,11 +87,18 @@ static const char *const tcp_conntrack_names[] = {
 #define MINS * 60 SECS
 #define HOURS * 60 MINS
 #define DAYS * 24 HOURS
-
+#if defined(__SC_BUILD__) && defined(CONFIG_SUPPORT_SPI_FIREWALL)
+unsigned int tcp_timeouts[TCP_CONNTRACK_TIMEOUT_MAX] __read_mostly = {
+#else
 static unsigned int tcp_timeouts[TCP_CONNTRACK_TIMEOUT_MAX] __read_mostly = {
+#endif
 	[TCP_CONNTRACK_SYN_SENT]	= 2 MINS,
 	[TCP_CONNTRACK_SYN_RECV]	= 60 SECS,
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	[TCP_CONNTRACK_ESTABLISHED]	= BLOG_NAT_TCP_DEFAULT_IDLE_TIMEOUT,
+#else
 	[TCP_CONNTRACK_ESTABLISHED]	= 5 DAYS,
+#endif
 	[TCP_CONNTRACK_FIN_WAIT]	= 2 MINS,
 	[TCP_CONNTRACK_CLOSE_WAIT]	= 60 SECS,
 	[TCP_CONNTRACK_LAST_ACK]	= 30 SECS,
@@ -84,6 +111,10 @@ static unsigned int tcp_timeouts[TCP_CONNTRACK_TIMEOUT_MAX] __read_mostly = {
 	[TCP_CONNTRACK_RETRANS]		= 5 MINS,
 	[TCP_CONNTRACK_UNACK]		= 5 MINS,
 };
+
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+unsigned int *tcp_timeout_established_blog_p = &tcp_timeouts[TCP_CONNTRACK_ESTABLISHED];
+#endif
 
 #define sNO TCP_CONNTRACK_NONE
 #define sSS TCP_CONNTRACK_SYN_SENT
@@ -107,6 +138,12 @@ enum tcp_bit_set {
 	TCP_RST_SET,
 	TCP_NONE_SET,
 };
+#ifdef __SC_BUILD__ 
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+//change tcp syn recv conntrack timeout to 5s, if from wan. system will delete it auto
+//#define TCP_SYN_RCV_TIMEOUT  (5*HZ)
+#endif
+#endif
 
 /*
  * The TCP state transition table needs a few words...
@@ -808,6 +845,10 @@ static unsigned int *tcp_get_timeouts(struct net *net)
 	return tcp_pernet(net)->timeouts;
 }
 
+#ifdef __SC_BUILD__
+//nmap_lisen_in_kernel nmap_listen_cb_http = NULL;
+//EXPORT_SYMBOL(nmap_listen_cb_http);
+#endif
 /* Returns verdict for packet, or -1 for invalid. */
 static int tcp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
@@ -826,10 +867,30 @@ static int tcp_packet(struct nf_conn *ct,
 	struct tcphdr _tcph;
 	unsigned long timeout;
 	unsigned int index;
+#ifdef __SC_BUILD__
+    struct tcp_sock *tp = NULL;
+    if(skb->sk)
+        tp = tcp_sk(skb->sk);
+#endif
 
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	BUG_ON(th == NULL);
 
+#ifdef __SC_BUILD__
+#if 0
+    if(skb->dev)
+    {
+        if(nmap_listen_cb_http)
+        {
+#define   HTTP_SERVER_PORT   80
+            if(HTTP_SERVER_PORT == ntohs(th->dest) && skb->len > 100)
+            {
+                nmap_listen_cb_http(skb, 0);
+            }
+        }
+    }
+#endif
+#endif
 	spin_lock_bh(&ct->lock);
 	old_state = ct->proto.tcp.state;
 	dir = CTINFO2DIR(ctinfo);
@@ -872,6 +933,12 @@ static int tcp_packet(struct nf_conn *ct,
 		}
 		/* Fall through */
 	case TCP_CONNTRACK_IGNORE:
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+		blog_lock();
+		blog_skip((struct sk_buff *)skb, blog_skip_reason_ct_tcp_state_ignore);
+		blog_unlock();
+#endif
+
 		/* Ignored packets:
 		 *
 		 * Our connection entry may be out of sync, so ignore
@@ -1051,6 +1118,30 @@ static int tcp_packet(struct nf_conn *ct,
 		 old_state, new_state);
 
 	ct->proto.tcp.state = new_state;
+
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	blog_lock();
+	/* Abort and make this conntrack not BLOG eligible */
+	if (th->fin || th->rst) {
+		if ((ct->blog_key[IP_CT_DIR_ORIGINAL] != BLOG_KEY_FC_INVALID)
+		    || (ct->blog_key[IP_CT_DIR_REPLY] != BLOG_KEY_FC_INVALID)) {
+			blog_notify(DESTROY_FLOWTRACK, (void*)ct,
+					(uint32_t)ct->blog_key[IP_CT_DIR_ORIGINAL],
+					(uint32_t)ct->blog_key[IP_CT_DIR_REPLY]);
+
+			/* Safe: In case blog client does not set key to 0 explicilty */
+			ct->blog_key[IP_CT_DIR_ORIGINAL] = BLOG_KEY_FC_INVALID;
+			ct->blog_key[IP_CT_DIR_REPLY] = BLOG_KEY_FC_INVALID;
+		}
+		if (th->fin) {
+			clear_bit(IPS_BLOG_BIT, &ct->status);
+		}
+	}
+	if (ct->proto.tcp.state !=  TCP_CONNTRACK_ESTABLISHED)
+		blog_skip((struct sk_buff *)skb, blog_skip_reason_ct_tcp_state_not_est);
+	blog_unlock();
+#endif
+
 	if (old_state != new_state
 	    && new_state == TCP_CONNTRACK_FIN_WAIT)
 		ct->proto.tcp.seen[dir].flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
@@ -1064,6 +1155,37 @@ static int tcp_packet(struct nf_conn *ct,
 		timeout = timeouts[TCP_CONNTRACK_UNACK];
 	else
 		timeout = timeouts[new_state];
+#ifdef __SC_BUILD__
+    if(tp != NULL)
+    {
+        if((tp->count_flag == 1)&&(ct->local == 1)&&(hooknum == NF_INET_LOCAL_OUT))
+        {
+            tp->count.tx_bytes+=skb->len+20;
+        }
+    }
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	if(ct->from_wan 
+		&& (old_state == TCP_CONNTRACK_SYN_SENT
+		    /*handle retransmit syn packet from wan, which does not change state*/
+		    || old_state == TCP_CONNTRACK_CLOSE)
+		&& dir == IP_CT_DIR_REPLY
+//		&& skb->dev && (skb->dev->ifindex == g_spi_wanindex)
+		&& new_state != TCP_CONNTRACK_SYN_RECV)
+	{
+		spin_unlock_bh(&ct->lock);
+		return NF_DROP;
+	}
+	if(ct->from_wan
+		&& (new_state == TCP_CONNTRACK_SYN_RECV || new_state == TCP_CONNTRACK_SYN_SENT))
+	{
+//		printk("set to TCP_SYN_RCV_TIMEOUT\n");
+		timeout = TCP_SYN_RCV_TIMEOUT;
+	}
+	if(ct->from_wan && new_state == TCP_CONNTRACK_ESTABLISHED
+		&& old_state != TCP_CONNTRACK_ESTABLISHED && sc_tcp_deal_establish_hook)
+		sc_tcp_deal_establish_hook(ct);
+#endif
+#endif
 	spin_unlock_bh(&ct->lock);
 
 	if (new_state != old_state)
@@ -1094,6 +1216,14 @@ static int tcp_packet(struct nf_conn *ct,
 		set_bit(IPS_ASSURED_BIT, &ct->status);
 		nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	}
+#if defined(CONFIG_BCM_KF_NETFILTER)
+	if (new_state == TCP_CONNTRACK_ESTABLISHED) {
+		if (ct->derived_timeout == 0xFFFFFFFF)
+			timeout = 0xFFFFFFFF - jiffies;
+		else if (ct->derived_timeout > 0)
+			timeout = ct->derived_timeout;
+	}
+#endif
 	nf_ct_refresh_acct(ct, ctinfo, skb, timeout);
 
 	return NF_ACCEPT;
@@ -1401,6 +1531,19 @@ static const struct nla_policy tcp_timeout_nla_policy[CTA_TIMEOUT_TCP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+int tcp_timeout_estd_proc_hndlr(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret;
+	ret = proc_dointvec_jiffies(table, write, buffer, lenp, ppos);
+	/* on success update the blog time out to be same as tcp_timeout_established */
+	if (!ret)
+		blog_nat_tcp_def_idle_timeout = (unsigned int)*tcp_timeout_established_blog_p;
+	return ret;
+}
+#endif
+
 #ifdef CONFIG_SYSCTL
 static struct ctl_table tcp_sysctl_table[] = {
 	{
@@ -1419,7 +1562,11 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.procname	= "nf_conntrack_tcp_timeout_established",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+		.proc_handler	= tcp_timeout_estd_proc_hndlr,
+#else
 		.proc_handler	= proc_dointvec_jiffies,
+#endif
 	},
 	{
 		.procname	= "nf_conntrack_tcp_timeout_fin_wait",
@@ -1481,6 +1628,57 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	{
+//		.ctl_name	= NET_NF_CONNTRACK_TCP_SYN_FLOOD_EN,
+		.procname	= "nf_conntrack_tcp_syn_flood_enable",
+		.data		= &nf_ct_tcp_syn_flood_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+//		.ctl_name	= NET_NF_CONNTRACK_TCP_SYN_FLOOD_SPEED,
+		.procname	= "nf_conntrack_tcp_syn_flood_speed",
+		.data		= &nf_ct_tcp_syn_flood_speed,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+//		.ctl_name	= NET_NF_CONNTRACK_TCP_FIN_FLOOD_EN,
+		.procname	= "nf_conntrack_tcp_fin_flood_enable",
+		.data		= &nf_ct_tcp_fin_flood_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+//		.ctl_name	= NET_NF_CONNTRACK_TCP_FIN_FLOOD_SPEED,
+		.procname	= "nf_conntrack_tcp_fin_flood_speed",
+		.data		= &nf_ct_tcp_fin_flood_speed,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+//		.ctl_name	= NET_NF_CONNTRACK_TCP_PORT_SCAN_EN,
+		.procname	= "nf_conntrack_tcp_port_scan_enable",
+		.data		= &nf_ct_tcp_port_scan_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_tcp_syn_with_data",
+		.data		= &nf_ct_tcp_syn_with_data_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+#endif
 	{ }
 };
 
@@ -1508,7 +1706,11 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.procname	= "ip_conntrack_tcp_timeout_established",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+		.proc_handler	= tcp_timeout_estd_proc_hndlr,
+#else
 		.proc_handler	= proc_dointvec_jiffies,
+#endif
 	},
 	{
 		.procname	= "ip_conntrack_tcp_timeout_fin_wait",
@@ -1584,6 +1786,9 @@ static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 
 	pn->ctl_table[0].data = &tn->timeouts[TCP_CONNTRACK_SYN_SENT];
 	pn->ctl_table[1].data = &tn->timeouts[TCP_CONNTRACK_SYN_RECV];
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+        tcp_timeout_established_blog_p = &tn->timeouts[TCP_CONNTRACK_ESTABLISHED];
+#endif	
 	pn->ctl_table[2].data = &tn->timeouts[TCP_CONNTRACK_ESTABLISHED];
 	pn->ctl_table[3].data = &tn->timeouts[TCP_CONNTRACK_FIN_WAIT];
 	pn->ctl_table[4].data = &tn->timeouts[TCP_CONNTRACK_CLOSE_WAIT];
@@ -1737,3 +1942,14 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 __read_mostly =
 	.get_net_proto		= tcp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_tcp6);
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+EXPORT_SYMBOL_GPL(nf_ct_tcp_syn_flood_enable);
+EXPORT_SYMBOL_GPL(nf_ct_tcp_syn_flood_speed);
+EXPORT_SYMBOL_GPL(nf_ct_tcp_fin_flood_enable);
+EXPORT_SYMBOL_GPL(nf_ct_tcp_fin_flood_speed);
+EXPORT_SYMBOL_GPL(nf_ct_tcp_port_scan_enable);
+EXPORT_SYMBOL_GPL(tcp_timeouts);
+EXPORT_SYMBOL_GPL(nf_ct_tcp_syn_with_data_enable);
+#endif
+#endif

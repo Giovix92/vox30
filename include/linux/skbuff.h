@@ -30,6 +30,13 @@
 #include <linux/textsearch.h>
 #include <net/checksum.h>
 #include <linux/rcupdate.h>
+
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+#include <linux/blog.h>
+#endif
+#ifdef __SC_BUILD__
+#include <linux/sercomm.h>
+#endif
 #include <linux/hrtimer.h>
 #include <linux/dma-mapping.h>
 #include <linux/netdev_features.h>
@@ -156,6 +163,46 @@ struct scatterlist;
 struct pipe_inode_info;
 struct iov_iter;
 struct napi_struct;
+
+#if defined(CONFIG_BCM_KF_MAP)
+#define MAPT_FORWARD_NONE	0
+#define MAPT_FORWARD_MODE1	1
+#define MAPT_FORWARD_MODE2	2
+#endif
+
+#if defined(CONFIG_BCM_KF_NBUFF)
+/* This is required even if blog is not defined, so it falls
+ under the nbuff catagory
+*/
+struct blog_t;					/* defined(CONFIG_BLOG) */
+
+#ifndef NULL_STMT
+#define NULL_STMT		do { /* NULL BODY */ } while (0)
+#endif
+
+typedef void (*RecycleFuncP)(void *nbuff_p, unsigned long context, uint32_t flags);
+#define SKB_DATA_RECYCLE	(1 << 0)
+#define SKB_RECYCLE		(1 << 1)
+#define SKB_DATA_NO_RECYCLE	(~SKB_DATA_RECYCLE)	/* to mask out */
+#define SKB_NO_RECYCLE		(~SKB_RECYCLE)		/* to mask out */
+#define SKB_RECYCLE_NOFREE	(1 << 2)		/* do not use */
+
+struct fkbuff;
+
+extern void skb_frag_xmit4(struct sk_buff *origskb, struct net_device *txdev,
+			   uint32_t is_pppoe, uint32_t minMtu, void *ip_p);
+extern void skb_frag_xmit6(struct sk_buff *origskb, struct net_device *txdev,
+			   uint32_t is_pppoe, uint32_t minMtu, void *ip_p);
+extern struct sk_buff * skb_xlate(struct fkbuff *fkb_p);
+extern struct sk_buff * skb_xlate_dp(struct fkbuff *fkb_p, uint8_t *dirty_p);
+extern int skb_avail_headroom(const struct sk_buff *skb);
+
+#if defined(CONFIG_BCM_KF_VLAN) && (defined(CONFIG_BCM_VLAN) || defined(CONFIG_BCM_VLAN_MODULE))
+#define SKB_VLAN_MAX_TAGS	4
+#endif
+
+#define CONFIG_SKBSHINFO_HAS_DIRTYP	1
+#endif // CONFIG_BCM_KF_NBUFF
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 struct nf_conntrack {
@@ -314,6 +361,11 @@ struct ubuf_info {
  * the end of the header data, ie. at skb->end.
  */
 struct skb_shared_info {
+#if defined(CONFIG_BCM_KF_NBUFF)
+	/* to preserve compat with binary only modules, do not change the
+	 * position of this field relative to the start of the structure. */
+	__u8		*dirty_p;
+#endif	/* defined(CONFIG_BCM_KF_NBUFF) */
 	unsigned char	nr_frags;
 	__u8		tx_flags;
 	unsigned short	gso_size;
@@ -337,6 +389,19 @@ struct skb_shared_info {
 	/* must be last field, see pskb_expand_head() */
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
+
+#if defined(CONFIG_BCM_KF_RUNNER)
+#if defined(CONFIG_BCM_RDPA) || defined(CONFIG_BCM_RDPA_MODULE)
+typedef struct bl_buffer_info {
+	unsigned char	*buffer;		/* address of the buffer from bpm */
+	unsigned char	*packet;		/* address of the data */
+	unsigned int	buffer_len;		/* size of the buffer */
+	unsigned int	packet_len;		/* size of the data packet */
+	unsigned int	buffer_number;	/* the buffer location in the bpm */
+	unsigned int	port;			/* the port */
+} bl_skbuff_info;
+#endif /* CONFIG_BCM_RUNNER */
+#endif /* CONFIG_BCM_KF_RUNNER */
 
 /* We divide dataref into two halves.  The higher 16 bits hold references
  * to the payload part of skb->data.  The lower 16 bits hold references to
@@ -448,8 +513,58 @@ static inline u32 skb_mstamp_us_delta(const struct skb_mstamp *t1,
 	return delta_us;
 }
 
+#if defined(CONFIG_BCM_KF_NBUFF)
+typedef union wlFlowInf
+{
+	uint32_t u32;
+	union {
+		union {
+			struct {
+				/* Start - Shared fields between ucast and mcast */
+				uint32_t is_ucast:1;
+				/* wl_prio is 4 bits for nic and 3 bits for dhd. Plan is
+				to make NIC as 3 bits after more analysis */
+				uint32_t wl_prio:4;
+				/* End - Shared fields between ucast and mcast */
+				uint32_t nic_reserved1:11;
+				uint32_t nic_reserved2:8;
+				uint32_t wl_chainidx:8;
+			};
+			struct {
+				uint32_t overlayed_field:16;
+				uint32_t ssid_dst:16; /* For bridged traffic we don't have chainidx (0xFE) */
+			};
+		} nic;
 
-/** 
+		struct {
+			/* Start - Shared fields between ucast and mcast */
+			uint32_t is_ucast:1;
+			uint32_t wl_prio:4;
+			/* End - Shared fields between ucast and mcast */
+			/* Start - Shared fields between dhd ucast and dhd mcast */
+			uint32_t flowring_idx:10;
+			/* End - Shared fields between dhd ucast and dhd mcast */
+			uint32_t dhd_reserved:13;
+			uint32_t ssid:4;
+		} dhd;
+	} ucast;
+	struct {
+		/* Start - Shared fields between ucast and mcast */
+		/* for multicast, WFD does not need to populate this flowring_idx, it is used internally by dhd driver */ 
+		uint32_t is_ucast:1; 
+		uint32_t wl_prio:4;
+		/* End - Shared fields between ucast and mcast */
+		/* Start - Shared fields between dhd ucast and dhd mcast */
+		uint32_t flowring_idx:10;
+		/* End - Shared fields between dhd ucast and dhd mcast */
+		uint32_t mcast_reserved:1;
+		uint32_t ssid_vector:16;
+	} mcast;
+} wlFlowInf_t;
+#endif
+
+
+/**
  *	struct sk_buff - socket buffer
  *	@next: Next buffer in list
  *	@prev: Previous buffer in list
@@ -497,7 +612,7 @@ static inline u32 skb_mstamp_us_delta(const struct skb_mstamp *t1,
  *	@wifi_acked_valid: wifi_acked was set
  *	@wifi_acked: whether frame was acked on wifi or not
  *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
-  *	@napi_id: id of the NAPI struct this skb came from
+ *	@napi_id: id of the NAPI struct this skb came from
  *	@secmark: security marking
  *	@mark: Generic packet mark
  *	@vlan_proto: vlan encapsulation protocol
@@ -533,28 +648,125 @@ struct sk_buff {
 	};
 	struct sock		*sk;
 	struct net_device	*dev;
+#if defined(CONFIG_BCM_KF_NBUFF)
+	struct ip_tunnel	*tunl;
 
+	unsigned int		recycle_flags;	/* 3 bytes unused */
+
+	/*
+	 * Several skb fields have been regrouped together for better data locality
+	 * cache performance, 16byte cache line proximity.
+	 * In 32 bit architecture, we have 32 bytes of data before this comment.
+	 * In 64 bit architecture, we have 52 bytes of data at this point.
+	 */
+
+	/*--- members common to fkbuff: begin here ---*/
+	struct {
+		union {
+			/* see fkb_in_skb_test() */
+			void 			*fkbInSkb;
+			struct sk_buff_head	*list;
+		};
+
+		/* defined(CONFIG_BLOG), use blog_ptr() */
+		struct blog_t		*blog_p;
+		unsigned char		*data;
+
+		/* The len in fkb is only 24 bits other 8 bits are used as internal flags
+		 * when fkbInSkb is used the max len can be only 24 bits, the bits 31-24
+		 * are cleared
+		 * currently we don't have a case where len can be >24 bits.
+		 */
+		union {
+			unsigned int	len;
+			/* used for fkb_in_skb test */
+			__u32		len_word;
+		};
+
+		union {
+			__u32		mark;
+			__u32		dropcount;
+			__u32		reserved_tailroom;
+			void		*queue;
+			/* have to declare the following variation of fkb_mark
+			 * for the ease of handling 64 bit vs 32 bit in fcache
+			 */
+			unsigned long	fkb_mark;
+		};
+
+		union {
+			__u32		priority;
+			wlFlowInf_t	wl;
+		};
+
+		/* Recycle preallocated skb or data */
+		RecycleFuncP		recycle_hook;
+
+		union {
+			unsigned long	recycle_context;
+			struct sk_buff	*next_free;
+		};
+#ifdef CONFIG_64BIT
+	}  ____cacheline_aligned;
+	/*
+	 * purposedly making the above fkbuff data structure cacheline aligned
+	 * in 64 bit architecture.
+	 * This can ensure the offset to the content is fixed into same cacheline.
+	 * Main reason we only declare as cacheline_aligned for 64 bit is that
+	 * we have manually calculated to ensure that this structure is 32 byte
+	 * aligned in 32 bit architecture.  If we add ____cacheline_aligned
+	 * also for 32 bit architecture, it will waste 64 byte memory if that
+	 * architecture is with 64 byte cache line size (i.e., 63148).
+	 */
+#else
+	};
+#endif
+	/*--- members common to fkbuff: end here ---*/
+
+	struct nf_conntrack	*nfct;		/* CONFIG_NETFILTER */
+	struct sk_buff		*nfct_reasm;	/* CONFIG_NF_CONNTRACK MODULE*/
+
+/*
+ * ------------------------------- CAUTION!!! ---------------------------------
+ * Do NOT add a new field or modify any existing field before this line
+ * to the beginning of the struct sk_buff. Doing so will cause struct sk_buff
+ * to be incompatible with the compiled binaries and may cause the binary to
+ * crash.
+ * ---------------------------------------------------------------------------
+ */
+#endif
 	/*
 	 * This is the control buffer. It is free to use for every
 	 * layer. Please put your private variables there. If you
 	 * want to keep them across layers you have to do a skb_clone()
 	 * first. This is owned by whoever has the skb queued ATM.
 	 */
+#if !defined(CONFIG_BCM_MPTCP) || !defined(CONFIG_BCM_KF_MPTCP)
 	char			cb[48] __aligned(8);
+#else
+	char			cb[56] __aligned(8);
+#endif
 
 	unsigned long		_skb_refdst;
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_XFRM
 	struct	sec_path	*sp;
 #endif
+#if defined(CONFIG_BCM_KF_NBUFF)
+#else /* CONFIG_BCM_KF_NBUFF */
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	struct nf_conntrack	*nfct;
+#endif
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	struct nf_bridge_info	*nf_bridge;
 #endif
+#if defined(CONFIG_BCM_KF_NBUFF)
+	unsigned int		data_len;
+#else
 	unsigned int		len,
 				data_len;
+#endif
 	__u16			mac_len,
 				hdr_len;
 
@@ -616,6 +828,12 @@ struct sk_buff {
 	__u8			ipvs_property:1;
 	__u8			inner_protocol_type:1;
 	__u8			remcsum_offload:1;
+#if defined(CONFIG_BCM_KF_MAP) && (defined(CONFIG_BCM_MAP) || defined(CONFIG_BCM_MAP_MODULE))
+	__u8			mapt_forward:2;
+	__u8			mapt_mf:1;
+	__u32			mapt_offset;
+	__u32			mapt_id;
+#endif
 	/* 3 or 5 bit hole */
 
 #ifdef CONFIG_NET_SCHED
@@ -632,7 +850,10 @@ struct sk_buff {
 			__u16	csum_offset;
 		};
 	};
+#ifdef CONFIG_BCM_KF_NBUFF
+#else
 	__u32			priority;
+#endif
 	int			skb_iif;
 	__u32			hash;
 	__be16			vlan_proto;
@@ -646,11 +867,13 @@ struct sk_buff {
 #ifdef CONFIG_NETWORK_SECMARK
 	__u32			secmark;
 #endif
+#if defined(CONFIG_BCM_KF_NBUFF)
+#else
 	union {
 		__u32		mark;
 		__u32		reserved_tailroom;
 	};
-
+#endif /* CONFIG_BCM_KF_NBUFF */
 	union {
 		__be16		inner_protocol;
 		__u8		inner_ipproto;
@@ -668,14 +891,84 @@ struct sk_buff {
 	/* private: */
 	__u32			headers_end[0];
 	/* public: */
+#if defined(CONFIG_BCM_KF_NBUFF)
+	unsigned char		*clone_wr_head; /* indicates drivers(ex:enet)about writable headroom in aggregated skb*/
+	unsigned char		*clone_fc_head; /* indicates fcache about writable headroom in aggregated skb */
 
+	union {
+		unsigned int	vtag_word;
+		struct 		{ unsigned short vtag, vtag_save; };
+	};
+	union {			/* CONFIG_NET_SCHED CONFIG_NET_CLS_ACT*/
+		unsigned int	tc_word;
+	};
+
+#endif /* CONFIG_BCM_KF_NBUFF */
+#if defined(CONFIG_BCM_KF_WL)
+	/* These two are for WLAN pktc use */
+	/* pktc_cb should hold space for void* and unsigned int */
+	unsigned char		pktc_cb[16];
+	__u32			pktc_flags;
+#endif
+
+#if defined(CONFIG_BCM_KF_NBUFF)
+#if defined(CONFIG_BCM_KF_VLAN) && (defined(CONFIG_BCM_VLAN) || defined(CONFIG_BCM_VLAN_MODULE))
+	__u16			vlan_count;
+	__u16			vlan_tpid;
+	__u32			cfi_save;
+	__u32			vlan_header[SKB_VLAN_MAX_TAGS];
+	struct net_device	*rxdev;
+#endif // CONFIG_BCM_KF_VLAN
+#if defined(CONFIG_BLOG_FEATURE)
+	union {
+		__u32		u32[BLOG_MAX_PARAM_NUM];
+		__u16		u16[BLOG_MAX_PARAM_NUM * 2];
+		__u8		u8[BLOG_MAX_PARAM_NUM * 4];
+	} ipt_log;
+	__u32 ipt_check;
+#define IPT_MATCH_LENGTH	(1 << 1)
+#define IPT_MATCH_TCP		(1 << 2)
+#define IPT_MATCH_UDP		(1 << 3)
+#define IPT_MATCH_TOS		(1 << 4)
+#define IPT_MATCH_DSCP		(1 << 5)
+#define IPT_TARGET_CLASSIFY	(1 << 6)
+#define IPT_TARGET_CONNMARK	(1 << 7)
+#define IPT_TARGET_CONNSECMARK	(1 << 8)
+#define IPT_TARGET_DSCP		(1 << 9)
+#define IPT_TARGET_HL		(1 << 10)
+#define IPT_TARGET_LED		(1 << 11)
+#define IPT_TARGET_MARK		(1 << 12)
+#define IPT_TARGET_NFLOG	(1 << 13)
+#define IPT_TARGET_NFQUEUE	(1 << 14)
+#define IPT_TARGET_NOTRACK	(1 << 15)
+#define IPT_TARGET_RATEEST	(1 << 16)
+#define IPT_TARGET_SECMARK	(1 << 17)
+#define IPT_TARGET_SKIPLOG	(1 << 18)
+#define IPT_TARGET_TCPMSS	(1 << 19)
+#define IPT_TARGET_TCPOPTSTRIP	(1 << 20)
+#define IPT_TARGET_TOS		(1 << 21)
+#define IPT_TARGET_TPROXY	(1 << 22)
+#define IPT_TARGET_TRACE	(1 << 23)
+#define IPT_TARGET_TTL		(1 << 24)
+#define IPT_TARGET_CHECK	(1 << 25)
+#endif
+#endif
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;
 	sk_buff_data_t		end;
+#if defined(CONFIG_BCM_KF_NBUFF)
+	unsigned char		*head;
+#else
 	unsigned char		*head,
 				*data;
+#endif
 	unsigned int		truesize;
 	atomic_t		users;
+#ifdef __SC_BUILD__
+        //struct packet_info  pkt_info;
+        /* put sercomm_header at the end of structure   Andic Wu, 2011/5/4 */
+        __u8             sercomm_header[SERCOMM_HEADER_LEN];
+#endif  
 };
 
 #ifdef __KERNEL__
@@ -710,7 +1003,7 @@ static inline bool skb_pfmemalloc(const struct sk_buff *skb)
  */
 static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
 {
-	/* If refdst was not refcounted, check we still are in a 
+	/* If refdst was not refcounted, check we still are in a
 	 * rcu_read_lock section
 	 */
 	WARN_ON((skb->_skb_refdst & SKB_DST_NOREF) &&
@@ -761,6 +1054,14 @@ static inline struct rtable *skb_rtable(const struct sk_buff *skb)
 {
 	return (struct rtable *)skb_dst(skb);
 }
+
+#if defined(CONFIG_BCM_KF_RUNNER)
+#if defined(CONFIG_BCM_RDPA) || defined(CONFIG_BCM_RDPA_MODULE)
+extern void bl_kfree_skb_structure(struct sk_buff *skb);
+extern void bl_kfree_skb_structure_irq(struct sk_buff *skb);
+#endif /* CONFIG_BCM_RUNNER */
+#endif /* CONFIG_BCM_KF_RUNNER */
+
 
 void kfree_skb(struct sk_buff *skb);
 void kfree_skb_list(struct sk_buff *segs);
@@ -991,6 +1292,43 @@ static inline struct skb_shared_hwtstamps *skb_hwtstamps(struct sk_buff *skb)
 	return &skb_shinfo(skb)->hwtstamps;
 }
 
+#if defined(CONFIG_BCM_KF_NBUFF)
+/* Returns size of struct sk_buff */
+extern size_t skb_size(void);
+extern size_t skb_aligned_size(void);
+extern int skb_layout_test(int head_offset, int tail_offset, int end_offset);
+
+/**
+ *	skb_headerinit	-	initialize a socket buffer header
+ *	@headroom: reserved headroom size
+ *	@datalen: data buffer size, data buffer is allocated by caller
+ *	@skb: skb allocated by caller
+ *	@data: data buffer allocated by caller
+ *	@recycle_hook: callback function to free data buffer and skb
+ *	@recycle_context: context value passed to recycle_hook, param1
+ *  @blog_p: pass a blog to a skb for logging
+ *
+ *	Initializes the socket buffer and assigns the data buffer to it.
+ *	Both the sk_buff and the pointed data buffer are pre-allocated.
+ *
+ */
+void skb_headerinit(unsigned int headroom, unsigned int datalen,
+		    struct sk_buff *skb, unsigned char *data,
+		    RecycleFuncP recycle_hook, unsigned long recycle_context,
+		    struct blog_t * blog_p);
+
+/* Wrapper function to skb_headerinit() with no Blog association */
+static inline void skb_hdrinit(unsigned int headroom, unsigned int datalen,
+			       struct sk_buff *skb, unsigned char * data,
+			       RecycleFuncP recycle_hook,
+			       unsigned long recycle_context)
+{
+	skb_headerinit(headroom, datalen, skb, data, recycle_hook, recycle_context,
+			(struct blog_t *)NULL);	/* No associated Blog object */
+}
+#endif  /* CONFIG_BCM_KF_NBUFF */
+
+
 /**
  *	skb_queue_empty - check if a queue is empty
  *	@list: queue head
@@ -1141,6 +1479,25 @@ static inline void skb_header_release(struct sk_buff *skb)
 	atomic_add(1 << SKB_DATAREF_SHIFT, &skb_shinfo(skb)->dataref);
 }
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM_USBNET_ACCELERATION))
+/**
+ *	skb_clone_headers_set - set the clone_fc_head and clone_wr_head in
+ *  an aggregated skb(ex: used in USBNET RX packet aggregation)
+ *	@skb: buffer to operate on
+ *  @len: lenghth of writable clone headroom
+ *
+ *  when this pointer is set you can still modify the cloned packet and also
+ *  expand the packet till clone_wr_head. This is used in cases on packet aggregation.
+ */
+static inline void skb_clone_headers_set(struct sk_buff *skb, unsigned int len)
+{
+	skb->clone_fc_head = skb->data - len;
+	if (skb_cloned(skb))
+		skb->clone_wr_head = skb->data - len;
+	else
+		skb->clone_wr_head = NULL;
+}
+#endif
 /**
  *	__skb_header_release - release reference to header
  *	@skb: buffer to operate on
@@ -1741,6 +2098,30 @@ static inline unsigned int skb_headroom(const struct sk_buff *skb)
 	return skb->data - skb->head;
 }
 
+#if (defined(CONFIG_BCM_KF_USBNET) && defined(CONFIG_BCM_USBNET_ACCELERATION))
+/**
+ *	skb_writable_headroom - bytes preceding skb->data that are writable(even on some
+ *  cloned skb's);
+ *	@skb: buffer to check
+ *
+ *	Return the number of bytes of writable free space preceding the skb->data of an &sk_buff.
+ *  note:skb->cloned_wr_head is used to indicate the padding between 2 packets when multiple packets
+ *  are present in buffer pointed by skb->head(ex: used in USBNET RX packet aggregation)
+ *
+ */
+static inline unsigned int skb_writable_headroom(const struct sk_buff *skb)
+{
+	if (skb_cloned(skb)) {
+		if (skb->clone_wr_head)
+			return skb->data - skb->clone_wr_head;
+		else if (skb->clone_fc_head)
+			return 0;
+	}
+
+	return skb_headroom(skb);
+}
+#endif
+
 /**
  *	skb_tailroom - bytes at buffer end
  *	@skb: buffer to check
@@ -1764,7 +2145,11 @@ static inline int skb_availroom(const struct sk_buff *skb)
 	if (skb_is_nonlinear(skb))
 		return 0;
 
+#if ! defined(CONFIG_BCM_KF_NBUFF)
 	return skb->end - skb->tail - skb->reserved_tailroom;
+#else
+	return skb->end - skb->tail;
+#endif
 }
 
 /**

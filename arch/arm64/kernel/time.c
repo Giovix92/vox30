@@ -83,6 +83,13 @@ void __init time_init(void)
 	if (!arch_timer_rate)
 		panic("Unable to initialise architected timer.\n");
 
+#if defined(CONFIG_BCM_KF_IKOS)
+#if !defined(CONFIG_BRCM_IKOS)
+    /* Calibrate the delay loop directly */
+    lpj_fine = arch_timer_rate / HZ;
+#endif
+#else
 	/* Calibrate the delay loop directly */
 	lpj_fine = arch_timer_rate / HZ;
+#endif
 }

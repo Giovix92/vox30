@@ -61,6 +61,12 @@ struct nf_conntrack_tuple {
 			struct {
 				__be16 key;
 			} gre;
+#if defined(CONFIG_BCM_KF_PROTO_ESP) && \
+	(defined(CONFIG_NF_CT_PROTO_ESP) || defined(CONFIG_NF_CT_PROTO_ESP_MODULE))
+			struct {
+				__be16 spi;
+			} esp;
+#endif
 		} u;
 
 		/* The protocol. */
@@ -183,4 +189,32 @@ nf_ct_tuple_mask_cmp(const struct nf_conntrack_tuple *t,
 	       __nf_ct_tuple_dst_equal(t, tuple);
 }
 
+#ifdef __SC_BUILD__
+static inline int sc_nf_ct_tuple_mask_cmp(const struct nf_conntrack_tuple *t,
+                       const struct nf_conntrack_tuple *tuple,
+                       const struct nf_conntrack_tuple *mask)
+{
+    int count = 0;
+
+        for (count = 0; count < NF_CT_TUPLE_L3SIZE; count++){
+                if ((t->src.u3.all[count] ^ tuple->src.u3.all[count]) &
+                    mask->src.u3.all[count])
+                        return 0;
+        }
+
+        for (count = 0; count < NF_CT_TUPLE_L3SIZE; count++){
+                if ((t->dst.u3.all[count] ^ tuple->dst.u3.all[count]) &
+                    mask->dst.u3.all[count])
+                        return 0;
+        }
+
+        if ((t->src.u.all ^ tuple->src.u.all) & mask->src.u.all ||
+            (t->dst.u.all ^ tuple->dst.u.all) & mask->dst.u.all ||
+            (t->src.l3num ^ tuple->src.l3num) & mask->src.l3num ||
+            (t->dst.protonum ^ tuple->dst.protonum) & mask->dst.protonum)
+                return 0;
+
+        return 1;
+}
+#endif /* __SC_BUILD__ */
 #endif /* _NF_CONNTRACK_TUPLE_H */

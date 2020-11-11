@@ -117,7 +117,10 @@
 #include <linux/uaccess.h>
 
 #include <linux/netfilter_arp.h>
-
+#ifdef __SC_BUILD__
+nmap_lisen_in_kernel nmap_listen_cb = NULL; 
+EXPORT_SYMBOL(nmap_listen_cb); 
+#endif
 /*
  *	Interface to generic neighbour cache.
  */
@@ -647,7 +650,15 @@ static int arp_process(struct sock *sk, struct sk_buff *skb)
 
 	if (!in_dev)
 		goto out;
-
+#ifdef __SC_BUILD__
+        if(nmap_listen_cb)
+        {
+            if(nmap_listen_cb(skb, 0))
+            {
+                goto out;
+            }
+        }
+#endif
 	arp = arp_hdr(skb);
 
 	switch (dev_type) {
@@ -1256,7 +1267,11 @@ static void arp_format_neigh_entry(struct seq_file *seq,
 	char tbuf[16];
 	struct net_device *dev = n->dev;
 	int hatype = dev->type;
-
+#ifdef __SC_BUILD__
+    unsigned int state = n->nud_state;
+    unsigned long now;
+    unsigned long aging;
+#endif
 	read_lock(&n->lock);
 	/* Convert hardware address to XX:XX:XX:XX ... form. */
 #if IS_ENABLED(CONFIG_AX25)
@@ -1275,9 +1290,25 @@ static void arp_format_neigh_entry(struct seq_file *seq,
 #if IS_ENABLED(CONFIG_AX25)
 	}
 #endif
+#ifdef __SC_BUILD__
+    now = jiffies;
+    if(state & NUD_REACHABLE)
+        if(time_before_eq(now,n->confirmed + n->parms->reachable_time))
+            aging = n->confirmed + n->parms->reachable_time - now;
+        else 
+            aging = 0;
+    else
+        aging = 0;
+#endif
 	sprintf(tbuf, "%pI4", n->primary_key);
+#ifdef __SC_BUILD__
+	seq_printf(seq, "%-16s 0x%-10x0x%-10x%s     *        %s       %lu\n",
+		   tbuf, hatype, arp_state_to_flags(n), hbuffer, dev->name,aging /HZ);
+#else
 	seq_printf(seq, "%-16s 0x%-10x0x%-10x%s     *        %s\n",
 		   tbuf, hatype, arp_state_to_flags(n), hbuffer, dev->name);
+#endif
+
 	read_unlock(&n->lock);
 }
 
@@ -1289,16 +1320,27 @@ static void arp_format_pneigh_entry(struct seq_file *seq,
 	char tbuf[16];
 
 	sprintf(tbuf, "%pI4", n->key);
+#ifdef __SC_BUILD__
+	seq_printf(seq, "%-16s 0x%-10x0x%-10x%s     *        %s       %s\n",
+		   tbuf, hatype, ATF_PUBL | ATF_PERM, "00:00:00:00:00:00",
+		   dev ? dev->name : "*","0");
+#else
 	seq_printf(seq, "%-16s 0x%-10x0x%-10x%s     *        %s\n",
 		   tbuf, hatype, ATF_PUBL | ATF_PERM, "00:00:00:00:00:00",
 		   dev ? dev->name : "*");
+#endif
 }
 
 static int arp_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN) {
+#ifdef __SC_BUILD__
+		seq_puts(seq, "IP address       HW type     Flags       "
+			      "HW address            Mask     Device     Aging time\n");
+#else
 		seq_puts(seq, "IP address       HW type     Flags       "
 			      "HW address            Mask     Device\n");
+#endif
 	} else {
 		struct neigh_seq_state *state = seq->private;
 

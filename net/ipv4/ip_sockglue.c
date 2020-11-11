@@ -43,19 +43,116 @@
 #endif
 #include <net/ip_fib.h>
 
+#if defined(CONFIG_BCM_MPTCP) && defined(CONFIG_BCM_KF_MPTCP)
+#include <net/mptcp.h>
+
+#endif
 #include <linux/errqueue.h>
 #include <asm/uaccess.h>
 
 /*
  *	SOL_IP control messages.
  */
+#ifdef __SC_BUILD__
+#include <linux/sercomm.h>
+#define BRIDGE_PORT_NONE    (0) // private define, value should be different with other ports define in kernel
+#define BRIDGE_PORT_LAN_1   (1)
+#define BRIDGE_PORT_LAN_2   (1<<1)
+#define BRIDGE_PORT_LAN_3   (1<<2)
+#define BRIDGE_PORT_LAN_4   (1<<3)
+#define BRIDGE_PORT_WLAN_1  (1<<10)
+#define BRIDGE_PORT_WLAN_2  (1<<11)
+#define BRIDGE_PORT_WLAN_3  (1<<12)
+#define BRIDGE_PORT_WLAN_4  (1<<13)
+#define BRIDGE_PORT_WLAN_5  (1<<14)
+#define BRIDGE_PORT_WLAN_6  (1<<15)
+#define BRIDGE_PORT_WLAN_7  (1<<16)
+#define BRIDGE_PORT_WLAN_8  (1<<17)
+#define BRIDGE_PORT_IPPONE_VLAN  (1<<18)
 
+#define PORT_LAN_1   (1)
+#define PORT_LAN_2   (2)
+#define PORT_LAN_3   (3)
+#define PORT_LAN_4   (4)
+#define PORT_WLAN_1  (5)
+#define PORT_WLAN_2  (6)
+#define PORT_WLAN_3  (7)
+#define PORT_WLAN_4  (8)
+#define PORT_WLAN_5  (9)
+#define PORT_WLAN_6  (10)
+#define PORT_WLAN_7  (11)
+#define PORT_WLAN_8  (12)
+#define PORT_IPPHONE_VLAN  (15)
+static int _remap_lan_port(int port_id)
+{
+    if(port_id > PORT_LAN_4 || port_id < PORT_LAN_1)
+    {
+        return port_id;
+    }
+    else
+    {
+#if defined (VD1018)
+        int port_map[4] = {3,2,1,4};
+        return port_map[port_id-1];
+#elif defined(AD1018) 
+        return (4 - port_id + 1);
+#else
+        return port_id;
+#endif
+    }
+}
+static u32 _map_mark_to_port(u32 mark)
+{
+    u32 port = SCMARK_GET_PORT(mark);
+    port = _remap_lan_port(port);
+
+    if(port == PORT_LAN_1)
+        return BRIDGE_PORT_LAN_1;
+    else if(port == PORT_LAN_2)
+        return BRIDGE_PORT_LAN_2;
+    else if(port == PORT_LAN_3)
+        return BRIDGE_PORT_LAN_3;
+    else if(port == PORT_LAN_4)
+        return BRIDGE_PORT_LAN_4;
+    else if(port == PORT_WLAN_1)
+        return BRIDGE_PORT_WLAN_1;
+    else if(port == PORT_WLAN_2)
+        return BRIDGE_PORT_WLAN_2;
+    else if(port == PORT_WLAN_3)
+        return BRIDGE_PORT_WLAN_3;
+    else if(port == PORT_WLAN_4)
+        return BRIDGE_PORT_WLAN_4;
+    else if(port == PORT_WLAN_5)
+        return BRIDGE_PORT_WLAN_5;
+    else if(port == PORT_WLAN_6)
+        return BRIDGE_PORT_WLAN_6;
+    else if(port == PORT_WLAN_7)
+        return BRIDGE_PORT_WLAN_7;
+    else if(port == PORT_WLAN_8)
+        return BRIDGE_PORT_WLAN_8;
+    else if(port == PORT_IPPHONE_VLAN)
+        return BRIDGE_PORT_IPPONE_VLAN;
+    else
+        return BRIDGE_PORT_NONE;
+}
+#endif
 static void ip_cmsg_recv_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 {
 	struct in_pktinfo info = *PKTINFO_SKB_CB(skb);
-
+#ifdef __SC_BUILD__
+    struct sercomm_head *psh;
+#endif
 	info.ipi_addr.s_addr = ip_hdr(skb)->daddr;
-
+#ifdef __SC_BUILD__
+    psh = (struct sercomm_head *)&((skb)->sercomm_header[0]);
+    if(IPPROTO_UDP == ip_hdr(skb)->protocol &&
+            67 == ntohs(udp_hdr(skb)->dest))
+    {
+        memcpy((u8 *)&(info.ipi_addr.s_addr), ((u8 *)skb_mac_header(skb)) + ETH_ALEN, 4);
+        memcpy((u8 *)&(info.ipi_spec_dst.s_addr), (u8 *)skb_mac_header(skb) + ETH_ALEN + 4, ETH_ALEN-4);
+        info.ipi_ifindex = _map_mark_to_port(psh->mark);
+    }
+#endif
 	put_cmsg(msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
 }
 
@@ -720,6 +817,19 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			inet->tos = val;
 			sk->sk_priority = rt_tos2priority(val);
 			sk_dst_reset(sk);
+#if defined(CONFIG_BCM_MPTCP) && defined(CONFIG_BCM_KF_MPTCP)
+			/* Update TOS on mptcp subflow */
+			if (is_meta_sk(sk)) {
+				struct sock *sk_it;
+				mptcp_for_each_sk(tcp_sk(sk)->mpcb, sk_it) {
+					if (inet_sk(sk_it)->tos != inet_sk(sk)->tos) {
+						inet_sk(sk_it)->tos = inet_sk(sk)->tos;
+						sk_it->sk_priority = sk->sk_priority;
+						sk_dst_reset(sk_it);
+					}
+				}
+			}
+#endif
 		}
 		break;
 	case IP_TTL:
@@ -886,6 +996,45 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			err = ip_mc_leave_group(sk, &mreq);
 		break;
 	}
+#ifdef __SC_BUILD__
+    case IP_MSFILTER_X:
+    {
+        struct ip_msfilter_x *msf;
+
+        if (optlen < IP_MSFILTER_X_SIZE(0))
+            goto e_inval;
+        if (optlen > sysctl_optmem_max) {
+            err = -ENOBUFS;
+            break;
+        }
+        msf = kmalloc(optlen, GFP_KERNEL);
+        if (!msf) {
+            err = -ENOBUFS;
+            break;
+        }
+        err = -EFAULT;
+        if (copy_from_user(msf, optval, optlen)) {
+            kfree(msf);
+            break;
+        }
+        /* numsrc >= (1G-4) overflow in 32 bits */
+        if (msf->imsf_numsrc >= 0x3ffffffcU ||
+            msf->imsf_numsrc > sysctl_igmp_max_msf) {
+            kfree(msf);
+            err = -ENOBUFS;
+            break;
+        }
+        if (IP_MSFILTER_X_SIZE(msf->imsf_numsrc) > optlen) {
+            kfree(msf);
+            err = -EINVAL;
+            break;
+        }
+        err = ip_mc_msfilter_x(sk, msf, msf->imsf_ifindex);
+        kfree(msf);
+        break;
+    }
+
+#endif
 	case IP_MSFILTER:
 	{
 		struct ip_msfilter *msf;

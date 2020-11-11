@@ -51,6 +51,9 @@ int core_uses_pid;
 unsigned int core_pipe_limit;
 char core_pattern[CORENAME_MAX_SIZE] = "core";
 static int core_name_size = CORENAME_MAX_SIZE;
+#ifdef __SC_BUILD__
+int core_enable = 0;
+#endif
 
 struct core_name {
 	char *corename;
@@ -530,6 +533,10 @@ void do_coredump(const siginfo_t *siginfo)
 	};
 
 	audit_core_dumps(siginfo->si_signo);
+#ifdef __SC_BUILD__
+    if(core_enable)
+        cprm.limit = RLIM_INFINITY;
+#endif
 
 	binfmt = mm->binfmt;
 	if (!binfmt || !binfmt->core_dump)

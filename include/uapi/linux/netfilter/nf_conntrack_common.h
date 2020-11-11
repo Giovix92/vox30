@@ -88,9 +88,21 @@ enum ip_conntrack_status {
 	IPS_UNTRACKED_BIT = 12,
 	IPS_UNTRACKED = (1 << IPS_UNTRACKED_BIT),
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG)
+	/* Conntrack eligible for Blogging */
+	IPS_BLOG_BIT = 13,
+	IPS_BLOG = (1 << IPS_BLOG_BIT),
+	/* Conntrack got a helper explicitly attached via CT target. */
+	IPS_HELPER_BIT = 14,	
+#else
 	/* Conntrack got a helper explicitly attached via CT target. */
 	IPS_HELPER_BIT = 13,
+#endif	
 	IPS_HELPER = (1 << IPS_HELPER_BIT),
+#if defined(CONFIG_BCM_KF_NETFILTER)
+	IPS_IQOS_BIT = 19,
+	IPS_IQOS = (1 << IPS_IQOS_BIT),
+#endif
 };
 
 /* Connection tracking event types */
@@ -107,6 +119,9 @@ enum ip_conntrack_events {
 	IPCT_NATSEQADJ = IPCT_SEQADJ,
 	IPCT_SECMARK,		/* new security mark has been set */
 	IPCT_LABEL,		/* new connlabel has been set */
+#if defined(CONFIG_BCM_KF_DPI) && defined(CONFIG_BCM_DPI_MODULE)
+	IPCT_DPI,		/* dpi classification for ct is complete */
+#endif
 };
 
 enum ip_conntrack_expect_events {

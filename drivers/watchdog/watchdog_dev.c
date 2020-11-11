@@ -479,7 +479,11 @@ static int watchdog_release(struct inode *inode, struct file *file)
 	if (err < 0) {
 		mutex_lock(&wdd->lock);
 		if (!test_bit(WDOG_UNREGISTERED, &wdd->status))
+#if defined(CONFIG_BCM_KF_WDT)		   
+			dev_dbg(wdd->dev, "watchdog did not stop!\n");
+#else
 			dev_crit(wdd->dev, "watchdog did not stop!\n");
+#endif						
 		mutex_unlock(&wdd->lock);
 		watchdog_ping(wdd);
 	}
@@ -539,6 +543,10 @@ int watchdog_dev_register(struct watchdog_device *watchdog)
 		}
 	}
 
+#if defined(CONFIG_BCM_KF_WDT)		   
+	(void) devno;	
+	err = 0;
+#else
 	/* Fill in the data structures */
 	devno = MKDEV(MAJOR(watchdog_devt), watchdog->id);
 	cdev_init(&watchdog->cdev, &watchdog_fops);
@@ -554,6 +562,7 @@ int watchdog_dev_register(struct watchdog_device *watchdog)
 			old_wdd = NULL;
 		}
 	}
+#endif	
 	return err;
 }
 
@@ -570,13 +579,27 @@ int watchdog_dev_unregister(struct watchdog_device *watchdog)
 	set_bit(WDOG_UNREGISTERED, &watchdog->status);
 	mutex_unlock(&watchdog->lock);
 
+#if !defined(CONFIG_BCM_KF_WDT)
 	cdev_del(&watchdog->cdev);
+#endif
+		
 	if (watchdog->id == 0) {
 		misc_deregister(&watchdog_miscdev);
 		old_wdd = NULL;
 	}
 	return 0;
 }
+
+#if defined(CONFIG_BCM_KF_WDT)
+int watchdog_dev_force_disable( void )
+{
+	if( old_wdd )
+	{
+		watchdog_stop(old_wdd);
+	}
+	return 0;
+}
+#endif 
 
 /*
  *	watchdog_dev_init: init dev part of watchdog core
@@ -586,9 +609,13 @@ int watchdog_dev_unregister(struct watchdog_device *watchdog)
 
 int __init watchdog_dev_init(void)
 {
+#if defined(CONFIG_BCM_KF_WDT)
+	int err = 0;		
+#else
 	int err = alloc_chrdev_region(&watchdog_devt, 0, MAX_DOGS, "watchdog");
 	if (err < 0)
 		pr_err("watchdog: unable to allocate char dev region\n");
+#endif		
 	return err;
 }
 
@@ -600,5 +627,9 @@ int __init watchdog_dev_init(void)
 
 void __exit watchdog_dev_exit(void)
 {
+#if defined(CONFIG_BCM_KF_WDT)
+	(void)watchdog_devt;	
+#else
 	unregister_chrdev_region(watchdog_devt, MAX_DOGS);
+#endif	
 }

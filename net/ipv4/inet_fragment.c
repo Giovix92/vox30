@@ -24,7 +24,13 @@
 #include <net/sock.h>
 #include <net/inet_frag.h>
 #include <net/inet_ecn.h>
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+extern int sysctl_ipfrag_count_max;
+extern int sysctl_ipfrag_count_per_ip_max;
+extern atomic_t ip_frag_total_count;	/*total number of ip fregment*/
+#endif
+#endif
 #define INETFRAGS_EVICT_BUCKETS   128
 #define INETFRAGS_EVICT_MAX	  512
 
@@ -324,7 +330,12 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 	nf = q->net;
 	while (fp) {
 		struct sk_buff *xp = fp->next;
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+    atomic_dec(&q->count);
+    atomic_dec(&ip_frag_total_count);
+#endif
+#endif
 		sum_truesize += fp->truesize;
 		frag_kfree_skb(nf, f, fp);
 		fp = xp;
@@ -408,6 +419,12 @@ static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
 	q = inet_frag_alloc(nf, f, arg);
 	if (!q)
 		return NULL;
+#ifdef __SC_BUILD__ 
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	atomic_set(&q->count, 0);
+//	atomic_inc(&ip_frag_total_count);
+#endif
+#endif
 
 	return inet_frag_intern(nf, q, f, arg);
 }

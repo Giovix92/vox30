@@ -103,3 +103,80 @@ int usb_stor_huawei_e220_init(struct us_data *us)
 	usb_stor_dbg(us, "Huawei mode set result is %d\n", result);
 	return 0;
 }
+#ifdef __SC_BUILD__
+#define IS_HUAWEI_DONGLES 1 
+#define NOT_HUAWEI_DONGLES 0 
+static int usb_stor_huawei_dongles_pid(struct us_data *us) 
+{ 
+    int ret = NOT_HUAWEI_DONGLES; 
+    struct usb_interface_descriptor *idesc = NULL; 
+    idesc = &us->pusb_intf->cur_altsetting->desc; 
+
+    if (NULL != idesc ) { 
+        if ( (0x0000 == idesc->bInterfaceNumber)) { 
+
+            if ((0x1401 <= le16_to_cpu(us->pusb_dev->descriptor.idProduct) && 0x1600 >= 
+                         le16_to_cpu(us->pusb_dev->descriptor.idProduct))
+                    || (0x1c02 <= le16_to_cpu(us->pusb_dev->descriptor.idProduct) &&
+                        0x2202 >= le16_to_cpu(us->pusb_dev->descriptor.idProduct)) 
+                    || (0x1001 ==  le16_to_cpu(us->pusb_dev->descriptor.idProduct))
+                    || (0x1003 ==  le16_to_cpu(us->pusb_dev->descriptor.idProduct))
+                    || (0x1004 == le16_to_cpu(us->pusb_dev->descriptor.idProduct))) { 
+
+                if ((0x1501 <=  le16_to_cpu(us->pusb_dev->descriptor.idProduct)) && (0x1504 >=
+                             le16_to_cpu(us->pusb_dev->descriptor.idProduct))) {
+                    ret = NOT_HUAWEI_DONGLES; 
+                } else {
+                    ret = IS_HUAWEI_DONGLES; 
+                }
+            }
+        }
+    }
+    //ret = IS_HUAWEI_DONGLES; 
+    return ret; 
+}
+int usb_stor_huawei_scsi_init(struct us_data *us) 
+{
+    int result = 0; 
+    int act_len = 0; 
+    unsigned char cmd[32] = {0x55, 0x53, 0x42, 0x43, 0x00, 0x00, 0x00, 0x00,  
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11,  
+        0x06, 0x30, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,   
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    result = usb_stor_bulk_transfer_buf (us, us->send_bulk_pipe, cmd, 31, 
+            &act_len); 
+        return result; 
+}
+int usb_stor_huawei_scsi_init2(struct us_data *us) 
+{
+    int result = 0; 
+    int act_len = 0; 
+    unsigned char cmd[32] = {0x55, 0x53, 0x42, 0x43, 0x12, 0x34, 0x56, 0x78,  
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11,  
+        0x06, 0x30, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,   
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    result = usb_stor_bulk_transfer_buf (us, us->send_bulk_pipe, cmd, 31, 
+            &act_len); 
+        return result; 
+}
+
+int usb_stor_huawei_init(struct us_data *us) 
+{ 
+    int result = 0; 
+    if(usb_stor_huawei_dongles_pid(us)){ 
+        if ((0x1f16 == le16_to_cpu(us->pusb_dev->descriptor.idProduct))
+                || (0x1f1e == le16_to_cpu(us->pusb_dev->descriptor.idProduct))){ 
+            result = usb_stor_huawei_scsi_init2(us); 
+        }
+        else if ((0x1446 <= le16_to_cpu(us->pusb_dev->descriptor.idProduct))){ 
+            result = usb_stor_huawei_scsi_init(us); 
+        }else{ 
+            result = usb_stor_huawei_e220_init(us); 
+        } 
+    } 
+    else
+    {
+    }
+    return result; 
+}
+#endif

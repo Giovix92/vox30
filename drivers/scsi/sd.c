@@ -53,7 +53,9 @@
 #include <linux/pm_runtime.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
-
+#ifdef __SC_BUILD__
+#include <linux/syscalls.h>
+#endif
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
@@ -2839,6 +2841,54 @@ static int sd_format_disk_name(char *prefix, int index, char *buf, int buflen)
 
 	return 0;
 }
+#ifdef __SC_BUILD__
+
+#define USB_M_SH "/etc/usb/usb_m.sh"
+#define USB_U_SH "/etc/usb/usb_u.sh"
+#define USB_DISK_MOUNT "usb_disk_mount"
+#define USB_DISK_UMOUNT "usb_disk_umount"
+#define USER_UEVENT_PID "/var/run/uevent.pid"
+static void usb_auto_mount(struct scsi_disk* sdkp)
+{
+    char message[128] = {0};
+    size_t len;
+    struct stat st;
+    int count = 0;
+	char *argv[4] = {USB_M_SH, sdkp->disk->disk_name, (char *)dev_name(&sdkp->device->sdev_gendev) ,NULL};
+    //if (sys_newlstat(USER_UEVENT_PID, &st))
+    {
+retry:
+        if(sys_newlstat("/tmp",&st) && count < 20)
+        {
+            msleep(1000);
+            count ++;
+            goto retry;
+        }
+        else
+        {
+            call_usermodehelper(USB_M_SH, argv, NULL,  UMH_WAIT_EXEC);
+        }
+    }
+    len = snprintf(message, sizeof(message), USB_DISK_MOUNT"@%s/%s", sdkp->disk->disk_name, (char *)dev_name(&sdkp->device->sdev_gendev));
+    len++;
+    (void)kobject_send_uevent(message, len);
+}
+
+static void usb_auto_umount(struct scsi_disk* sdkp)
+{
+    char message[128] = {0};
+    size_t len;
+    char *argv[3] = {USB_U_SH, sdkp->disk->disk_name, NULL};
+    //struct stat st;
+    //if (sys_newlstat(USER_UEVENT_PID, &st))
+    {
+        call_usermodehelper(USB_U_SH, argv, NULL, UMH_WAIT_PROC);
+    }
+    len = snprintf(message, sizeof(message), USB_DISK_UMOUNT"@%s", sdkp->disk->disk_name);
+    len++;
+    (void)kobject_send_uevent(message, len);
+}
+#endif
 
 /*
  * The asynchronous part of sd_probe
@@ -2896,6 +2946,9 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 		  sdp->removable ? "removable " : "");
 	scsi_autopm_put_device(sdp);
 	put_device(&sdkp->dev);
+#ifdef __SC_BUILD__
+    usb_auto_mount(sdkp);
+#endif
 }
 
 /**
@@ -3027,6 +3080,9 @@ static int sd_remove(struct device *dev)
 
 	async_synchronize_full_domain(&scsi_sd_pm_domain);
 	async_synchronize_full_domain(&scsi_sd_probe_domain);
+#ifdef __SC_BUILD__
+    usb_auto_umount(sdkp);
+#endif
 	device_del(&sdkp->dev);
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);

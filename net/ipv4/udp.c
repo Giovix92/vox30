@@ -1264,6 +1264,9 @@ int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
 	int peeked, off = 0;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+	bool checksum_valid = false;
+#endif
 	bool slow;
 
 	if (flags & MSG_ERRQUEUE)
@@ -1289,11 +1292,22 @@ try_again:
 	 */
 
 	if (copied < ulen || UDP_SKB_CB(skb)->partial_cov) {
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+/*CVE-2016-10229*/
+		checksum_valid = !udp_lib_checksum_complete(skb);
+		if (!checksum_valid)
+#else
 		if (udp_lib_checksum_complete(skb))
+#endif
 			goto csum_copy_err;
 	}
 
+#if defined(CONFIG_BCM_KF_MISC_BACKPORTS)
+/*CVE-2016-10229*/
+	if (checksum_valid || skb_csum_unnecessary(skb))
+#else
 	if (skb_csum_unnecessary(skb))
+#endif
 		err = skb_copy_datagram_msg(skb, sizeof(struct udphdr),
 					    msg, copied);
 	else {
@@ -1737,6 +1751,10 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 					    inet_compute_pseudo);
 }
 
+#ifdef __SC_BUILD__
+nmap_lisen_in_kernel nmap_listen_cb_udp = NULL; 
+EXPORT_SYMBOL(nmap_listen_cb_udp); 
+#endif
 /*
  *	All we need to do is get the socket, and then do a checksum.
  */
@@ -1771,6 +1789,14 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 			goto short_packet;
 		uh = udp_hdr(skb);
 	}
+
+#ifdef __SC_BUILD__
+        if(nmap_listen_cb_udp)
+        {
+            if(nmap_listen_cb_udp(skb, 1))
+                goto drop;
+        }
+#endif
 
 	if (udp4_csum_init(skb, uh, proto))
 		goto csum_error;
@@ -1825,6 +1851,9 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		goto csum_error;
 
 	UDP_INC_STATS_BH(net, UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
+#ifdef __SC_BUILD__
+    if(skb && skb->dev && !(skb->dev->priv_flags & IFF_WANDEV))
+#endif
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
 	/*

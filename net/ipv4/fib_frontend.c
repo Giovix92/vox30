@@ -46,6 +46,12 @@
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+#include <sc/sc_spi.h>
+#include <linux/slog.h>
+#endif
+#endif
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
 static int __net_init fib4_rules_init(struct net *net)
@@ -347,6 +353,40 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
 		return ret;
 	}
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	{
+		if(idev->dev->priv_flags & IFF_WANDEV)
+		{
+			struct net_device *br_dev;
+			
+			br_dev = dev_get_by_index(net, g_spi_br_index);
+			if(br_dev)
+			{
+				struct in_ifaddr *ifa;
+				struct in_device *br_in_dev = __in_dev_get_rtnl(br_dev);
+				if (br_in_dev)
+				{
+					for (ifa = br_in_dev->ifa_list; ifa; ifa = ifa->ifa_next)
+					{
+//						printk(KERN_EMERG "src=%x, ifa->ifa_mask=%x, ifa->ifa_local=%x\n", src, ifa->ifa_mask, ifa->ifa_local);
+						if((src & ifa->ifa_mask) == (ifa->ifa_local & ifa->ifa_mask))
+						{
+			                if (net_ratelimit())
+                            LOG_FIREWALL(KERN_WARNING,CRIT_LOG,LOG_NONUSE_ID,LOG_NONUSE_BLOCK_TIME,
+		    				        "DoS attack: IP Spoofing Attack from source: %u.%u.%u.%u\n",
+	                                NIPQUAD(src));
+							break;
+						}
+					}
+	            }
+	   			dev_put(br_dev);
+
+            }
+        }
+    }
+#endif
+#endif
 	if (no_addr)
 		goto last_resort;
 	if (rpf == 1)
@@ -378,6 +418,13 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 			struct in_device *idev, u32 *itag)
 {
 	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
+
+#if defined(CONFIG_BCM_KF_MCAST_RP_FILTER)
+	/* ignore rp_filter for multicast traffic */
+	if (skb->pkt_type == PACKET_MULTICAST) {
+		r = 0;
+	}
+#endif
 
 	if (!r && !fib_num_tclassid_users(dev_net(dev)) &&
 	    IN_DEV_ACCEPT_LOCAL(idev) &&

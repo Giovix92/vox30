@@ -50,11 +50,85 @@ void __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 	handle_arch_irq = handle_irq;
 }
 
+#if defined CONFIG_BCM_KF_ARM64_BCM963XX && defined CONFIG_HOTPLUG_CPU
+#include <linux/cpu.h>
+
+static void bcm63xx_rehint_one(struct irq_desc *desc, int cpu)
+{
+	struct irq_data *d = irq_desc_get_irq_data(desc);
+	const struct cpumask *affinity = d->affinity;
+	struct irq_chip *c;
+
+	/*
+	 * If this is a per-CPU interrupt then we have nothing to do.
+	 */
+	if (irqd_is_per_cpu(d))
+		return;
+
+	/*
+	 * If there is no affinity_hint then we have nothing to do.
+	 */
+	if (!desc->affinity_hint)
+		return;
+
+	/*
+	 * If affinity matches affinity_hint then we have nothing to do.
+	 */
+	if (cpumask_equal(affinity, desc->affinity_hint))
+		return;
+
+	affinity = desc->affinity_hint;
+
+	// ignore irq_set_affinity failures due to affinity_hint
+	// not intersecting cpu_online_mask
+	c = irq_data_get_irq_chip(d);
+	if (!c->irq_set_affinity)
+		pr_warn("IRQ%u: unable to set affinity\n", d->irq);
+	else if (c->irq_set_affinity(d, affinity, false) == IRQ_SET_MASK_OK) {
+		pr_info("IRQ%d: affinity change from %32pbl to %32pbl\n",
+				d->irq, d->affinity, affinity);
+		cpumask_copy(d->affinity, affinity);
+	}
+
+	return;
+}
+
+/*
+ * A new CPU has come online.  Migrate IRQs that have an affinity_hint
+ * that doesn't match their active affinity
+ */
+static int bcm63xx_rehint(struct notifier_block *nb, unsigned long action, void *hcpu)
+{
+	int cpu = (uintptr_t) hcpu;
+	struct irq_desc *desc;
+	unsigned long flags;
+	unsigned int i;
+
+	if (action != CPU_ONLINE)
+		return NOTIFY_OK;
+
+	local_irq_save(flags);
+
+	for_each_irq_desc(i, desc) {
+		raw_spin_lock(&desc->lock);
+		bcm63xx_rehint_one(desc, cpu);
+		raw_spin_unlock(&desc->lock);
+	}
+
+	local_irq_restore(flags);
+
+	return NOTIFY_OK;
+}
+#endif
+
 void __init init_IRQ(void)
 {
 	irqchip_init();
 	if (!handle_arch_irq)
 		panic("No interrupt controller found.");
+#if defined CONFIG_BCM_KF_ARM64_BCM963XX && defined CONFIG_HOTPLUG_CPU
+	hotcpu_notifier(bcm63xx_rehint, 0);
+#endif
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -73,6 +147,13 @@ static bool migrate_one_irq(struct irq_desc *desc)
 		return false;
 
 	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
+#if defined CONFIG_BCM_KF_ARM64_BCM963XX
+		// affine cpu is offline; any hinted cpu online?
+		if (desc->affinity_hint &&
+		    cpumask_any_and(desc->affinity_hint, cpu_online_mask) < nr_cpu_ids)
+			affinity = desc->affinity_hint;
+		else
+#endif
 		affinity = cpu_online_mask;
 		ret = true;
 	}

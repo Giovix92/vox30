@@ -20,6 +20,11 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <linux/netfilter/nf_conntrack_h323.h>
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+#include <sc/cnapt/nf_cnapt.h>
+#endif
+#endif
 /****************************************************************************/
 static int set_addr(struct sk_buff *skb, unsigned int protoff,
 		    unsigned char **data, int dataoff,
@@ -184,6 +189,12 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 	int dir = CTINFO2DIR(ctinfo);
 	int i;
 	u_int16_t nated_port;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	/* rcu_read_lock() hold by nf_hook_slow... */
+	struct calg_hooks_t *hooks = rcu_dereference(calg_hooks_ptr);
+#endif
+#endif
 
 	/* Set expectations for NAT */
 	rtp_exp->saved_proto.udp.port = rtp_exp->tuple.dst.u.udp.port;
@@ -216,6 +227,60 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 		return 0;
 	}
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && hooks->pubip_related(ct, rtp_exp->tuple.dst.u3.ip)) {
+		void *rtp_calg, *rtcp_calg;
+		u_int16_t rtp_port, rtcp_port, nport;
+	
+		rtp_calg = hooks->alloc(ct->tuplehash[dir].tuple.src.u3.ip,
+							rtp_exp->tuple.dst.u3.ip,
+							ntohs(rtp_exp->saved_proto.udp.port),
+							0,
+							rtp_exp->tuple.dst.protonum);
+		if (!rtp_calg)
+			return -1;
+
+		rtcp_calg = hooks->alloc(ct->tuplehash[dir].tuple.src.u3.ip,
+							rtcp_exp->tuple.dst.u3.ip,
+							ntohs(rtcp_exp->saved_proto.udp.port),
+							0,
+							rtcp_exp->tuple.dst.protonum);
+		if (!rtcp_calg) {
+			hooks->put(rtp_calg);
+			return -1;
+		}
+
+		for (nated_port = ntohs(rtp_exp->tuple.dst.u.udp.port);
+		     nated_port != 0; nated_port = nport) {
+			rtp_port = nated_port;
+			nport = nated_port + 2;
+		    if (hooks->add_expect(rtp_calg, rtp_exp, &rtp_port, &nport) == 0) {
+				rtp_exp->tuple.dst.u.udp.port = htons(rtp_port);
+				if (nf_ct_expect_related(rtp_exp) == 0) {
+					rtcp_port = rtp_port + 1;
+					if (hooks->add_expect(rtcp_calg, rtcp_exp, &rtcp_port, &nport) == 0) {
+						if (rtcp_port == rtp_port + 1) {
+						    rtcp_exp->tuple.dst.u.udp.port = htons(rtcp_port);
+						    if (nf_ct_expect_related(rtcp_exp) == 0)
+							    break;
+						}
+						hooks->del_expect(rtcp_exp);
+					}
+					nf_ct_unexpect_related(rtp_exp);
+				}
+				hooks->del_expect(rtp_exp);
+				if (rtp_port != nated_port) {
+					nated_port = 0;
+					break;
+				}
+			}
+		}
+		hooks->put(rtp_calg);
+		hooks->put(rtcp_calg);
+	} else
+#endif
+#endif
 	/* Try to get a pair of ports. */
 	for (nated_port = ntohs(rtp_exp->tuple.dst.u.udp.port);
 	     nated_port != 0; nated_port += 2) {
@@ -286,11 +351,51 @@ static int nat_t120(struct sk_buff *skb, struct nf_conn *ct,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	u_int16_t nated_port = ntohs(port);
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	struct calg_hooks_t *hooks = rcu_dereference(calg_hooks_ptr);
+#endif
+#endif
 
 	/* Set expectations for NAT */
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;
 	exp->expectfn = nf_nat_follow_master;
 	exp->dir = !dir;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && hooks->pubip_related(ct, exp->tuple.dst.u3.ip)) {
+		void *calg;
+		u_int16_t algport, nport;
+
+		calg = hooks->alloc(ct->tuplehash[dir].tuple.src.u3.ip, // privip
+						exp->tuple.dst.u3.ip, // pubip
+						ntohs(exp->saved_proto.tcp.port), // privport
+						0, // pubport
+						exp->tuple.dst.protonum // protocol
+						);
+		if (!calg)
+			return -1;
+
+		for (; nated_port != 0; nated_port = nport) {
+			algport = nated_port;
+			nport = nated_port + 1;
+			if (hooks->add_expect(calg, exp, &algport, &nport) == 0) {
+				exp->tuple.dst.u.tcp.port = htons(algport);
+				if (nf_ct_expect_related(exp) == 0)
+					break;
+				hooks->del_expect(exp);
+				/* we are enforced to use a different port to match the cone-napt,
+				 * so it's no meanning to try other ports once we fail. */
+				if (algport != nated_port) {
+					nated_port = 0;
+					break;
+				}
+			}
+		}
+		hooks->put(calg);
+	} else
+#endif
+#endif
 
 	/* Try to get same port: if not, try to change it. */
 	for (; nated_port != 0; nated_port++) {
@@ -338,6 +443,11 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
 	int dir = CTINFO2DIR(ctinfo);
 	u_int16_t nated_port = ntohs(port);
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	struct calg_hooks_t *hooks = rcu_dereference(calg_hooks_ptr);
+#endif
+#endif
 
 	/* Set expectations for NAT */
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;
@@ -347,6 +457,41 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 	/* Check existing expects */
 	if (info->sig_port[dir] == port)
 		nated_port = ntohs(info->sig_port[!dir]);
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && hooks->pubip_related(ct, exp->tuple.dst.u3.ip)) {
+		void *calg;
+		u_int16_t algport, nport;
+
+		calg = hooks->alloc(ct->tuplehash[dir].tuple.src.u3.ip, // privip
+						exp->tuple.dst.u3.ip, // pubip
+						ntohs(exp->saved_proto.tcp.port), // privport
+						0, // pubport
+						exp->tuple.dst.protonum // protocol
+						);
+		if (!calg)
+			return -1;
+
+		for (; nated_port != 0; nated_port = nport) {
+			algport = nated_port;
+			nport = nated_port + 1;
+			if (hooks->add_expect(calg, exp, &algport, &nport) == 0) {
+				exp->tuple.dst.u.tcp.port = htons(algport);
+				if (nf_ct_expect_related(exp) == 0)
+					break;
+				hooks->del_expect(exp);
+				/* we are enforced to use a different port to match the cone-napt,
+				 * so it's no meanning to try other ports once we fail. */
+				if (algport != nated_port) {
+					nated_port = 0;
+					break;
+				}
+			}
+		}
+		hooks->put(calg);
+	} else
+#endif
+#endif
 
 	/* Try to get same port: if not, try to change it. */
 	for (; nated_port != 0; nated_port++) {
@@ -396,7 +541,11 @@ static void ip_nat_q931_expect(struct nf_conn *new,
 			       struct nf_conntrack_expect *this)
 {
 	struct nf_nat_range range;
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	struct calg_hooks_t *hooks = rcu_dereference(calg_hooks_ptr);
+#endif
+#endif
 	if (this->tuple.src.u3.ip != 0) {	/* Only accept calls from GK */
 		nf_nat_follow_master(new, this);
 		return;
@@ -409,9 +558,25 @@ static void ip_nat_q931_expect(struct nf_conn *new,
 	range.flags = NF_NAT_RANGE_MAP_IPS;
 	range.min_addr = range.max_addr =
 	    new->tuplehash[!this->dir].tuple.src.u3;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && 
+		hooks->pubip_related(master_ct(new), range.min_ip) &&
+		hooks->out(new, &range) < 0) {
+		return ;
+	}
+#endif
+#endif
 	nf_nat_setup_info(new, &range, NF_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && hooks->in(new, this) < 0) {
+		return ;
+	}
+#endif
+#endif
 	range.flags = (NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED);
 	range.min_proto = range.max_proto = this->saved_proto;
 	range.min_addr = range.max_addr =
@@ -430,6 +595,11 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	int dir = CTINFO2DIR(ctinfo);
 	u_int16_t nated_port = ntohs(port);
 	union nf_inet_addr addr;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	struct calg_hooks_t *hooks = rcu_dereference(calg_hooks_ptr);
+#endif
+#endif
 
 	/* Set expectations for NAT */
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;
@@ -439,6 +609,42 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	/* Check existing expects */
 	if (info->sig_port[dir] == port)
 		nated_port = ntohs(info->sig_port[!dir]);
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && hooks->pubip_related(ct, exp->tuple.dst.u3.ip)) {
+		void *calg;
+		u_int16_t algport, nport;
+
+		calg = hooks->alloc(exp->saved_ip, // privip
+						exp->tuple.dst.u3.ip, // pubip
+						ntohs(exp->saved_proto.tcp.port), // privport
+						0, // pubport
+						exp->tuple.dst.protonum // protocol
+						);
+		if (!calg) {
+			return -1;
+		}
+
+		for (; nated_port != 0; nated_port = nport) {
+			algport = nated_port;
+			nport = nated_port + 1;
+			if (hooks->add_expect(calg, exp, &algport, &nport) == 0) {
+				exp->tuple.dst.u.tcp.port = htons(algport);
+				if (nf_ct_expect_related(exp) == 0)
+					break;
+				hooks->del_expect(exp);
+				/* we are enforced to use a different port to match the cone-napt,
+				 * so it's no meanning to try other ports once we fail. */
+				if (algport != nated_port) {
+					nated_port = 0;
+					break;
+				}
+			}
+		}
+		hooks->put(calg);
+	} else
+#endif
+#endif
 
 	/* Try to get same port: if not, try to change it. */
 	for (; nated_port != 0; nated_port++) {
@@ -495,7 +701,11 @@ static void ip_nat_callforwarding_expect(struct nf_conn *new,
 					 struct nf_conntrack_expect *this)
 {
 	struct nf_nat_range range;
-
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	struct calg_hooks_t *hooks = rcu_dereference(calg_hooks_ptr);
+#endif
+#endif
 	/* This must be a fresh one. */
 	BUG_ON(new->status & IPS_NAT_DONE_MASK);
 
@@ -503,9 +713,25 @@ static void ip_nat_callforwarding_expect(struct nf_conn *new,
 	range.flags = NF_NAT_RANGE_MAP_IPS;
 	range.min_addr = range.max_addr =
 	    new->tuplehash[!this->dir].tuple.src.u3;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && 
+		hooks->pubip_related(master_ct(new), range.min_ip) &&
+		hooks->out(new, &range) < 0) {
+		return ;
+	}
+#endif
+#endif
 	nf_nat_setup_info(new, &range, NF_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && hooks->in(new, this) < 0) {
+		return ;
+	}
+#endif
+#endif
 	range.flags = (NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED);
 	range.min_proto = range.max_proto = this->saved_proto;
 	range.min_addr = range.max_addr = this->saved_addr;
@@ -522,6 +748,11 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	u_int16_t nated_port;
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	struct calg_hooks_t *hooks = rcu_dereference(calg_hooks_ptr);
+#endif
+#endif
 
 	/* Set expectations for NAT */
 	exp->saved_addr = exp->tuple.dst.u3;
@@ -530,6 +761,42 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 	exp->expectfn = ip_nat_callforwarding_expect;
 	exp->dir = !dir;
 
+#ifdef __SC_BUILD__
+#ifdef CONFIG_CNAPT
+	if (hooks && hooks->pubip_related(ct, exp->tuple.dst.u3.ip)) {
+		void *calg;
+		u_int16_t algport, nport;
+
+		calg = hooks->alloc(exp->saved_ip, // privip
+						exp->tuple.dst.u3.ip, // pubip
+						ntohs(exp->saved_proto.tcp.port), // privport
+						0, // pubport
+						exp->tuple.dst.protonum // protocol
+						);
+		if (!calg) {
+			return -1;
+		}
+
+		for (nated_port = ntohs(port); nated_port != 0; nated_port = nport) {
+			algport = nated_port;
+			nport = nated_port + 1;
+			if (hooks->add_expect(calg, exp, &algport, &nport) == 0) {
+				exp->tuple.dst.u.tcp.port = htons(algport);
+				if (nf_ct_expect_related(exp) == 0)
+					break;
+				hooks->del_expect(exp);
+				/* we are enforced to use a different port to match the cone-napt,
+				 * so it's no meanning to try other ports once we fail. */
+				if (algport != nated_port) {
+					nated_port = 0;
+					break;
+				}
+			}
+		}
+		hooks->put(calg);
+	} else
+#endif
+#endif
 	/* Try to get same port: if not, try to change it. */
 	for (nated_port = ntohs(port); nated_port != 0; nated_port++) {
 		int ret;

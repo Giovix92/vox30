@@ -10,6 +10,13 @@ mmu-$(CONFIG_MMU)	:= gup.o highmem.o memory.o mincore.o \
 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
 			   vmalloc.o pagewalk.o pgtable-generic.o
 
+
+ifneq ($(strip $(CONFIG_BCM_KF_ASTRA)),)
+ifneq ($(strip $(CONFIG_BCM_ASTRA)),)
+mmu-$(CONFIG_MMU)	+= astra_mem.o
+endif
+endif
+
 ifdef CONFIG_CROSS_MEMORY_ATTACH
 mmu-$(CONFIG_MMU)	+= process_vm_access.o
 endif

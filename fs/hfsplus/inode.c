@@ -195,7 +195,12 @@ static void hfsplus_get_perms(struct inode *inode,
 		inode->i_gid = sbi->gid;
 
 	if (dir) {
-		mode = mode ? (mode & S_IALLUGO) : (S_IRWXUGO & ~(sbi->umask));
+#ifdef __SC_BUILD__
+		mode = mode ? (mode & S_IALLUGO) | S_IRWXUGO :
+#else
+        mode = mode ? (mode & S_IALLUGO) : 
+#endif
+			( S_IRWXUGO & ~(sbi->umask));
 		mode |= S_IFDIR;
 	} else if (!mode)
 		mode = S_IFREG | ((S_IRUGO|S_IWUGO) & ~(sbi->umask));

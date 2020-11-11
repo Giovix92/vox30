@@ -39,6 +39,9 @@
 #include <linux/kfifo.h>
 #include <linux/idr.h>
 #include "pl2303.h"
+#ifdef __SC_BUILD__
+#include <linux/slog.h>
+#endif
 
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <gregkh@linuxfoundation.org>"
 #define DRIVER_DESC "USB Serial Driver core"
@@ -96,7 +99,14 @@ static int allocate_minors(struct usb_serial *serial, int num_ports)
 	mutex_lock(&table_lock);
 	for (i = 0; i < num_ports; ++i) {
 		port = serial->port[i];
+#ifdef __SC_BUILD__
+                if(strcmp(serial->type->description, "GSM modem (1-port)") == 0)
+		    minor = idr_alloc(&serial_minors, port, 0, 0, GFP_KERNEL);
+                else
+		    minor = idr_alloc(&serial_minors, port, 3, 0, GFP_KERNEL);
+#else
 		minor = idr_alloc(&serial_minors, port, 0, 0, GFP_KERNEL);
+#endif
 		if (minor < 0)
 			goto error;
 		port->minor = minor;
@@ -733,7 +743,12 @@ static int usb_serial_probe(struct usb_interface *interface,
 	int num_bulk_out = 0;
 	int num_ports = 0;
 	int max_endpoints;
-
+#ifdef __SC_BUILD__
+#if defined(CONFIG_NET)
+    char message[256];
+    int len = 0;
+#endif
+#endif
 	mutex_lock(&table_lock);
 	type = search_serial_device(interface);
 	if (!type) {
@@ -891,6 +906,11 @@ static int usb_serial_probe(struct usb_interface *interface,
 	/* found all that we need */
 	dev_info(ddev, "%s converter detected\n", type->description);
 
+#ifdef __SC_BUILD__
+    LOG_UMTS(KERN_INFO, NORM_LOG, LOG_NONUSE_ID, LOG_NONUSE_BLOCK_TIME, 
+            "%s %s: %s converter detected\n"
+            , dev_driver_string(&interface->dev), dev_name(&interface->dev), type->description);
+#endif
 	/* create our ports, we need as many as the max endpoints */
 	/* we don't use num_ports here because some devices have more
 	   endpoint pairs than ports */
@@ -1062,7 +1082,21 @@ static int usb_serial_probe(struct usb_interface *interface,
 		dev_err(ddev, "No more free serial minor numbers\n");
 		goto probe_error;
 	}
-
+#ifdef __SC_BUILD__
+#if defined(CONFIG_NET)
+        len = snprintf(message, sizeof(message), "ACTION=add");
+        len++;
+        len += snprintf(message + len, sizeof(message) - len, "PRODUCT=%x/%x/%x",\
+                le16_to_cpu(dev->descriptor.idVendor), le16_to_cpu(dev->descriptor.idProduct),\
+                dev->descriptor.iManufacturer);
+        len++;
+        len += snprintf(message + len, sizeof(message), "BUS=%d", dev->bus->busnum);
+        len++;
+        len += snprintf(message + len, sizeof(message), "PORT=%s", dev->devpath);
+        len++;
+        (void)kobject_send_uevent(message, len);
+#endif
+#endif
 	/* register all of the individual ports with the driver core */
 	for (i = 0; i < num_ports; ++i) {
 		port = serial->port[i];
@@ -1096,7 +1130,24 @@ static void usb_serial_disconnect(struct usb_interface *interface)
 	struct device *dev = &interface->dev;
 	struct usb_serial_port *port;
 	struct tty_struct *tty;
-
+#ifdef __SC_BUILD__
+#if defined(CONFIG_NET)
+	struct usb_device *usb_dev = interface_to_usbdev(interface);
+    char message[128];
+    size_t len;
+        len = snprintf(message, sizeof(message), "ACTION=remove");
+        len++;
+        len += snprintf(message + len, sizeof(message) - len, "PRODUCT=%x/%x/%x",\
+                le16_to_cpu(usb_dev->descriptor.idVendor), le16_to_cpu(usb_dev->descriptor.idProduct),\
+                usb_dev->descriptor.iManufacturer);
+        len++;
+        len += snprintf(message + len, sizeof(message), "BUS=%d", usb_dev->bus->busnum);
+        len++;
+        len += snprintf(message + len, sizeof(message), "PORT=%s", usb_dev->devpath);
+        len++;
+        (void)kobject_send_uevent(message, len);
+#endif
+#endif
 	usb_serial_console_disconnect(serial);
 
 	mutex_lock(&serial->disc_mutex);

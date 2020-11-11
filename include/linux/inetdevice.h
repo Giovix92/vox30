@@ -40,10 +40,13 @@ struct in_device {
 	unsigned char		mr_ifc_count;
 	struct timer_list	mr_gq_timer;	/* general query timer */
 	struct timer_list	mr_ifc_timer;	/* interface change timer */
-
 	struct neigh_parms	*arp_parms;
 	struct ipv4_devconf	cnf;
 	struct rcu_head		rcu_head;
+#ifdef __SC_BUILD__
+        struct timer_list   mr_atv_timer;   /* active timer for send report periodic */
+#endif
+
 };
 
 #define IPV4_DEVCONF(cnf, attr) ((cnf).data[IPV4_DEVCONF_ ## attr - 1])
@@ -163,6 +166,9 @@ int inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
 int devinet_ioctl(struct net *net, unsigned int cmd, void __user *);
 void devinet_init(void);
 struct in_device *inetdev_by_index(struct net *, int);
+#ifdef __SC_BUILD__
+extern __be32       inet_select_addr_x(const struct net_device *dev, __be32 dst, int scope);
+#endif
 __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope);
 __be32 inet_confirm_addr(struct net *net, struct in_device *in_dev, __be32 dst,
 			 __be32 local, int scope);

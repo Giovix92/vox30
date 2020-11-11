@@ -32,7 +32,18 @@ struct nf_loginfo {
 		} log;
 	} u;
 };
-
+#ifdef __SC_BUILD__
+typedef void nf_logfn(struct net *net,
+		      u_int8_t pf,
+		      unsigned int hooknum,
+		      const struct sk_buff *skb,
+		      const struct net_device *in,
+		      const struct net_device *out,
+		      const struct nf_loginfo *li,
+		      const char *prefix,
+			  const char *suffix
+			  );
+#else
 typedef void nf_logfn(struct net *net,
 		      u_int8_t pf,
 		      unsigned int hooknum,
@@ -41,7 +52,7 @@ typedef void nf_logfn(struct net *net,
 		      const struct net_device *out,
 		      const struct nf_loginfo *li,
 		      const char *prefix);
-
+#endif
 struct nf_logger {
 	char			*name;
 	enum nf_log_type	type;
@@ -69,6 +80,15 @@ void nf_logger_request_module(int pf, enum nf_log_type type);
 	MODULE_ALIAS("nf-logger-" __stringify(family) "-" __stringify(type))
 
 /* Calls the registered backend logging function */
+__printf(9, 10)
+void nf_log_packet_x(struct net *net,
+		   u_int8_t pf,
+		   unsigned int hooknum,
+		   const struct sk_buff *skb,
+		   const struct net_device *in,
+		   const struct net_device *out,
+		   const struct nf_loginfo *loginfo, const char *suffix,
+		   const char *fmt, ...);
 __printf(8, 9)
 void nf_log_packet(struct net *net,
 		   u_int8_t pf,
@@ -102,11 +122,21 @@ int nf_log_dump_tcp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 			   u8 proto, int fragment, unsigned int offset,
 			   unsigned int logflags);
 void nf_log_dump_sk_uid_gid(struct nf_log_buf *m, struct sock *sk);
+#ifdef __SC_BUILD__
+void nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
+			       unsigned int hooknum, const struct sk_buff *skb,
+			       const struct net_device *in,
+			       const struct net_device *out,
+			       const struct nf_loginfo *loginfo,
+			       const char *prefix, const char *suffix);
+
+#else
 void nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 			       unsigned int hooknum, const struct sk_buff *skb,
 			       const struct net_device *in,
 			       const struct net_device *out,
 			       const struct nf_loginfo *loginfo,
 			       const char *prefix);
+#endif
 
 #endif /* _NF_LOG_H */

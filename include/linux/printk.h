@@ -230,6 +230,10 @@ static inline void show_regs_print_info(const char *log_lvl)
 
 extern asmlinkage void dump_stack(void) __cold;
 
+#if defined(CONFIG_BCM_KF_EXTRA_DEBUG)
+extern int bcm_printk(const char *fmt, ...);
+#endif
+
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt
 #endif

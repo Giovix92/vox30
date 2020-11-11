@@ -192,7 +192,13 @@ EXPORT_SYMBOL(__local_bh_enable_ip);
  * should not be able to lock up the box.
  */
 #define MAX_SOFTIRQ_TIME  msecs_to_jiffies(2)
+#ifdef __SC_BUILD__
+#define MAX_SOFTIRQ_RESTART 2
+int max_sirq_restart = MAX_SOFTIRQ_RESTART;
+EXPORT_SYMBOL(max_sirq_restart);
+#else
 #define MAX_SOFTIRQ_RESTART 10
+#endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 /*
@@ -231,7 +237,11 @@ asmlinkage __visible void __do_softirq(void)
 {
 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
 	unsigned long old_flags = current->flags;
+#ifdef __SC_BUILD__
+    int max_restart = max_sirq_restart;
+#else
 	int max_restart = MAX_SOFTIRQ_RESTART;
+#endif
 	struct softirq_action *h;
 	bool in_hardirq;
 	__u32 pending;

@@ -21,9 +21,23 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_log.h>
+#ifdef __SC_BUILD__ 
+#include <sc/sc_spi.h>
+#include <linux/export.h>
+#endif
 
+#if defined(__SC_BUILD__) && defined(CONFIG_SUPPORT_SPI_FIREWALL)
+unsigned int nf_ct_icmp_timeout __read_mostly = 30*HZ;
+int nf_ct_icmp_flood_enable __read_mostly = 0;
+int nf_ct_icmp_flood_speed __read_mostly = 200;
+#else
 static unsigned int nf_ct_icmp_timeout __read_mostly = 30*HZ;
-
+#endif
+#if defined(__SC_BUILD__) && defined(CONFIG_SUPPORT_SPI_FIREWALL)
+EXPORT_SYMBOL_GPL(nf_ct_icmp_timeout);
+EXPORT_SYMBOL_GPL(nf_ct_icmp_flood_enable);
+EXPORT_SYMBOL_GPL(nf_ct_icmp_flood_speed);
+#endif
 static inline struct nf_icmp_net *icmp_pernet(struct net *net)
 {
 	return &net->ct.nf_ct_proto.icmp;
@@ -131,12 +145,26 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		 enum ip_conntrack_info *ctinfo,
 		 unsigned int hooknum)
 {
+#if defined(CONFIG_BCM_KF_NETFILTER)
+	struct inside {
+		struct icmphdr icmp;
+		struct iphdr ip;
+	} __attribute__((packed));
+	struct inside _in, *pIn; 
+#endif
 	struct nf_conntrack_tuple innertuple, origtuple;
 	const struct nf_conntrack_l4proto *innerproto;
 	const struct nf_conntrack_tuple_hash *h;
 	u16 zone = tmpl ? nf_ct_zone(tmpl) : NF_CT_DEFAULT_ZONE;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
+
+#if defined(CONFIG_BCM_KF_NETFILTER)
+	/* Not enough header? */
+	pIn = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_in), &_in);
+	if (pIn == NULL)
+		return -NF_ACCEPT;
+#endif
 
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuplepr(skb,
@@ -148,7 +176,13 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	}
 
 	/* rcu_read_lock()ed by nf_hook_slow */
+#if defined(CONFIG_BCM_KF_NETFILTER)
+	innerproto = __nf_ct_l4proto_find(PF_INET, pIn->ip.protocol);
+	origtuple.src.u3.ip = pIn->ip.saddr;
+	origtuple.dst.u3.ip = pIn->ip.daddr;
+#else
 	innerproto = __nf_ct_l4proto_find(PF_INET, origtuple.dst.protonum);
+#endif
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
@@ -323,7 +357,25 @@ static struct ctl_table icmp_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{ }
+#ifdef __SC_BUILD__
+#ifdef CONFIG_SUPPORT_SPI_FIREWALL
+	{
+		.procname	= "nf_conntrack_icmp_flood_enable",
+		.data		= &nf_ct_icmp_flood_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "nf_conntrack_icmp_flood_speed",
+		.data		= &nf_ct_icmp_flood_speed,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+#endif
+	{ },
 };
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 static struct ctl_table icmp_compat_sysctl_table[] = {

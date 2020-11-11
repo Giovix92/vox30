@@ -24,8 +24,23 @@
 #include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
-
+#ifdef __SC_BUILD__
+#include <linux/netfilter/x_tables.h>
+#include <net/netfilter/nf_conntrack_core.h>
+#include <linux/netfilter/nf_conntrack_common.h>
+#include <linux/netfilter.h>
+#endif
 #include "nf_internals.h"
+
+#if defined(CONFIG_BCM_KF_RUNNER)
+#if defined(CONFIG_BCM_RDPA) || defined(CONFIG_BCM_RDPA_MODULE)
+#if defined(CONFIG_BCM_RUNNER_RG) || defined(CONFIG_BCM_RUNNER_RG_MODULE)
+#include <net/bl_ops.h>
+struct bl_ops_t *bl_ops = NULL;
+EXPORT_SYMBOL(bl_ops);
+#endif /* CONFIG_BCM_RUNNER_RG || CONFIG_BCM_RUNNER_RG_MODULE */
+#endif /* CONFIG_BCM_RUNNER */
+#endif /* CONFIG_BCM_KF_RUNNER */
 
 static DEFINE_MUTEX(afinfo_mutex);
 
@@ -126,6 +141,43 @@ unsigned int nf_iterate(struct list_head *head,
 {
 	unsigned int verdict;
 
+
+#ifdef __SC_BUILD__
+    struct nf_conn *ct;
+    enum ip_conntrack_info ctinfo;
+
+
+    if(state->hook ==  NF_INET_FORWARD || state->hook ==  NF_INET_POST_ROUTING)
+    {
+	ct = nf_ct_get(skb, &ctinfo);
+	if (ct)
+        {
+
+            spin_lock_bh(&nf_conntrack_expect_lock);
+            if(state->in)
+            {
+                if(ct->ifindex[IP_CT_DIR_ORIGINAL] == 0)
+                    ct->ifindex[IP_CT_DIR_ORIGINAL] = state->in->ifindex;
+                else
+                {
+                    if(ct->ifindex[IP_CT_DIR_REPLY] == 0)
+                        ct->ifindex[IP_CT_DIR_REPLY] = state->in->ifindex;
+                }
+            }
+            if(state->out)
+            {
+                if(ct->ifindex[IP_CT_DIR_ORIGINAL] == 0)
+                    ct->ifindex[IP_CT_DIR_ORIGINAL] = state->out->ifindex;
+                else
+                {
+                    if(ct->ifindex[IP_CT_DIR_REPLY] == 0)
+                        ct->ifindex[IP_CT_DIR_REPLY] = state->out->ifindex;
+                }
+            }
+            spin_unlock_bh(&nf_conntrack_expect_lock);
+        }
+    }
+#endif
 	/*
 	 * The caller must not block between calls to this
 	 * function because of risk of continuing from deleted element.
@@ -267,7 +319,44 @@ EXPORT_SYMBOL_GPL(nfq_ct_nat_hook);
 void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
 EXPORT_SYMBOL(nf_nat_decode_session_hook);
 #endif
+#ifdef __SC_BUILD__
+extern void nf_conntrack_flush_by_interface(struct net_device *dev);
+static int nf_cleanup_conntrack_write (struct file *file, const char *buffer, size_t count, loff_t *offset) 
+{
+	char cmd[32];
+    int j;
+	struct net_device *dev;
+    memset(cmd, 0, sizeof(cmd));
+	/* Validate the length of data passed. */
+	if (count > (sizeof(cmd) - 1))
+		count = (sizeof(cmd) - 1);
+	
+	/* Copy from user space. */	
+	if (copy_from_user (&cmd, buffer, count))
+    {
+		return -EFAULT;
+    }
+    for(j = 0; j < strlen(cmd); j++)
+        if(cmd[j] == '\n')
+            cmd[j] = '\0';
+    if(strlen(cmd))
+    {
+        dev = dev_get_by_name(&init_net, cmd);
+        if(dev)    
+        {
+            nf_conntrack_flush_by_interface(dev); 
+            dev_put(dev);
+        }
+    }
+	return count;
+}
+static int nf_cleanup_conntrack_read(struct file * file, char * buff, size_t len, loff_t *pos)
+{
+    int ret = 0;
+    return ret;
+}
 
+#endif
 static int __net_init netfilter_net_init(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
@@ -292,11 +381,18 @@ static struct pernet_operations netfilter_net_ops = {
 	.init = netfilter_net_init,
 	.exit = netfilter_net_exit,
 };
-
+#ifdef __SC_BUILD__
+static struct file_operations nf_cleanup_conntrack_proc = {
+    .read=nf_cleanup_conntrack_read,
+    .write=nf_cleanup_conntrack_write,
+};
+#endif
 int __init netfilter_init(void)
 {
 	int i, h, ret;
-
+#ifdef __SC_BUILD__
+   struct proc_dir_entry *ptr_dir_entry;
+#endif
 	for (i = 0; i < ARRAY_SIZE(nf_hooks); i++) {
 		for (h = 0; h < NF_MAX_HOOKS; h++)
 			INIT_LIST_HEAD(&nf_hooks[i][h]);
@@ -309,6 +405,13 @@ int __init netfilter_init(void)
 	ret = netfilter_log_init();
 	if (ret < 0)
 		goto err_pernet;
+#ifdef __SC_BUILD__
+    ptr_dir_entry = proc_create("cleanup_conntrack" ,0644, init_net.proc_net, &nf_cleanup_conntrack_proc);
+    if (ptr_dir_entry == NULL)
+	{
+		panic("cannot create cleanup conntrack proc entry");
+    }
+#endif
 
 	return 0;
 err_pernet:

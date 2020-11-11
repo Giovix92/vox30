@@ -51,7 +51,11 @@ static unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED;
 int __read_mostly nmi_watchdog_enabled;
 int __read_mostly soft_watchdog_enabled;
 int __read_mostly watchdog_user_enabled;
+#ifdef __SC_BUILD__
+int __read_mostly watchdog_thresh = 240;
+#else
 int __read_mostly watchdog_thresh = 10;
+#endif
 
 #ifdef CONFIG_SMP
 int __read_mostly sysctl_softlockup_all_cpu_backtrace;
@@ -397,7 +401,11 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 				return HRTIMER_RESTART;
 			}
 		}
+#ifdef __SC_BUILD__
 
+        console_loglevel = 8;
+
+#endif
 		pr_emerg("BUG: soft lockup - CPU#%d stuck for %us! [%s:%d]\n",
 			smp_processor_id(), duration,
 			current->comm, task_pid_nr(current));

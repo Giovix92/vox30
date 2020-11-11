@@ -38,6 +38,12 @@
 #include <linux/route.h>
 #include <net/route.h>
 #include <net/xfrm.h>
+#ifdef __SC_BUILD__
+#include <linux/netfilter/x_tables.h>
+#include <net/netfilter/nf_conntrack_core.h>
+#include <linux/netfilter/nf_conntrack_common.h>
+#include <linux/netfilter.h>
+#endif
 
 static bool ip_may_fragment(const struct sk_buff *skb)
 {
@@ -78,6 +84,13 @@ int ip_forward(struct sk_buff *skb)
 	struct rtable *rt;	/* Route we use */
 	struct ip_options *opt	= &(IPCB(skb)->opt);
 
+#ifdef __SC_BUILD__
+    struct nf_conn *ct;
+    enum ip_conntrack_info ctinfo;
+    ct = nf_ct_get(skb, &ctinfo);
+    if(ct)
+        ct->local = 0;
+#endif
 	/* that should never happen */
 	if (skb->pkt_type != PACKET_HOST)
 		goto drop;
@@ -136,8 +149,19 @@ int ip_forward(struct sk_buff *skb)
 	if (IPCB(skb)->flags & IPSKB_DOREDIRECT && !opt->srr &&
 	    !skb_sec_path(skb))
 		ip_rt_send_redirect(skb);
-
+#ifdef __SC_BUILD__ 
+    if(skb->priority == 0)
+#endif
 	skb->priority = rt_tos2priority(iph->tos);
+
+#if defined(CONFIG_BCM_KF_WANDEV)
+#if !defined(CONFIG_BCM_WAN_2_WAN_FWD_ENABLED)
+	/* Never forward a packet from a WAN intf to the other WAN intf */
+	if( (skb->dev) && (rt->dst.dev) && 
+		((skb->dev->priv_flags & rt->dst.dev->priv_flags) & IFF_WANDEV) )
+		goto drop;
+#endif
+#endif
 
 	return NF_HOOK(NFPROTO_IPV4, NF_INET_FORWARD, NULL, skb,
 		       skb->dev, rt->dst.dev, ip_forward_finish);

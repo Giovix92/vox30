@@ -77,6 +77,7 @@ int nf_log_dump_tcp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 	nf_log_buf_add(m, "SPT=%u DPT=%u ",
 		       ntohs(th->source), ntohs(th->dest));
 	/* Max length: 30 "SEQ=4294967295 ACK=4294967295 " */
+#ifndef __SC_BUILD__
 	if (logflags & XT_LOG_TCPSEQ) {
 		nf_log_buf_add(m, "SEQ=%u ACK=%u ",
 			       ntohl(th->seq), ntohl(th->ack_seq));
@@ -127,7 +128,7 @@ int nf_log_dump_tcp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 
 		nf_log_buf_add(m, ") ");
 	}
-
+#endif
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_log_dump_tcp_header);
@@ -147,18 +148,31 @@ void nf_log_dump_sk_uid_gid(struct nf_log_buf *m, struct sock *sk)
 	read_unlock_bh(&sk->sk_callback_lock);
 }
 EXPORT_SYMBOL_GPL(nf_log_dump_sk_uid_gid);
-
+#ifdef __SC_BUILD__
+void
+nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
+			  unsigned int hooknum, const struct sk_buff *skb,
+			  const struct net_device *in,
+			  const struct net_device *out,
+			  const struct nf_loginfo *loginfo, const char *prefix, const char *suffix)
+#else
 void
 nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 			  unsigned int hooknum, const struct sk_buff *skb,
 			  const struct net_device *in,
 			  const struct net_device *out,
 			  const struct nf_loginfo *loginfo, const char *prefix)
+#endif
 {
+#ifdef __SC_BUILD__
+	nf_log_buf_add(m, KERN_SOH "%c%s ",
+	       '0' + loginfo->u.log.level, prefix);
+#else
 	nf_log_buf_add(m, KERN_SOH "%c%sIN=%s OUT=%s ",
 	       '0' + loginfo->u.log.level, prefix,
 	       in ? in->name : "",
 	       out ? out->name : "");
+#endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (skb->nf_bridge) {
 		const struct net_device *physindev;

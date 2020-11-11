@@ -264,4 +264,10 @@ unsigned long __round_jiffies_up_relative(unsigned long j, int cpu);
 unsigned long round_jiffies_up(unsigned long j);
 unsigned long round_jiffies_up_relative(unsigned long j);
 
+#ifdef __SC_BUILD__
+void BcmStartWdTimer(unsigned long timeUs);
+void BcmSetWdTimerFired(unsigned long timeUs);
+void BcmReloadWdTimer(unsigned long timeUs);
+void BcmStopWdTimer(void);
+#endif
 #endif

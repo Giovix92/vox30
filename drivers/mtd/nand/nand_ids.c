@@ -50,7 +50,20 @@ struct nand_flash_dev nand_flash_ids[] = {
 		{ .id = {0xad, 0xde, 0x94, 0xda, 0x74, 0xc4} },
 		  SZ_8K, SZ_8K, SZ_2M, 0, 6, 640, NAND_ECC_INFO(40, SZ_1K),
 		  4 },
+#if defined(CONFIG_BCM_KF_MTD_BCMNAND)
+	/* list all the NOP=1 SLC device here */
+	{"K9F1G08U0E 128MiB 3.3V 8-bit",
+		{ .id = {0xec, 0xf1, 0x00, 0x95, 0x41} },
+		  SZ_2K, SZ_128, SZ_128K, NAND_PAGE_NOP1, 5, 64, NAND_ECC_INFO(1, SZ_512) },
 
+	/* list all the device here with non default timing parameter */
+	{"HY27UF082G2A 256MiB 3.3V 8-bit",
+		{ .id = {0xad, 0xda, 0x80, 0x1d, 0x00} },
+		  SZ_2K, SZ_256, SZ_128K, 0, 5, 64, NAND_ECC_INFO(1, SZ_512), 0, 0x00420000, 0x00000005 },
+	{"HY27U4G8F2D ??512MiB?? 3.3V 8-bit", /* No datasheet available.. best guess */
+		{ .id = {0xad, 0xdc} },
+		  SZ_2K, SZ_512, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512), 0, 0x00420000, 0x00000005 },
+#endif
 	LEGACY_ID_NAND("NAND 4MiB 5V 8-bit",   0x6B, 4, SZ_8K, SP_OPTIONS),
 	LEGACY_ID_NAND("NAND 4MiB 3,3V 8-bit", 0xE3, 4, SZ_8K, SP_OPTIONS),
 	LEGACY_ID_NAND("NAND 4MiB 3,3V 8-bit", 0xE5, 4, SZ_8K, SP_OPTIONS),
@@ -102,6 +115,12 @@ struct nand_flash_dev nand_flash_ids[] = {
 	EXTENDED_ID_NAND("NAND 128MiB 1,8V 8-bit",  0xA1, 128, LP_OPTIONS),
 	EXTENDED_ID_NAND("NAND 128MiB 3,3V 8-bit",  0xF1, 128, LP_OPTIONS),
 	EXTENDED_ID_NAND("NAND 128MiB 3,3V 8-bit",  0xD1, 128, LP_OPTIONS),
+#if defined(CONFIG_BCM_KF_MTD_BCMNAND)
+	EXTENDED_ID_NAND("NAND 128MiB 3,3V 8-bit",  0x12, 128, LP_OPTIONS), // Micron MT29F1G01AA SPI NAND
+	EXTENDED_ID_NAND("NAND 128MiB 3,3V 8-bit",  0x14, 128, LP_OPTIONS), // Micron MT29F1G01AB SPI NAND
+	EXTENDED_ID_NAND("NAND 128MiB 3,3V 8-bit",  0x21, 128, LP_OPTIONS), // ESMT F50L1G41A SPI NAND
+	EXTENDED_ID_NAND("NAND 128MiB 3,3V 8-bit",  0x11, 128, LP_OPTIONS), // Etron EM73C044 SPI NAND
+#endif
 	EXTENDED_ID_NAND("NAND 128MiB 1,8V 16-bit", 0xB1, 128, LP_OPTIONS16),
 	EXTENDED_ID_NAND("NAND 128MiB 3,3V 16-bit", 0xC1, 128, LP_OPTIONS16),
 	EXTENDED_ID_NAND("NAND 128MiB 1,8V 16-bit", 0xAD, 128, LP_OPTIONS16),
@@ -109,12 +128,22 @@ struct nand_flash_dev nand_flash_ids[] = {
 	/* 2 Gigabit */
 	EXTENDED_ID_NAND("NAND 256MiB 1,8V 8-bit",  0xAA, 256, LP_OPTIONS),
 	EXTENDED_ID_NAND("NAND 256MiB 3,3V 8-bit",  0xDA, 256, LP_OPTIONS),
+#if defined(CONFIG_BCM_KF_MTD_BCMNAND)
+	EXTENDED_ID_NAND("NAND 256MiB 3,3V 8-bit",  0xD2, 256, LP_OPTIONS), // Gigadevice GD5F2GQ4UB SPI NAND
+	EXTENDED_ID_NAND("NAND 256MiB 3,3V 8-bit",  0x22, 256, LP_OPTIONS), // Micron MT29F2G01AA SPI NAND
+	EXTENDED_ID_NAND("NAND 256MiB 3,3V 8-bit",  0x24, 256, LP_OPTIONS), // Micron MT29F2G01AB SPI NAND
+	EXTENDED_ID_NAND("NAND 256MiB 3,3V 8-bit",  0xCB, 256, LP_OPTIONS), // Toshiba TC58CVG1S3 SPI NAND
+#endif
 	EXTENDED_ID_NAND("NAND 256MiB 1,8V 16-bit", 0xBA, 256, LP_OPTIONS16),
 	EXTENDED_ID_NAND("NAND 256MiB 3,3V 16-bit", 0xCA, 256, LP_OPTIONS16),
 
 	/* 4 Gigabit */
 	EXTENDED_ID_NAND("NAND 512MiB 1,8V 8-bit",  0xAC, 512, LP_OPTIONS),
 	EXTENDED_ID_NAND("NAND 512MiB 3,3V 8-bit",  0xDC, 512, LP_OPTIONS),
+#if defined(CONFIG_BCM_KF_MTD_BCMNAND)
+	EXTENDED_ID_NAND("NAND 512MiB 3,3V 8-bit",  0xD4, 512, LP_OPTIONS), // Gigadevice GD5F4GQ4UB SPI NAND
+	EXTENDED_ID_NAND("NAND 512MiB 3,3V 8-bit",  0x32, 512, LP_OPTIONS), // Micron MT29F4G01AA SPI NAND
+#endif
 	EXTENDED_ID_NAND("NAND 512MiB 1,8V 16-bit", 0xBC, 512, LP_OPTIONS16),
 	EXTENDED_ID_NAND("NAND 512MiB 3,3V 16-bit", 0xCC, 512, LP_OPTIONS16),
 
@@ -179,6 +208,9 @@ struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_SANDISK, "SanDisk"},
 	{NAND_MFR_INTEL, "Intel"},
 	{NAND_MFR_ATO, "ATO"},
+#if defined(CONFIG_BCM_KF_MTD_BCMNAND)
+	{NAND_MFR_GIGADEVICE, "Gigadevice"},
+#endif
 	{0x0, "Unknown"}
 };
 

@@ -82,6 +82,10 @@
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #endif
+#ifdef CONFIG_CRASH_LOG
+#include <linux/reboot.h>
+#include <linux/hal_wd.h>
+#endif
 
 #include "sched.h"
 #include "../workqueue_internal.h"
@@ -296,7 +300,11 @@ const_debug unsigned int sysctl_sched_time_avg = MSEC_PER_SEC;
  * period over which we measure -rt task cpu usage in us.
  * default: 1s
  */
+#if defined(CONFIG_BCM_KF_SCHED_RT) && defined(CONFIG_BCM_SCHED_RT_PERIOD)
+unsigned int sysctl_sched_rt_period = CONFIG_BCM_SCHED_RT_PERIOD;
+#else
 unsigned int sysctl_sched_rt_period = 1000000;
+#endif
 
 __read_mostly int scheduler_running;
 
@@ -304,7 +312,12 @@ __read_mostly int scheduler_running;
  * part of the period that we allow rt tasks to run in us.
  * default: 0.95s
  */
+#if defined(CONFIG_BCM_KF_SCHED_RT) && defined(CONFIG_BCM_SCHED_RT_RUNTIME)
+/* RT task takes 100% of time */
+int sysctl_sched_rt_runtime = CONFIG_BCM_SCHED_RT_RUNTIME;
+#else
 int sysctl_sched_rt_runtime = 950000;
+#endif
 
 /* cpus with isolated domains */
 cpumask_var_t cpu_isolated_map;
@@ -2655,6 +2668,10 @@ static noinline void __schedule_bug(struct task_struct *prev)
 #endif
 	dump_stack();
 	add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
+#ifdef CONFIG_CRASH_LOG
+	sc_boot_flag = REBOOT_CPU_LOCKUP;
+//	emergency_restart();
+#endif
 }
 
 /*

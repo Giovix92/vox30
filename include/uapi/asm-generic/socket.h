@@ -86,5 +86,10 @@
 
 #define SO_ATTACH_BPF		50
 #define SO_DETACH_BPF		SO_DETACH_FILTER
+#ifdef __SC_BUILD__
+#define SO_APPID 100
+#define SO_FLOWID 101
+#define SO_SC_MARK 102
+#endif
 
 #endif /* __ASM_GENERIC_SOCKET_H */

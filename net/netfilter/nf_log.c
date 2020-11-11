@@ -187,7 +187,6 @@ void nf_logger_put(int pf, enum nf_log_type type)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_logger_put);
-
 void nf_log_packet(struct net *net,
 		   u_int8_t pf,
 		   unsigned int hooknum,
@@ -211,12 +210,45 @@ void nf_log_packet(struct net *net,
 		va_start(args, fmt);
 		vsnprintf(prefix, sizeof(prefix), fmt, args);
 		va_end(args);
+#ifdef __SC_BUILD__
+        logger->logfn(net, pf, hooknum, skb, in, out, loginfo, prefix, NULL);
+#else
 		logger->logfn(net, pf, hooknum, skb, in, out, loginfo, prefix);
+#endif
 	}
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(nf_log_packet);
+#ifdef __SC_BUILD__
+void nf_log_packet_x(struct net *net,
+		   u_int8_t pf,
+		   unsigned int hooknum,
+		   const struct sk_buff *skb,
+		   const struct net_device *in,
+		   const struct net_device *out,
+		   const struct nf_loginfo *loginfo, const char *suffix,
+		   const char *fmt, ...)
+{
+	va_list args;
+	char prefix[NF_LOG_PREFIXLEN];
+	const struct nf_logger *logger;
 
+	rcu_read_lock();
+	if (loginfo != NULL)
+		logger = rcu_dereference(loggers[pf][loginfo->type]);
+	else
+		logger = rcu_dereference(net->nf.nf_loggers[pf]);
+
+	if (logger) {
+		va_start(args, fmt);
+		vsnprintf(prefix, sizeof(prefix), fmt, args);
+		va_end(args);
+        logger->logfn(net, pf, hooknum, skb, in, out, loginfo, prefix, suffix);
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(nf_log_packet_x);
+#endif
 void nf_log_trace(struct net *net,
 		  u_int8_t pf,
 		  unsigned int hooknum,
@@ -235,7 +267,11 @@ void nf_log_trace(struct net *net,
 		va_start(args, fmt);
 		vsnprintf(prefix, sizeof(prefix), fmt, args);
 		va_end(args);
+#ifdef __SC_BUILD__
+		logger->logfn(net, pf, hooknum, skb, in, out, loginfo, prefix, NULL);
+#else
 		logger->logfn(net, pf, hooknum, skb, in, out, loginfo, prefix);
+#endif
 	}
 	rcu_read_unlock();
 }

@@ -33,6 +33,12 @@ classify_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_classify_target_info *clinfo = par->targinfo;
 
+#if defined(CONFIG_BCM_KF_BLOG) && defined(CONFIG_BLOG_FEATURE)
+	skb->ipt_check |= IPT_TARGET_CLASSIFY;
+	if ( skb->ipt_check & IPT_TARGET_CHECK )
+		return XT_CONTINUE;
+#endif
+
 	skb->priority = clinfo->priority;
 	return XT_CONTINUE;
 }
@@ -58,14 +64,46 @@ static struct xt_target classify_tg_reg[] __read_mostly = {
 		.me         = THIS_MODULE,
 	},
 };
-
+#ifdef __SC_BUILD__
+static bool classify_mt(const struct sk_buff *skb, struct xt_action_param *par)
+{
+	const struct xt_classify_target_info *info = par->matchinfo;
+	return (info->priority == skb->priority);
+}
+static struct xt_match classify_mt_reg __read_mostly = {
+	.name           = "classify",
+	.revision       = 0,
+	.family         = NFPROTO_UNSPEC,
+	.match          = classify_mt,
+	.matchsize      = sizeof(struct xt_classify_target_info),
+	.me             = THIS_MODULE,
+};
+#endif
 static int __init classify_tg_init(void)
 {
+#ifdef __SC_BUILD__
+    int ret = 0 ;
+
+    ret = xt_register_match(&classify_mt_reg);
+    if(ret < 0)
+        return ret;
+    ret = xt_register_targets(classify_tg_reg, ARRAY_SIZE(classify_tg_reg));
+    if(ret < 0)
+    {
+        xt_unregister_match(&classify_mt_reg);
+        return ret;
+    }
+    return 0;
+#else
 	return xt_register_targets(classify_tg_reg, ARRAY_SIZE(classify_tg_reg));
+#endif
 }
 
 static void __exit classify_tg_exit(void)
 {
+#ifdef __SC_BUILD__
+	xt_unregister_match(&classify_mt_reg);
+#endif
 	xt_unregister_targets(classify_tg_reg, ARRAY_SIZE(classify_tg_reg));
 }
 

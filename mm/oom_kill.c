@@ -36,6 +36,11 @@
 #include <linux/ftrace.h>
 #include <linux/ratelimit.h>
 
+#ifdef CONFIG_CRASH_LOG
+#include <linux/reboot.h>
+#include <linux/hal_wd.h>
+#endif
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/oom.h>
 
@@ -194,6 +199,8 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
 /*
  * Determine the type of allocation constraint.
  */
+#if !defined(CONFIG_BCM_KF_OOM_REBOOT)
+
 #ifdef CONFIG_NUMA
 static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 				gfp_t gfp_mask, nodemask_t *nodemask,
@@ -253,6 +260,7 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 	return CONSTRAINT_NONE;
 }
 #endif
+#endif   /* CONFIG_BCM_KF_OOM_REBOOT */
 
 enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 		unsigned long totalpages, const nodemask_t *nodemask,
@@ -285,6 +293,7 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 	return OOM_SCAN_OK;
 }
 
+#if !defined(CONFIG_BCM_KF_OOM_REBOOT)
 /*
  * Simple selection loop. We chose the process with the highest
  * number of 'points'.  Returns -1 on scan abort.
@@ -335,6 +344,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
 	return chosen;
 }
 
+#endif
 /**
  * dump_tasks - dump current memory state of all system tasks
  * @memcg: current's memory controller, if constrained
@@ -406,6 +416,7 @@ static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);
 
 bool oom_killer_disabled __read_mostly;
 static DECLARE_RWSEM(oom_sem);
+
 
 /**
  * mark_tsk_oom_victim - marks the given task as OOM victim.
@@ -493,6 +504,8 @@ void oom_killer_enable(void)
 	up_write(&oom_sem);
 }
 
+
+
 #define K(x) ((x) << (PAGE_SHIFT-10))
 /*
  * Must be called while holding a reference to p, which will be released upon
@@ -531,6 +544,11 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
 		message, task_pid_nr(p), p->comm, points);
 	task_unlock(p);
+
+#ifdef CONFIG_CRASH_LOG
+	sc_boot_flag = REBOOT_FROM_KILL_OTHER_PROGRESS ;
+//	emergency_restart();
+#endif
 
 	/*
 	 * If any of p's children has a different mm and is eligible for kill,
@@ -707,6 +725,13 @@ void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_mask)
 static void __out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		int order, nodemask_t *nodemask, bool force_kill)
 {
+#if defined(CONFIG_BCM_KF_OOM_REBOOT)
+#define OOM_REBOOT_DELAY (5)
+#define OOM_REBOOT_INTERVAL (HZ*120)
+	static int oom_count=0;
+	static unsigned long oom_timestamp=0;
+	unsigned long freed = 0;
+#else
 	const nodemask_t *mpol_mask;
 	struct task_struct *p;
 	unsigned long totalpages;
@@ -714,6 +739,7 @@ static void __out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	unsigned int uninitialized_var(points);
 	enum oom_constraint constraint = CONSTRAINT_NONE;
 	int killed = 0;
+#endif
 
 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
 	if (freed > 0)
@@ -733,6 +759,45 @@ static void __out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		mark_tsk_oom_victim(current);
 		return;
 	}
+
+#if defined(CONFIG_BCM_KF_OOM_REBOOT)
+
+	/* For our embedded system, most of the processes are considered essential. */
+	/* Randomly killing a process is no better than a reboot so we won't kill process here*/
+	
+	printk(KERN_WARNING "\n\n%s triggered out of memory codition (oom killer not called): "
+		"gfp_mask=0x%x, order=%d, oom_score_adj=%d\n\n",
+		current->comm, gfp_mask, order, current->signal->oom_score_adj);
+	dump_stack();
+	show_mem(0);
+	printk("\n");
+	/*
+	 * The process that triggered the oom is not necessarily the one that
+	 * caused it.  dump_tasks shows all tasks and their memory usage.
+	 */
+	read_lock(&tasklist_lock);
+	dump_tasks(NULL, nodemask);
+	read_unlock(&tasklist_lock);
+
+#ifdef CONFIG_CRASH_LOG
+	sc_boot_flag = REBOOT_FROM_OUT_OF_MEMORY ;
+//	emergency_restart();
+#endif
+
+	/* Reboot if OOM, but don't do it immediately - just in case this can be too sensitive */
+	if ((jiffies - oom_timestamp) > OOM_REBOOT_INTERVAL) {
+		oom_timestamp = jiffies;
+		oom_count = 0;		
+	}
+	else {
+		oom_count++;
+		if (oom_count >= OOM_REBOOT_DELAY) {
+			panic("Reboot due to persistent out of memory codition..");
+		}
+	}
+	schedule_timeout_interruptible(HZ*5);
+
+#else
 
 	/*
 	 * Check if there were limitations on the allocation (only relevant for
@@ -771,6 +836,7 @@ out:
 	 */
 	if (killed)
 		schedule_timeout_killable(1);
+#endif
 }
 
 /**

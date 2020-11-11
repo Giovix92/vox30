@@ -89,6 +89,11 @@ struct inet_timewait_sock {
 	struct timer_list	tw_timer;
 	struct inet_bind_bucket	*tw_tb;
 	struct inet_timewait_death_row *tw_dr;
+#ifdef __SC_BUILD__
+    u8 app_id;
+    u8 flow_id;
+	__u32			sk_sc_mark;
+#endif
 };
 #define tw_tclass tw_tos
 

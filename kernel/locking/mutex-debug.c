@@ -72,6 +72,17 @@ void mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 void debug_mutex_unlock(struct mutex *lock)
 {
 	if (likely(debug_locks)) {
+#if defined(CONFIG_BCM_KF_MUTEX_FIX)
+       /*
+        * debug_locks is set to 0 by add_taint() when a proprietary module
+        * is loaded.  But mutex owner is recorded regardless of debug_locks
+        * or proprietary module.  We just need to clear the owner so that
+        * our own mutex assert code works.
+        */
+       if (unlikely(!debug_locks))
+               mutex_clear_owner(lock);
+#endif
+
 		DEBUG_LOCKS_WARN_ON(lock->magic != lock);
 
 		if (!lock->owner)

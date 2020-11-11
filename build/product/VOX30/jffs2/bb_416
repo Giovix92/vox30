@@ -1,0 +1,96 @@
+#!/bin/sh
+
+ROOTFS_FILE=rootfs.jffs2
+
+CFERAM_FILE=cferam.jffs2.img.tmp
+./bb_bind_pid
+PACKAGE_FILE=package.jffs2
+PACKAGE_SIGN=sig.package
+LIB_FILE=rootfs_lib.jffs2
+SIGN_ROOTFS=sig.rootfs
+SIGN_LIBFS=sig.libfs
+SIGN_BOOT=sig.bootloader
+HASH_ROOTFS=hash.rootfs
+HASH_LIBFS=hash.libfs
+KFS_INFO=kfs_info
+COLOR_GREEN='\E[32;40m'
+COLOR_RED='\E[31;40m'
+user=$(whoami)
+date=$(date +%Y%m%d%H%M%S)
+find protected/ -name .svn|xargs rm -rf
+rm -rf protected.jffs2
+${HOSTTOOLS_DIR}/mkfs.jffs2 -e 131072 -b -p -n -r protected -o protected.jffs2
+
+echo -n "eRcOmM.000" | dd of=bootflag
+echo -n "kernel_rootfs" | dd of=bootflag bs=32 seek=64
+echo -n `stat -c %s ${ROOTFS_FILE}` | dd of=bootflag bs=32 seek=65
+echo -n "$1" | dd of=bootflag bs=32 seek=66
+echo -n "bootloader" | dd of=bootflag bs=32 seek=128
+echo -n `stat -c %s ${CFERAM_FILE}` | dd of=bootflag bs=32 seek=129
+echo -n "${FW_BOOT_VERSION}" | dd of=bootflag bs=32 seek=130
+echo -n "rootfs_lib" | dd of=bootflag bs=32 seek=192
+echo -n `stat -c %s ${LIB_FILE}` | dd of=bootflag bs=32 seek=193
+echo -n "${SC_ROOTFS_LIBS_VER}" | dd of=bootflag bs=32 seek=194
+echo -e "${ROOTFS_FILE}\t$1" > ver_info
+echo -e "${CFERAM_FILE}\t${FW_BOOT_VERSION}" >> ver_info
+echo -e "${LIB_FILE}\t${SC_ROOTFS_LIBS_VER}" >> ver_info
+echo -e "${PACKAGE_FILE}\t${SC_PACKAGE_VER}" >> ver_info
+if [ "${SC_NAND_FLASH_SIZE}" = "256" ]; then
+if (./autosignature.sh ${user}${date} == 0);then
+echo "autosignature.sh sucess"
+else
+echo "autosignature.sh error"
+exit -1
+fi
+echo -n "KFSINFO.000" | dd of=${KFS_INFO}
+echo -n "kernel_rootfs" | dd of=${KFS_INFO} bs=32 seek=64
+./file_size  ${ROOTFS_FILE} ${ROOTFS_FILE}.size
+chmod 777 ${ROOTFS_FILE}.size
+dd if=${ROOTFS_FILE}.size of=${KFS_INFO} bs=32 seek=65
+echo -n "$1" | dd of=${KFS_INFO} bs=32 seek=66
+dd if=${SIGN_ROOTFS} of=${KFS_INFO} bs=32 seek=67
+echo -n "rootfs_lib" | dd of=${KFS_INFO} bs=32 seek=128
+./file_size  ${LIB_FILE} ${LIB_FILE}.size
+chmod 777 ${LIB_FILE}.size
+dd if=${LIB_FILE}.size of=${KFS_INFO} bs=32 seek=129
+echo -n "${SC_ROOTFS_LIBS_VER}" | dd of=${KFS_INFO} bs=32 seek=130
+dd if=${SIGN_LIBFS} of=${KFS_INFO} bs=32 seek=131
+echo -n "bootloader" | dd of=${KFS_INFO} bs=32 seek=192
+./file_size  ${CFERAM_FILE} ${CFERAM_FILE}.size
+chmod 777 ${CFERAM_FILE}.size
+dd if=${CFERAM_FILE}.size of=${KFS_INFO} bs=32 seek=193
+echo -n "${FW_BOOT_VERSION}" | dd of=${KFS_INFO} bs=32 seek=194
+fi
+if [ "${BURN}" = "1" ]; then
+if [ "${SC_NAND_FLASH_SIZE}" = "256" ]; then
+./scBind -i .par_256 -o $1.bin
+else
+./scBind -i .par -o $1.bin
+fi
+rm -rf $1_burn.bin
+./createnfimg -l 1 -b 4 -m 14 -i $1.bin
+mv $1.out $1_burn.bin
+fi
+if [ "${CONFIG_SUPPORT_SEC_BOOT}" = "1" ]; then
+if [ "${CONFIG_SUPPORT_PACKAGE}" = "1" ]; then
+./make_img -b ${CFERAM_FILE} -h ${SIGN_BOOT} -r ${ROOTFS_FILE} -l ${LIB_FILE} -p .pid -v ver_info -c ${SIGN_ROOTFS} -s ${SIGN_LIBFS} -a ${PACKAGE_FILE} -g ${PACKAGE_SIGN} -f -o AD1018_all.img
+else
+./make_img -b ${CFERAM_FILE} -h ${SIGN_BOOT} -r ${ROOTFS_FILE} -l ${LIB_FILE} -p .pid -v ver_info -c ${SIGN_ROOTFS} -s ${SIGN_LIBFS} -f -o AD1018_all.img
+fi
+${BUILDPATH}/util/bin/config -s AD1018_all.img -d AD1018_all_encrypt.img
+echo -n `stat -c %s AD1018_all.img` | dd of=$1_all.img bs=32 seek=4
+dd if=AD1018_all_encrypt.img of=$1_all.img bs=32 seek=5
+rm -rf AD1018_all_encrypt.img
+rm -rf *.size
+./make_img -b ${CFERAM_FILE} -h ${SIGN_BOOT} -r ${ROOTFS_FILE} -l ${LIB_FILE} -p .pid -v ver_info -c ${SIGN_ROOTFS} -s ${SIGN_LIBFS} -f -o AD1018.img
+${BUILDPATH}/util/bin/config -s AD1018.img -d AD1018_encrypt.img
+echo -n `stat -c %s AD1018.img` | dd of=$1.img bs=32 seek=4
+dd if=AD1018_encrypt.img of=$1.img bs=32 seek=5
+rm -rf AD1018_encrypt.img
+rm -rf *.size
+else
+./make_img -b ${CFERAM_FILE} -r ${ROOTFS_FILE} -l ${LIB_FILE} -p .pid -v ver_info -f -o AD1018_all.img
+./make_img -e -i AD1018_all.img -o $1_all.img
+fi
+rm -rf AD1018_all.img
+

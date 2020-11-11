@@ -1,0 +1,9 @@
+Package: SmartThings-EE
+Version: 1
+Filename: SmartThings-EE_1_arm.ipk
+Section: LXC
+Maintainer: Sercomm
+Architecture: arm
+Description: SmartThings is the execution environment of ST.
+Installed-Size: 425029
+ 

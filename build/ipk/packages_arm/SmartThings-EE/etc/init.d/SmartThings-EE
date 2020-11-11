@@ -1,0 +1,76 @@
+#!/bin/sh /etc/rc.common
+START=2
+STOP=2
+install_rootfs()
+{
+rootfs=$1
+tree="$rootfs/usr $rootfs/usr/bin $rootfs/usr/sbin $rootfs/etc $rootfs/lib $rootfs/bin $rootfs/sbin $rootfs/proc $rootfs/dev $rootfs/tmp $rootfs/var $rootfs/shared $rootfs/shares/rootfs $rootfs/shares/rootfs/bin $rootfs/shares/rootfs/lib $rootfs/var/ubus $rootfs/sys $rootfs/mnt/data/"
+mkdir -p $tree
+#mkdir /tmp/cgroup
+#mount -t cgroup -o cpu,cpuset,memory c_cs_mem /tmp/cgroup
+#mkdir /tmp/cgroup_b
+#mount -t cgroup -o blkio blkio /tmp/cgroup_b
+#mkdir /tmp/cgroup_d
+#mount -t cgroup -o devices device /tmp/cgroup_d
+}
+config_lxc()
+{
+cat <<EOF >> /tmp/lxc/SmartThings-EE.conf
+lxc.utsname = container
+lxc.network.type = empty
+lxc.rootfs = /usr/LXC/SmartThings-EE
+lxc.tty = 0
+lxc.mount.auto = proc:rw
+lxc.mount.auto = sys:rw
+lxc.console = none
+lxc.mount.entry = /var/ /usr/LXC/SmartThings-EE/var/ none ro,bind 0 0
+lxc.mount.entry = /tmp/ /usr/LXC/SmartThings-EE/tmp/ none ro,bind 0 0
+lxc.mount.entry = /dev /usr/LXC/SmartThings-EE/dev none ro,bind 0 0
+lxc.mount.entry = /usr/sbin/ /usr/LXC/SmartThings-EE/usr/sbin none rw,bind 0 0
+lxc.mount.entry = /usr/bin/ /usr/LXC/SmartThings-EE/usr/bin none rw,bind 0 0
+lxc.mount.entry = /bin/ /usr/LXC/SmartThings-EE/bin none rw,bind 0 0
+lxc.mount.entry = /lib/ /usr/LXC/SmartThings-EE/lib none rw,bind 0 0
+lxc.mount.entry = /mnt/data/ /usr/LXC/SmartThings-EE/mnt/data none rw,bind 0 0
+lxc.mount.entry = /shares/rootfs/bin /usr/LXC/SmartThings-EE/shares/rootfs/bin none ro,bind 0 0
+lxc.mount.entry = /shares/rootfs/lib /usr/LXC/SmartThings-EE/shares/rootfs/lib none ro,bind 0 0
+lxc.cgroup.memory.limit_in_bytes = 67108864
+lxc.cgroup.cpu.shares = 200
+#lxc.cgroup.blkio.blkio.weight = 200
+#lxc.cap.drop = sys_module, mac_admin, mac_override, sys_time
+lxc.cgroup.memory.oom_control = 1
+lxc.cgroup.devices.deny = a
+lxc.cgroup.devices.allow = c *:* m
+lxc.cgroup.devices.allow = b *:* m
+lxc.cgroup.devices.allow = c 1:3 rwm
+lxc.cgroup.devices.allow = c 1:5 rwm
+lxc.cgroup.devices.allow = c 5:0 rwm
+lxc.cgroup.devices.allow = c 5:1 rwm
+lxc.cgroup.devices.allow = c 1:8 rwm
+lxc.cgroup.devices.allow = c 1:9 rwm
+lxc.cgroup.devices.allow = c 5:2 rwm
+lxc.cgroup.devices.allow = c 136:* rwm
+lxc.cgroup.devices.allow = c 254:0 rm
+lxc.cgroup.devices.allow = c 10:229 rwm
+lxc.cgroup.devices.allow = c 10:200 rwm
+lxc.cgroup.devices.allow = c 1:7 rwm
+lxc.cgroup.devices.allow = c 10:228 rwm
+lxc.cgroup.devices.allow = c 10:232 rwm
+lxc.cgroup.devices.allow = c 166:* rwm
+lxc.cgroup.devices.allow = c 188:* rwm
+lxc.stopsignal=sigUSR1
+EOF
+}
+start()
+{
+install_rootfs /usr/LXC/SmartThings-EE
+config_lxc test
+        lxc-create -n SmartThings-EE -P /tmp/run/lxc -f /tmp/lxc/SmartThings-EE.conf
+        lxc-start -n SmartThings-EE -P /tmp/run/lxc -f /tmp/lxc/SmartThings-EE.conf --share-net 1 -d
+}
+
+stop(){
+	lxc-stop -n SmartThings-EE -P /tmp/run/lxc
+    #/bin/umount /tmp/cgroup_d
+    #/bin/umount /tmp/cgroup_b
+    #/bin/umount /tmp/cgroup
+}

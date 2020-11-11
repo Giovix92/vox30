@@ -1,0 +1,22 @@
+#!/bin/sh /etc/rc.common
+START=8
+USE_PROCD=1
+SERVICE_DAEMONIZE=1
+
+service_triggers() {
+        procd_open_trigger
+       	procd_add_event_name_trigger Services.Local.Media.SMB 100 SERVICES_LOCAL_MEDIA_SMB_DISABLED /etc/init.d/samba stop
+       	procd_add_event_name_trigger Services.Local.Media.SMB 100 SERVICES_LOCAL_MEDIA_SMB_MODIFIED /etc/init.d/samba restart
+       	procd_add_event_name_trigger Services.Local.Media.SMB 100 SERVICES_LOCAL_MEDIA_SMB_ENABLED /etc/init.d/samba restart
+#       	procd_add_event_trigger Interfaces.Physical.Data.USB 1000 /etc/init.d/samba restart
+       	procd_close_trigger
+}
+                        
+start_service() {
+    /usr/sbin/rc smb start;
+}
+
+stop_service() {
+    /usr/sbin/rc smb stop;
+}
+

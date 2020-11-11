@@ -1,0 +1,17 @@
+# SeRcOmM
+:cfe63138rom_nvram.bin      &00010000
+:cfe63138rom_sec.bin        &00020000
+:cferam.jffs2.img.mt.VFIT   &00160000
+:cferam.jffs2.img.VFIT      &003A0000
+:protected.jffs2			&00680000
+:kfs_info.mt       			&007C0000
+:kfs_info	         		&00900000
+:rootfs.jffs2_416.mt	  &00A40000
+:rootfs_lib.jffs2_416.mt	&03740000
+:rootfs.jffs2				  &04B40000
+:rootfs_lib.jffs2		  &07840000
+:bootflag						  &08C40000
+:xml_cfg.jffs2				&08D80000
+:app_dat.jffs2				&09180000
+:package.jffs2				&0A180000
+$SIZE                 &3cf00

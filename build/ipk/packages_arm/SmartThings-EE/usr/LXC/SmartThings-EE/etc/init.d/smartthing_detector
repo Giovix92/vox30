@@ -1,0 +1,11 @@
+#!/bin/sh /etc/rc.common
+START=3
+STOP=3
+start(){
+	echo xx > /usr/xx
+        service_start /usr/local/bin/smartthing_detector 
+}
+
+stop(){
+    service_stop /usr/local/bin/smartthing_detector
+}

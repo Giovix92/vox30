@@ -1,0 +1,29 @@
+#!/bin/sh
+
+
+echo "Starting sign a package"
+
+TAR="${TAR:-$(which tar)}"
+SIGNATURE=1
+pkg_file=$1
+tmp_dir=/tmp/packsign
+mkdir -p $tmp_dir
+tar -zxf $pkg_file -C $tmp_dir
+
+
+if [ $SIGNATURE -eq 1 ];then
+cd $tmp_dir && echo `sha256sum data.tar.gz` > $tmp_dir/checksum.sha256 && echo `sha256sum control.tar.gz` >> $tmp_dir/checksum.sha256
+cd -
+openssl smime -sign -in $tmp_dir/checksum.sha256 -text -binary -signer Certs/package.pem -inkey Certs/package.key -nodetach -outform pem -out $tmp_dir/checksum.sig
+fi
+
+if [ $SIGNATURE -eq 1 ];then
+( cd $tmp_dir && $TAR --format=gnu -zcf $pkg_file ./debian-binary ./data.tar.gz ./control.tar.gz ./checksum.sha256 ./checksum.sig)
+#rm $tmp_dir/debian-binary $tmp_dir/data.tar.gz $tmp_dir/control.tar.gz $tmp_dir/checksum.sha256 $tmp_dir/checksum.sig
+else
+( cd $tmp_dir && $TAR --format=gnu -zcf $pkg_file ./debian-binary ./data.tar.gz ./control.tar.gz )
+#rm $tmp_dir/debian-binary $tmp_dir/data.tar.gz $tmp_dir/control.tar.gz
+fi
+
+
+    

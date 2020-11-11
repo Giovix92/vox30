@@ -1,0 +1,7 @@
+#! /bin/sh
+# SeRcOmM
+
+CFERAM=cferam.jffs2.img
+CFERAM_BIN=cferam.jffs2.img.tmp
+
+./scBind -i VOX3.0_bind_btpid.par -o $CFERAM_BIN

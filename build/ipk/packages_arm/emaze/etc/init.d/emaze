@@ -1,0 +1,74 @@
+#!/bin/sh /etc/rc.common
+START=5
+USE_PROCD=1
+SERVICE_DAEMONIZE=1
+get_value()
+{
+enable=$(ubus call v1.DataModel get {\"object\":[\"$1\"]} | grep 1);
+if [[ "$enable" == "" ]]
+then
+return 0
+else
+return 1
+fi
+}
+get_time_status()
+{
+sync=$(ubus call v1.DataModel get {\"object\":[\"InternetGatewayDevice.Time.Status\"]} | grep Synchronized);
+if [[ "$sync" == "" ]]
+then
+return 0
+else
+return 1
+fi
+}
+
+service_triggers() {
+        procd_open_trigger
+       	procd_add_event_trigger Services.SafeNetwork 1000 "/etc/init.d/restartemaze"
+       	procd_add_event_trigger System.Time 1000 "/etc/init.d/restartemaze"
+       	procd_close_trigger
+}
+                        
+start_service() {
+	get_value InternetGatewayDevice.X_VODAFONE_VRS.Enable
+	emaze_enable=$?
+	if [ $emaze_enable != "1" ]
+	then
+	return
+	fi
+	
+	get_value InternetGatewayDevice.X_VODAFONE_SetupWizard.SetupFinished
+	wizard_finish=$?
+	
+	if [ $wizard_finish != "1" ]
+	then
+	return
+	fi
+	
+	get_time_status
+	sync_status=$?
+	if [ $sync_status != "1" ]
+	then
+	return
+	fi
+	
+	procd_open_instance vrs.ko
+	procd_set_param command /sbin/insmod /usr/lib/modules/vrs.ko
+    	procd_close_instance
+	procd_open_instance emaze_proxy_server
+	procd_set_param command /usr/local/sbin/emaze_proxy_server
+	procd_set_param respawn 9999999 10 0
+    	procd_close_instance
+    	/usr/sbin/iptables -D INPUT -i br0 -m state --state UNTRACKED -p tcp --dport 20400 -j ACCEPT
+	procd_open_instance emaze_iptables
+	procd_set_param command /usr/sbin/iptables -A INPUT -i br0 -m state --state UNTRACKED -p tcp --dport 20400 -j ACCEPT
+    	procd_close_instance
+}
+
+stop_service() {
+    /sbin/rmmod /usr/lib/modules/vrs.ko;
+        service_stop /usr/local/sbin/emaze_proxy_server;
+    /usr/sbin/iptables -D INPUT -i br0 -m state --state UNTRACKED -p tcp --dport 20400 -j ACCEPT;
+}
+

@@ -1,0 +1,9 @@
+Package: Security-EE
+Version: 1
+Filename: Security-EE_1_arm.ipk
+Section: LXC
+Maintainer: Sercomm
+Architecture: arm
+Description: Security Execution Environment
+Installed-Size: 362849
+ 

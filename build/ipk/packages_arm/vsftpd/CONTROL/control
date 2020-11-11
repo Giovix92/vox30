@@ -1,0 +1,7 @@
+Package: vsftpd
+Version: 3.0.2
+Filename: vsftpd_3.0.2_arm.ipk
+Section: utils
+Architecture: arm
+Installed-Size: 55323
+ 

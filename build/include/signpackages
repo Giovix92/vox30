@@ -1,0 +1,5 @@
+#!/bin/sh
+
+openssl smime -sign -in Packages -text -binary -signer Certs/package.pem -inkey Certs/package.key -nodetach -outform pem -out Packages.sig
+
+

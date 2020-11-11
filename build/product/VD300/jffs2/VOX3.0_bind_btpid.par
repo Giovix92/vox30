@@ -1,0 +1,4 @@
+# SeRcOmM
+:cferam.jffs2.img                   &00000000
+%.pid                               &000FFFFF
+$SIZE                           	&400

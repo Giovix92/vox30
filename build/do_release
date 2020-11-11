@@ -1,0 +1,24 @@
+#!/bin/sh
+export BURN=1
+RELEASE_DIR=../
+cd ${RELEASE_DIR}/build && make bgm || svn revert ../user/public/apps/privoxy/privoxy-3.0.26-stable/pcre/chartables.c 
+FW_XX=`cat ./product/${PRODUCT_TYPE}/jffs2/.pid | cut -b 101-104`_${FW_EXTRA_VERSION}
+make || (rm -rf ../user/public/libs/ubus/ && svn up ../user/public/libs/ubus/ && make rootfs_clean && make || exit 1)
+~/PendFile.sh product/${PRODUCT_TYPE}/${FW_VERSION_PREFIX}_${FW_XX}.xml || exit 1
+~/westSend.sh product/${PRODUCT_TYPE}/${FW_VERSION_PREFIX}_${FW_XX}_all.img || exit 1
+~/westSend.sh product/${PRODUCT_TYPE}/${FW_VERSION_PREFIX}_${FW_XX}_burn.bin || exit 1
+export BURN=0
+sed "s/${FW_XX%%_*}/9999/g" product/${PRODUCT_TYPE}/jffs2/.pid > ${PID}.tmp
+cp ${PID}.tmp ${PID}
+make rootfs_clean
+make || exit 1
+~/westSend.sh product/${PRODUCT_TYPE}/${FW_VERSION_PREFIX}_9999_${FW_EXTRA_VERSION}_all.img || exit 1
+make private_clean
+svn revert ${PID}
+sed "s/export CONFIG_SUPPORT_DEBUG = 0/export CONFIG_SUPPORT_DEBUG = 1/g" product/${PRODUCT_TYPE}/customer/${SC_CUSTOMER}/config.mk > product/${PRODUCT_TYPE}/customer/${SC_CUSTOMER}/config.mk.tmp
+cp product/${PRODUCT_TYPE}/customer/${SC_CUSTOMER}/config.mk.tmp product/${PRODUCT_TYPE}/customer/${SC_CUSTOMER}/config.mk
+make || exit 1
+~/westSend.sh product/${PRODUCT_TYPE}/${FW_VERSION_PREFIX}_${FW_XX}_all.img ${FW_VERSION_PREFIX}_${FW_XX}_all_debug.img || exit 1
+
+
+

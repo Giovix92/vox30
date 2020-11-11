@@ -1,0 +1,12 @@
+#!/bin/sh
+RELEASE_DIR=../
+cd ${RELEASE_DIR}/build && make bgm || svn revert ../user/public/apps/privoxy/privoxy-3.0.26-stable/pcre/chartables.c 
+FW_XX=`cat ./product/${PRODUCT_TYPE}/jffs2/.pid | cut -b 101-104`_${FW_EXTRA_VERSION}
+sed "s/export CONFIG_SUPPORT_DEBUG = 0/export CONFIG_SUPPORT_DEBUG = 1/g" product/${PRODUCT_TYPE}/customer/${SC_CUSTOMER}/config.mk > product/${PRODUCT_TYPE}/customer/${SC_CUSTOMER}/config.mk.tmp
+cp product/${PRODUCT_TYPE}/customer/${SC_CUSTOMER}/config.mk.tmp product/${PRODUCT_TYPE}/customer/${SC_CUSTOMER}/config.mk
+make private_clean
+make || (rm -rf ../user/public/libs/ubus/ && svn up ../user/public/libs/ubus/ && make || exit 1)
+~/westSend.sh product/${PRODUCT_TYPE}/${FW_VERSION_PREFIX}_${FW_XX}_all.img ${FW_VERSION_PREFIX}_${FW_XX}_all_debug.img || exit 1
+
+
+

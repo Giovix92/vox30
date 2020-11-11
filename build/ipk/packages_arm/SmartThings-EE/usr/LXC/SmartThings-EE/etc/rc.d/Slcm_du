@@ -1,0 +1,10 @@
+#!/bin/sh /etc/rc.common
+
+start(){
+        mkdir -m 0755 -p /var/run/lcm_du
+        service_start /sbin/lcm_du &
+}
+
+stop(){
+    service-stop /sbin/lcm_du
+}

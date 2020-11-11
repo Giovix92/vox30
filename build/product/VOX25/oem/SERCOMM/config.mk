@@ -1,0 +1,17 @@
+export SC_MODULE = VOX25
+export SC_MODULE_RF_TAG = rf
+
+export SC_MANUFACTOR = SERCOMM
+
+export SC_OEM_OUI = 000E8F
+CFLAGS += -DSC_OEM_OUI=\"$(SC_OEM_OUI)\"
+
+export SC_OEM_OUI_STRING = _
+CFLAGS += -DSC_OEM_OUI_STRING=\"$(SC_OEM_OUI_STRING)\"
+
+export SC_ROOTFS_LIBS_VER = 1001
+#
+# Define ODM related parameters
+#
+export SC_GPON_SN_PREFIX = 524F4E54
+

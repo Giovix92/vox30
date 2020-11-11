@@ -1,0 +1,47 @@
+#!/bin/sh
+
+ROOTFS_FILE=rootfs.jffs2
+CFERAM_FILE=cferam.jffs2.img
+LIB_FILE=rootfs_lib.jffs2
+COLOR_GREEN='\E[32;40m'
+COLOR_RED='\E[31;40m'
+find protected/ -name .svn|xargs rm -rf
+rm -rf protected.jffs2
+${HOSTTOOLS_DIR}/mkfs.jffs2 -e 131072 -b -p -n -r protected -o protected.jffs2
+
+echo -n "eRcOmM.000" | dd of=bootflag
+echo -n "kernel_rootfs" | dd of=bootflag bs=32 seek=64
+echo -n `stat -c %s ${ROOTFS_FILE}` | dd of=bootflag bs=32 seek=65
+echo -n "$1" | dd of=bootflag bs=32 seek=66
+echo -n "bootloader" | dd of=bootflag bs=32 seek=128
+echo -n `stat -c %s ${CFERAM_FILE}` | dd of=bootflag bs=32 seek=129
+echo -n "${FW_BOOT_VERSION}" | dd of=bootflag bs=32 seek=130
+echo -n "rootfs_lib" | dd of=bootflag bs=32 seek=192
+echo -n `stat -c %s ${LIB_FILE}` | dd of=bootflag bs=32 seek=193
+echo -n "${SC_ROOTFS_LIBS_VER}" | dd of=bootflag bs=32 seek=194
+if [ $2 = "TURK" ];then
+./scBind -i .turk_par -o $1.bin
+else
+./scBind -i .par_416 -o $1.bin
+fi
+rm -rf $1_burn.bin
+if [ $2 = "TURK" ];then
+./BrcmEcc -b 4 -P 2048 -i $1.bin
+else
+./BrcmEcc -b 1 -P 2048 -i $1.bin
+fi
+mv $1.out $1_burn.bin
+
+echo -e "${ROOTFS_FILE}\t$1" > ver_info
+echo -e "${CFERAM_FILE}\t${FW_BOOT_VERSION}" >> ver_info
+echo -e "${LIB_FILE}\t${SC_ROOTFS_LIBS_VER}" >> ver_info
+./make_img -b ${CFERAM_FILE} -r ${ROOTFS_FILE} -l ${LIB_FILE} -p .pid -v ver_info -f -o AD1018_all.img
+./make_img -e -i AD1018_all.img -o $1_all.img
+rm -rf AD1018_all.img
+./make_img -b ${CFERAM_FILE} -r ${ROOTFS_FILE} -l ${LIB_FILE} -p .pid -v ver_info  -o AD1018.img
+./make_img -e -i AD1018.img -o $1.img
+rm -rf AD1018.img
+./make_img  -l ${LIB_FILE} -f -p .pid -v ver_info -o AD1018_lib.img
+./make_img -e -i AD1018_lib.img -o $1_lib.img
+rm -rf AD1018_lib.img
+

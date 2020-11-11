@@ -1,0 +1,52 @@
+#!/bin/sh /etc/rc.common
+START=2
+STOP=2
+install_rootfs()
+{
+rootfs=$1
+tree="$rootfs/usr $rootfs/usr/bin $rootfs/usr/sbin $rootfs/etc $rootfs/lib $rootfs/bin $rootfs/sbin $rootfs/proc $rootfs/dev $rootfs/tmp $rootfs/var $rootfs/shared $rootfs/shares/rootfs $rootfs/shares/rootfs/bin $rootfs/shares/rootfs/lib $rootfs/var/ubus $rootfs/sys $rootfs/mnt/data/"
+mkdir -p $tree
+#mkdir /tmp/cgroup
+#mount -t cgroup -o cpu,cpuset,memory c_cs_mem /tmp/cgroup
+#mkdir /tmp/cgroup_b
+#mount -t cgroup -o blkio blkio /tmp/cgroup_b
+#mkdir /tmp/cgroup_d
+#mount -t cgroup -o devices device /tmp/cgroup_d
+}
+config_lxc()
+{
+cat <<EOF >> /tmp/lxc/Security-EE.conf
+lxc.utsname = container
+lxc.network.type = empty
+lxc.rootfs = /usr/LXC/Security-EE
+lxc.tty = 0
+lxc.mount.auto = proc:rw
+lxc.mount.auto = sys:rw
+lxc.console = none
+lxc.mount.entry = /var/ /usr/LXC/Security-EE/var/ none ro,bind 0 0
+lxc.mount.entry = /tmp/ /usr/LXC/Security-EE/tmp/ none ro,bind 0 0
+lxc.mount.entry = /dev /usr/LXC/Security-EE/dev none ro,bind 0 0
+lxc.mount.entry = /usr/sbin/ /usr/LXC/Security-EE/usr/sbin none rw,bind 0 0
+lxc.mount.entry = /usr/bin/ /usr/LXC/Security-EE/usr/bin none rw,bind 0 0
+lxc.mount.entry = /bin/ /usr/LXC/Security-EE/bin none rw,bind 0 0
+lxc.mount.entry = /lib/ /usr/LXC/Security-EE/lib none rw,bind 0 0
+lxc.mount.entry = /mnt/data/ /usr/LXC/Security-EE/mnt/data none rw,bind 0 0
+lxc.mount.entry = /shares/rootfs/bin /usr/LXC/Security-EE/shares/rootfs/bin none ro,bind 0 0
+lxc.mount.entry = /shares/rootfs/lib /usr/LXC/Security-EE/shares/rootfs/lib none ro,bind 0 0
+lxc.stopsignal=sigUSR1
+EOF
+}
+start()
+{
+install_rootfs /usr/LXC/Security-EE
+config_lxc test
+        lxc-create -n Security-EE -P /tmp/run/lxc -f /tmp/lxc/Security-EE.conf
+        lxc-start -n Security-EE -P /tmp/run/lxc -f /tmp/lxc/Security-EE.conf --share-net 1 -d
+}
+
+stop(){
+	lxc-stop -n Security-EE -P /tmp/run/lxc
+    #/bin/umount /tmp/cgroup_d
+    #/bin/umount /tmp/cgroup_b
+    #/bin/umount /tmp/cgroup
+}

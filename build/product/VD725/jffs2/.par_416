@@ -1,0 +1,15 @@
+# SeRcOmM
+:cfe_rom_128m.bin                   &00010000
+:cferam.jffs2.img_416.mt            &000c0000
+:cferam.jffs2.img                   &00200000
+:protected.jffs2                    &003e0000
+:rootfs.jffs2_416.mt                &00520000
+:rootfs_lib.jffs2_416.mt            &02320000
+:rootfs.jffs2                       &03720000
+:rootfs_lib.jffs2                   &05520000
+:bootflag_416.mt                    &06920000
+:bootflag                           &06A60000
+:xml_cfg.jffs2                      &06BA0000
+:app_dat.jffs2                      &06E20000
+%.pid		     	            &1FFFFF
+$size				                &1c280

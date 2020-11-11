@@ -1,0 +1,112 @@
+# ------------------------------------------------------------------------------------------
+export TOOLPREFIX=arm-linux-
+export TOOLCHAIN_PREFIX=arm-linux
+export KERNELARCH=arm
+export ARCH=arm
+#
+# Cross infomation
+#
+CROSS_COMPILE  = $(TOOLPREFIX)
+AS		= $(CROSS_COMPILE)as
+LD		= $(CROSS_COMPILE)ld
+CC		= $(CROSS_COMPILE)gcc
+CPP		= $(CROSS_COMPILE)gcc -E
+AR		= $(CROSS_COMPILE)ar
+NM		= $(CROSS_COMPILE)nm
+RANLIB      = $(CROSS_COMPILE)ranlib
+STRIP		= $(CROSS_COMPILE)strip
+OBJCOPY		= $(CROSS_COMPILE)objcopy
+OBJDUMP		= $(CROSS_COMPILE)objdump
+CXX		= $(CROSS_COMPILE)g++
+
+export CROSS_COMPILE AS LD CC CPP AR NM RANLIB STRIP OBJCOPY OBJDUMP CXX
+# ------------------------------------------------------------------------------------------
+
+export TOPDIR=$(shell pwd)/..
+export BUILDPATH = $(TOPDIR)/build
+export SC_MODULE = VOX30
+export ROOTFSTYPE = jffs2
+export SC_NAND_FLASH_SIZE = 128
+export SC_DUALIMAGE = 1
+export FW_VERSION = 1000
+
+include $(BUILDPATH)/rules.mk
+
+#
+# Common targts
+#
+
+all:
+	make toolchain_prep
+	#make host_build
+	make demo
+	#make uimage
+	#make image_build
+
+host_build:
+	CC=gcc
+	make -C $(HOSTTOOLS_DIR)/jffs2
+	cp -rf $(HOSTTOOLS_DIR)/jffs2/mkfs.jffs2 $(HOSTTOOLS_DIR)/
+demo:
+	make -C ../user/libnl
+	make -C ../user/libnl install
+	make -C ../user/demo_app
+	make -C ../user/demo_app install
+	make -C ../user/demo_kernel_module 
+	make -C ../user/demo_kernel_module install
+	make -C ../user/ipk_example
+	make -C ../user/ipk_example install
+
+toolchain_prep:
+	sudo ln -sf $(PID) $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/.pid
+	test -d /opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/ || sudo tar -xvf ../toolchain/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25.Rel1.9.tar.bz2 -C /
+
+uimage:
+	@echo making uImage
+	@echo making uImage Done
+
+	sudo rm -rf $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/.pid 
+	sudo ln -sf $(PID) $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/.pid 
+	test -c $(BUILDPATH)/rootfs.build/dev/ttyUSB0 || sudo $(BUILDPATH)/product/$(PRODUCT_TYPE)/makeDevs $(KERNEL_DIR) $(INSTALLDIR)
+
+ifeq ($(PRODUCT_TYPE), VFIE)
+	sudo ln -sf $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/cfevfieram.jffs2.img.416 $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/cferam.jffs2.img
+	sudo ln -sf $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/cfe_vfie_rom.bin $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/cfe_rom_128m.bin
+	sudo ln -sf $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/VOX3.0_boot_ie.bin $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/VOX3.0_boot_ln.bin
+else
+	sudo ln -sf $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/cfevfesram.jffs2.img.416 $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/cferam.jffs2.img
+	sudo ln -sf $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/cfe_vfes_rom.bin $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/cfe_rom_128m.bin
+	sudo ln -sf $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/VOX3.0_boot.bin $(BUILDPATH)/product/$(PRODUCT_TYPE)/$(ROOTFSTYPE)/VOX3.0_boot_ln.bin
+endif
+	-@echo -e '\E[32;40m'"Making jffs2 filesystem for 128M flash" && tput sgr0
+	cd $(BUILDPATH)/APP_DATA && find .svn|xargs rm -rf && cd -
+	cd $(BUILDPATH)/EMPTY && find .svn|xargs rm -rf && cd -
+	sudo chmod -R 777 $(INSTALL_ROOT)
+	sudo rm -fv $(INSTALL_ROOT)/nocomprlist
+	echo -e "/vmlinux.lz" > $(INSTALL_ROOT)/nocomprlist
+	echo -e "/kernel_cksum" >> $(INSTALL_ROOT)/nocomprlist
+	echo -e "/cferam" > $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2/nocomprlist
+	echo -e "/cferam_bk" >> $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2/nocomprlist
+	sudo chmod -R 755 $(INSTALL_ROOT)
+	sudo $(HOSTTOOLS_DIR)/mkfs.jffs2 -l -p -n -e 131072 -r $(INSTALL_ROOT) -o $(BUILDPATH)/rootfs.jffs2 -N $(INSTALL_ROOT)/nocomprlist
+	sudo $(HOSTTOOLS_DIR)/mkfs.jffs2 -l -p -n -e 131072 -r $(BUILDPATH)/lib -o $(BUILDPATH)/rootfs_lib.jffs2 -N $(INSTALL_ROOT)/nocomprlist
+	sudo $(HOSTTOOLS_DIR)/mkfs.jffs2 -l -p -n -e 131072 -r $(BUILDPATH)/EMPTY -o $(BUILDPATH)/empty.jffs2 -N $(INSTALL_ROOT)/nocomprlist
+	sudo $(HOSTTOOLS_DIR)/mkfs.jffs2 -l -p -n -e 131072 -r $(BUILDPATH)/APP_DATA -o $(BUILDPATH)/app_dat.jffs2 -N $(INSTALL_ROOT)/nocomprlist
+	cp $(BUILDPATH)/rootfs.jffs2 $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2/ -v
+	cp $(BUILDPATH)/rootfs_lib.jffs2 $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2/ -v
+	cp $(BUILDPATH)/empty.jffs2 $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2/xml_cfg.jffs2 -v
+	cp $(BUILDPATH)/app_dat.jffs2 $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2/app_dat.jffs2 -v
+	cp $(BUILDPATH)/empty.jffs2 $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2/scnvram.jffs2 -v
+	sudo rm -fv $(INSTALL_ROOT)/nocomprlist
+	rm -fv $(BUILDPATH)/empty.jffs2
+	rm -fv $(BUILDPATH)/rootfs.jffs2
+	rm -fv $(BUILDPATH)/rootfs_lib.jffs2
+	rm -fv $(BUILDPATH)/app_dat.jffs2
+
+	
+image_build:
+	@echo making image
+	cd $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2 && ./bb_416 $(SC_MODULE)_$(SC_OEM)_$(SC_CUSTOMER)_$(FW_VERSION) $(SC_CUSTOMER)
+	cd $(BUILDPATH)/product/$(PRODUCT_TYPE)/jffs2 && mv $(SC_MODULE)_$(SC_OEM)_$(SC_CUSTOMER)_$(FW_VERSION)_all.img $(BUILDPATH)/product/$(PRODUCT_TYPE)/ 
+
+

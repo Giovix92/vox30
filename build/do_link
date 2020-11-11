@@ -1,0 +1,282 @@
+#!/bin/sh
+
+if [ ! -h rootfs.build/lib/libcrypto.so.1.0.0 ];then 
+if [ -a rootfs.build/lib/libcrypto.so.1.0.0 ];then 
+    mv rootfs.build/lib/libcrypto.so.1.0.0 lib/lib/ 
+    ln -fs /shares/rootfs/lib/libcrypto.so.1.0.0 rootfs.build/lib/libcrypto.so.1.0.0
+fi
+fi
+if [ ! -h rootfs.build/lib/libiconv.so.0.0 ];then 
+if [ -a rootfs.build/lib/libiconv.so.0.0 ];then 
+    mv rootfs.build/lib/libiconv.so.0.0 lib/lib/
+    ln -fs /shares/rootfs/lib/libiconv.so.0.0 rootfs.build/lib/libiconv.so.0.0 
+fi
+fi
+
+
+if [ ! -h  rootfs.build/lib/libnetsnmp.so ];then
+if [ -a  rootfs.build/lib/libnetsnmp.so ];then
+    mv rootfs.build/lib/libnetsnmp.so lib/lib/
+	ln -fs /shares/rootfs/lib/libnetsnmp.so rootfs.build/lib/libnetsnmp.so
+fi
+fi
+
+if [ ! -h  rootfs.build/lib/libmd5.so ];then
+if [ -a  rootfs.build/lib/libmd5.so ];then
+    mv rootfs.build/lib/libmd5.so lib/lib/
+	ln -fs /shares/rootfs/lib/libmd5.so rootfs.build/lib/libmd5.so
+fi
+fi
+if [ ! -h  rootfs.build/lib/libpcap.so ];then
+if [ -a  rootfs.build/lib/libpcap.so ];then
+    mv rootfs.build/lib/libpcap.so lib/lib/
+	ln -fs /shares/rootfs/lib/libpcap.so rootfs.build/lib/libpcap.so
+fi
+fi
+
+if [ ! -h  rootfs.build/lib/libntfs.so.10.0.0 ];then
+if [ -a  rootfs.build/lib/libntfs.so.10.0.0 ];then
+	mv rootfs.build/lib/libntfs.so.10.0.0 lib/lib/
+	ln -fs /shares/rootfs/lib/libntfs.so.10.0.0 rootfs.build/lib/libntfs.so.10.0.0
+fi
+fi
+
+if [ ! -h  rootfs.build/lib/libntpass.so.0.0 ];then
+if [ -a  rootfs.build/lib/libntpass.so.0.0 ];then
+	mv rootfs.build/lib/libntpass.so.0.0 lib/lib/
+	ln -fs /shares/rootfs/lib/libntpass.so.0.0 rootfs.build/lib/libntpass.so.0.0
+fi
+fi
+
+if [ ! -h  rootfs.build/lib/libssl.so.1.0.0 ];then
+if [ -a  rootfs.build/lib/libssl.so.1.0.0 ];then
+	mv rootfs.build/lib/libssl.so.1.0.0 lib/lib/
+	ln -fs /shares/rootfs/lib/libssl.so.1.0.0 rootfs.build/lib/libssl.so.1.0.0
+fi
+fi
+
+
+
+
+if [ ! -h  rootfs.build/lib/libcups.so.2 ];then
+if [ -a  rootfs.build/lib/libcups.so.2 ];then
+	mv rootfs.build/lib/libcups.so.2 lib/lib/
+	ln -fs /shares/rootfs/lib/libcups.so.2 rootfs.build/lib/libcups.so.2
+fi
+fi
+#
+#if [ ! -h  rootfs.build/usr/lib/cups/daemon/cups-lpd ];then
+#if [ -a  rootfs.build/usr/lib/cups/daemon/cups-lpd ];then
+#	mv rootfs.build/usr/lib/cups lib/usr/lib/cups
+#	ln -fs /shares/rootfs/usr/lib/cups rootfs.build/usr/lib/cups
+#fi
+#fi
+
+if [ ! -h  rootfs.build/lib/libgcc_s.so.1 ];then
+if [ -a  rootfs.build/lib/libgcc_s.so.1 ];then
+	mv rootfs.build/lib/libgcc_s.so.1 lib/lib/
+	ln -fs /shares/rootfs/lib/libgcc_s.so.1 rootfs.build/lib/libgcc_s.so.1
+fi
+fi
+
+
+if [ ! -h  rootfs.build/lib/libstdc++.so.6.0.13 ];then
+if [ -a  rootfs.build/lib/libstdc++.so.6.0.13 ];then
+	mv rootfs.build/lib/libstdc++.so.6.0.13 lib/lib/
+	ln -fs /shares/rootfs/lib/libstdc++.so.6.0.13 rootfs.build/lib/libstdc++.so.6.0.13
+fi
+fi
+
+if [ ! -h  rootfs.build/lib/libuClibc-0.9.32.so ];then
+if [ -a  rootfs.build/lib/libuClibc-0.9.32.so ];then
+	mv rootfs.build/lib/libuClibc-0.9.32.so lib/lib/
+	ln -fs /shares/rootfs/lib/libuClibc-0.9.32.so rootfs.build/lib/libuClibc-0.9.32.so
+fi
+fi
+
+if [ ! -h  rootfs.build/lib/libfuse.so.2.7.4 ];then
+if [ -a  rootfs.build/lib/libfuse.so.2.7.4 ];then
+	mv rootfs.build/lib/libfuse.so.2.7.4 lib/lib/
+	ln -fs /shares/rootfs/lib/libfuse.so.2.7.4 rootfs.build/lib/libfuse.so.2.7.4
+fi
+fi
+
+
+
+if [ ! -h  rootfs.build/lib/libgomp.so.1.0.0 ];then
+if [ -a  rootfs.build/lib/libgomp.so.1.0.0 ];then
+	mv rootfs.build/lib/libgomp.so.1.0.0 lib/lib/
+	ln -fs /shares/rootfs/lib/libgomp.so.1.0.0 rootfs.build/lib/libgomp.so.1.0.0
+fi
+fi
+
+
+
+if [ ! -h  rootfs.build/lib/libm-0.9.32.so ];then
+if [ -a  rootfs.build/lib/libm-0.9.32.so ];then
+	mv rootfs.build/lib/libm-0.9.32.so lib/lib/
+	ln -fs /shares/rootfs/lib/libm-0.9.32.so rootfs.build/lib/libm-0.9.32.so
+fi
+fi
+
+
+if [ ! -h  rootfs.build/lib/libmudflap.so.0.0.0 ];then
+if [ -a  rootfs.build/lib/libmudflap.so.0.0.0 ];then
+	mv rootfs.build/lib/libmudflap.so.0.0.0 lib/lib/
+	ln -fs /shares/rootfs/lib/libmudflap.so.0.0.0 rootfs.build/lib/libmudflap.so.0.0.0
+fi
+fi
+
+
+if [ ! -h  rootfs.build/lib/libmudflapth.so.0.0.0 ];then
+if [ -a  rootfs.build/lib/libmudflapth.so.0.0.0 ];then
+	mv rootfs.build/lib/libmudflapth.so.0.0.0 lib/lib/
+	ln -fs /shares/rootfs/lib/libmudflapth.so.0.0.0 rootfs.build/lib/libmudflapth.so.0.0.0
+fi
+fi
+
+
+if [ ! -h  rootfs.build/lib/libupnp.so ];then
+if [ -a  rootfs.build/lib/libupnp.so ];then
+	mv rootfs.build/lib/libupnp.so lib/lib/
+	ln -fs /shares/rootfs/lib/libupnp.so rootfs.build/lib/libupnp.so
+fi
+fi
+
+if [ ! -h  rootfs.build/lib/libz.so.1.2.11 ];then
+if [ -a  rootfs.build/lib/libz.so.1.2.11 ];then
+	mv rootfs.build/lib/libz.so.1.2.11 lib/lib/
+	ln -fs /shares/rootfs/lib/libz.so.1.2.11 rootfs.build/lib/libz.so.1.2.11
+fi
+fi
+
+if [ ! -h  rootfs.build/bin/strace ];then
+if [ -a  rootfs.build/bin/strace ];then
+    mv rootfs.build/bin/strace lib/bin/
+    ln -fs /shares/rootfs/bin/strace rootfs.build/bin/strace
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/cupsd ];then
+if [ -a  rootfs.build/usr/sbin/cupsd ];then
+    mv rootfs.build/usr/sbin/cupsd lib/bin/
+    ln -fs /shares/rootfs/bin/cupsd rootfs.build/usr/sbin/cupsd
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/emaze_proxy_server ];then
+if [ -a  rootfs.build/usr/sbin/emaze_proxy_server ];then
+    mv rootfs.build/usr/sbin/emaze_proxy_server lib/bin/
+    ln -fs /shares/rootfs/bin/emaze_proxy_server rootfs.build/usr/sbin/emaze_proxy_server
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/sshd ];then
+if [ -a  rootfs.build/usr/sbin/sshd ];then
+    mv rootfs.build/usr/sbin/sshd lib/bin/
+    ln -fs /shares/rootfs/bin/sshd rootfs.build/usr/sbin/sshd
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/ssh-keygen ];then
+if [ -a  rootfs.build/usr/sbin/ssh-keygen ];then
+    mv rootfs.build/usr/sbin/ssh-keygen lib/bin/
+    ln -fs /shares/rootfs/bin/ssh-keygen rootfs.build/usr/sbin/ssh-keygen
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/samba_multicall ];then
+if [ -a  rootfs.build/usr/sbin/samba_multicall ];then
+    mv rootfs.build/usr/sbin/samba_multicall lib/bin/
+    ln -fs /shares/rootfs/bin/samba_multicall rootfs.build/usr/sbin/samba_multicall
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/smbd ];then
+if [ -a  rootfs.build/usr/sbin/smbd ];then
+    mv rootfs.build/usr/sbin/smbd lib/bin/
+    ln -fs /shares/rootfs/bin/smbd rootfs.build/usr/sbin/smbd
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/ip ];then
+if [ -a  rootfs.build/usr/sbin/ip ];then
+    mv rootfs.build/usr/sbin/ip lib/bin/
+    ln -fs /shares/rootfs/bin/ip rootfs.build/usr/sbin/ip
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/lp ];then
+if [ -a  rootfs.build/usr/sbin/lp ];then
+    mv rootfs.build/usr/sbin/lp lib/bin/
+    ln -fs /shares/rootfs/bin/lp rootfs.build/usr/sbin/lp
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/nmbd ];then
+if [ -a  rootfs.build/usr/sbin/nmbd ];then
+    mv rootfs.build/usr/sbin/nmbd lib/bin/
+    ln -fs /shares/rootfs/bin/nmbd rootfs.build/usr/sbin/nmbd
+fi
+fi
+
+if [ ! -h  rootfs.build/usr/sbin/parted ];then
+if [ -a  rootfs.build/usr/sbin/parted ];then
+    mv rootfs.build/usr/sbin/parted lib/bin/
+    ln -fs /shares/rootfs/bin/parted rootfs.build/usr/sbin/parted
+fi
+fi
+
+if [ ! -h  rootfs.build/bin/tcpdump ];then
+if [ -a  rootfs.build/bin/tcpdump ];then
+    mv rootfs.build/bin/tcpdump  lib/bin/
+    ln -fs /shares/rootfs/bin/tcpdump  rootfs.build/bin/tcpdump 
+fi
+fi
+if [ ! -h  rootfs.build/usr/sbin/valgrind ];then
+if [ -a  rootfs.build/usr/sbin/valgrind ];then
+    mv rootfs.build/usr/sbin/valgrind  lib/bin/
+    ln -fs /shares/rootfs/bin/valgrind  rootfs.build/usr/sbin/valgrind 
+fi
+fi
+if [ ! -h  rootfs.build/usr/lib/valgrind/memcheck-mips32-linux ];then
+if [ -a  rootfs.build/usr/lib/valgrind/memcheck-mips32-linux ];then
+    mv rootfs.build/usr/lib/valgrind/memcheck-mips32-linux  lib/lib/
+    ln -fs /shares/rootfs/lib/memcheck-mips32-linux  rootfs.build/usr/lib/valgrind/memcheck-mips32-linux  
+fi
+fi
+if [ ! -h  rootfs.build/usr/lib/valgrind/vgpreload_memcheck-mips32-linux.so ];then
+if [ -a  rootfs.build/usr/lib/valgrind/vgpreload_memcheck-mips32-linux.so ];then
+    mv rootfs.build/usr/lib/valgrind/vgpreload_memcheck-mips32-linux.so lib/lib/
+    ln -fs /shares/rootfs/lib/vgpreload_memcheck-mips32-linux.so rootfs.build/usr/lib/valgrind/vgpreload_memcheck-mips32-linux.so   
+fi
+fi
+if [ ! -h  rootfs.build/usr/lib/valgrind/vgpreload_core-mips32-linux.so ];then
+if [ -a  rootfs.build/usr/lib/valgrind/vgpreload_core-mips32-linux.so ];then
+    mv rootfs.build/usr/lib/valgrind/vgpreload_core-mips32-linux.so lib/lib/
+    ln -fs /shares/rootfs/lib/vgpreload_core-mips32-linux.so rootfs.build/usr/lib/valgrind/vgpreload_core-mips32-linux.so   
+fi
+fi
+if [ ! -h  rootfs.build/usr/local/twonky/twonkyserver ];then
+if [ -a  rootfs.build/usr/local/twonky/twonkyserver ];then
+    mv rootfs.build/usr/local/twonky/twonkyserver lib/lib/
+    ln -fs /shares/rootfs/lib/twonkyserver rootfs.build/usr/local/twonky/twonkyserver
+fi
+fi
+if [ ! -h  rootfs.build/etc/wlan/topaz-linux.lzma.img ];then
+if [ -a  rootfs.build/etc/wlan/topaz-linux.lzma.img ];then
+    mv rootfs.build/etc/wlan/topaz-linux.lzma.img lib/wlan
+fi
+fi
+
+if [ ! -h  rootfs.build/etc/wlan/u-boot.bin ];then
+if [ -a  rootfs.build/etc/wlan/u-boot.bin ];then
+    mv rootfs.build/etc/wlan/u-boot.bin lib/wlan
+fi
+fi
+if [ ! -h  rootfs.build/usr/sbin/minidlna ];then
+if [ -a  rootfs.build/usr/sbin/minidlna ];then
+    mv rootfs.build/usr/sbin/minidlna lib/bin/
+    ln -fs /shares/rootfs/bin/minidlna rootfs.build/usr/sbin/minidlna
+fi
+fi

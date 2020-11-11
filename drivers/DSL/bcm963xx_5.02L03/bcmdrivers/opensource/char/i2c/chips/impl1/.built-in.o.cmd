@@ -1,0 +1,1 @@
+cmd_../../bcmdrivers/opensource/char/i2c/chips/bcm963138/built-in.o :=  /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o ../../bcmdrivers/opensource/char/i2c/chips/bcm963138/built-in.o ../../bcmdrivers/opensource/char/i2c/chips/bcm963138/sfp_i2c.o 

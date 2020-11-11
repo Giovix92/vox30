@@ -1,0 +1,186 @@
+# 1 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/963138.dts"
+# 1 "<built-in>"
+# 1 "<command-line>"
+# 1 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/963138.dts"
+
+
+
+
+# 1 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/bcm_963xx_template.dtsi" 1
+
+
+
+
+# 1 "./arch/arm/boot/dts/include/dt-bindings/soc/bcm963xx_dt_bindings.h" 1
+# 6 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/bcm_963xx_template.dtsi" 2
+
+/dts-v1/;
+
+/ {
+ #address-cells = <1>;
+ #size-cells = <1>;
+
+ chosen {
+  bootargs = "console=ttyS0,115200 debug irqaffinity=0";
+ };
+
+ memory {
+  device_type = "memory";
+  reg = <0x00000000 0x04000000>;
+ };
+
+ reserved-memory {
+  #address-cells = <1>;
+  #size-cells = <1>;
+  ranges;
+# 43 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/bcm_963xx_template.dtsi"
+  dt_reserved_adsl {
+   reg = <((0x00000000 +0x04000000)-(((0x800000 - 0x500000)+0xFFFFF)&0xFFF00000)) (((0x800000 - 0x500000)+0xFFFFF)&0xFFF00000)>;
+   no-map;
+  };
+
+
+
+  dt_reserved_tm {
+   reg = <(((0x00000000 +0x04000000)-(((0x800000 - 0x500000)+0xFFFFF)&0xFFF00000))-0x1400000) 0x1400000>;
+   no-map;
+  };
+  dt_reserved_mc {
+   reg = <((((0x00000000 +0x04000000)-(((0x800000 - 0x500000)+0xFFFFF)&0xFFF00000))-0x1400000)-0x0400000) 0x0400000>;
+   no-map;
+  };
+
+
+
+  dt_reserved_dhd0 {
+   reg = <0x0 0x0>;
+   no-map;
+  };
+  dt_reserved_dhd1 {
+   reg = <0x0 0x0>;
+   no-map;
+  };
+  dt_reserved_dhd2 {
+   reg = <0x0 0x0>;
+   no-map;
+  };
+
+ };
+# 93 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/bcm_963xx_template.dtsi"
+};
+# 6 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/963138.dts" 2
+# 1 "./arch/arm/boot/dts/include/dt-bindings/interrupt-controller/arm-gic.h" 1
+
+
+
+
+
+
+
+# 1 "./arch/arm/boot/dts/include/dt-bindings/interrupt-controller/irq.h" 1
+# 9 "./arch/arm/boot/dts/include/dt-bindings/interrupt-controller/arm-gic.h" 2
+# 7 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/963138.dts" 2
+
+
+
+
+
+
+
+/ {
+ compatible = "brcm,bcm963138";
+ model = "Broadcom BCM963138";
+ interrupt-parent = <&gic>;
+
+ cpus {
+  #address-cells = <1>;
+  #size-cells = <0>;
+
+  CPU_0: cpu@0 {
+   device_type = "cpu";
+   compatible = "arm,cortex-a9";
+   reg = <0>;
+  };
+
+  CPU_1: cpu@1 {
+   device_type = "cpu";
+   compatible = "arm,cortex-a9";
+   reg = <1>;
+  };
+ };
+
+ gic: interrupt-controller@80000000 {
+  compatible = "arm,cortex-a9-gic";
+  #interrupt-cells = <3>;
+  #address-cells = <0>;
+  interrupt-controller;
+  reg = <0x8001f000 0x1000>,
+        <0x8001e100 0x0100>;
+ };
+
+ pmu {
+  compatible = "arm,cortex-a9-pmu";
+  interrupts = <0 8 4>,
+        <0 9 4>;
+  interrupt-affinity = <&CPU_0>,
+         <&CPU_1>;
+ };
+# 63 "/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/963138.dts"
+ chosen {
+  bootargs = "console=ttyS0,115200 debug irqaffinity=0 coherent_pool=1M cpuidle_sysfs_switch";
+ };
+
+
+ axi@80018000 {
+  compatible = "simple-bus";
+  ranges = <0 0x80018000 0x20000>;
+  #address-cells = <1>;
+  #size-cells = <1>;
+
+  L2: cache-controller@5000 {
+   compatible = "arm,pl310-cache";
+   reg = <0x5000 0x1000>;
+   cache-unified;
+   cache-level = <2>;
+  };
+ };
+
+
+ ubus@fffe8000 {
+  compatible = "simple-bus";
+  #address-cells = <1>;
+  #size-cells = <1>;
+  ranges = <0 0xfffe8000 0x8000>;
+
+  nand@2000 {
+   #address-cells = <1>;
+   #size-cells = <0>;
+   compatible = "brcm,nand-bcm63xx", "brcm,brcmnand-v7.0";
+   reg = <0x2000 0x600>, <0xf0 0x10>;
+   reg-names = "nand", "nand-int-base";
+   status = "okay";
+
+   nandcs@0 {
+    compatible = "brcm,nandcs";
+    reg = <0>;
+    nand-on-flash-bbt;
+   };
+
+  };
+
+  watchdog@a8 {
+   compatible = "brcm,bcm96xxx-wdt";
+   reg = <0xa8 0x10>;
+   timeout-sec = <80>;
+  };
+ };
+
+ sdhci: sdhci@fffec000 {
+  compatible = "brcm,bcm63xx-sdhci";
+  #address-cells = <1>;
+  #size-cells = <1>;
+  reg = <0xfffec000 0x100>;
+  bus-width = <8>;
+  non-removable;
+ };
+};

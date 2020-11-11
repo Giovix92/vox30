@@ -1,0 +1,2 @@
+/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/bcmdrivers/broadcom/net/wl/bcm963138/main/src/emf/wlemf.ko
+/home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/bcmdrivers/broadcom/net/wl/bcm963138/main/src/emf/../router/emf/emf/emf_linux.o /home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/bcmdrivers/broadcom/net/wl/bcm963138/main/src/emf/wlemflib.o

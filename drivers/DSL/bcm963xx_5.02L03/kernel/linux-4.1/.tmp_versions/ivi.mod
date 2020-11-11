@@ -1,0 +1,2 @@
+../../bcmdrivers/opensource/char/map/bcm963138/ivi.ko
+../../bcmdrivers/opensource/char/map/bcm963138/ivi_rule.o ../../bcmdrivers/opensource/char/map/bcm963138/ivi_rule6.o ../../bcmdrivers/opensource/char/map/bcm963138/ivi_map.o ../../bcmdrivers/opensource/char/map/bcm963138/ivi_xmit.o ../../bcmdrivers/opensource/char/map/bcm963138/ivi_nf.o ../../bcmdrivers/opensource/char/map/bcm963138/ivi_ioctl.o ../../bcmdrivers/opensource/char/map/bcm963138/ivi_module.o ../../bcmdrivers/opensource/char/map/bcm963138/ivi_portmap.o

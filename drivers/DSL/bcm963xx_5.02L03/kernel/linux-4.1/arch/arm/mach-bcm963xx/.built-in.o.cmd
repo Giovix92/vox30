@@ -1,0 +1,1 @@
+cmd_arch/arm/mach-bcm963xx/built-in.o :=  /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o arch/arm/mach-bcm963xx/built-in.o arch/arm/mach-bcm963xx/irq.o arch/arm/mach-bcm963xx/board_963xx.o 

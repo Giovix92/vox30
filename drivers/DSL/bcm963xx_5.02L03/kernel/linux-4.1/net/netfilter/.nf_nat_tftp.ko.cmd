@@ -1,0 +1,1 @@
+cmd_net/netfilter/nf_nat_tftp.ko := /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL -r  -T ./scripts/module-common.lds --build-id  -o net/netfilter/nf_nat_tftp.ko net/netfilter/nf_nat_tftp.o net/netfilter/nf_nat_tftp.mod.o

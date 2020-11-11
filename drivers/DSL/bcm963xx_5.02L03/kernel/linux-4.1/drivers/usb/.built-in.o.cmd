@@ -1,0 +1,1 @@
+cmd_drivers/usb/built-in.o :=  /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o drivers/usb/built-in.o drivers/usb/core/built-in.o drivers/usb/phy/built-in.o drivers/usb/host/built-in.o drivers/usb/class/built-in.o drivers/usb/storage/built-in.o drivers/usb/misc/built-in.o drivers/usb/common/built-in.o 

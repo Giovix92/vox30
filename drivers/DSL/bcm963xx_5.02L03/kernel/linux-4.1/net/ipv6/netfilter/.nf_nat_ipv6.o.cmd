@@ -1,0 +1,1 @@
+cmd_net/ipv6/netfilter/nf_nat_ipv6.o := /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o net/ipv6/netfilter/nf_nat_ipv6.o net/ipv6/netfilter/nf_nat_l3proto_ipv6.o net/ipv6/netfilter/nf_nat_proto_icmpv6.o 

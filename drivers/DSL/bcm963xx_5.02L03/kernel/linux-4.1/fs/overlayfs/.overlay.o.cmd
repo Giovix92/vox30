@@ -1,0 +1,1 @@
+cmd_fs/overlayfs/overlay.o := /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o fs/overlayfs/overlay.o fs/overlayfs/super.o fs/overlayfs/inode.o fs/overlayfs/dir.o fs/overlayfs/readdir.o fs/overlayfs/copy_up.o 

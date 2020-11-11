@@ -1,0 +1,12 @@
+kernel/net/netfilter/nf_conntrack_proto_gre.ko
+kernel/net/netfilter/nf_conntrack_proto_esp.ko
+kernel/net/netfilter/nf_conntrack_ftp.ko
+kernel/net/netfilter/nf_conntrack_h323.ko
+kernel/net/netfilter/nf_conntrack_pptp.ko
+kernel/net/netfilter/nf_conntrack_sip.ko
+kernel/net/netfilter/nf_conntrack_tftp.ko
+kernel/net/netfilter/nf_conntrack_rtsp.ko
+kernel/net/netfilter/nf_conntrack_ipsec.ko
+kernel/net/netfilter/nf_nat_ftp.ko
+kernel/net/netfilter/nf_nat_sip.ko
+kernel/net/netfilter/nf_nat_tftp.ko

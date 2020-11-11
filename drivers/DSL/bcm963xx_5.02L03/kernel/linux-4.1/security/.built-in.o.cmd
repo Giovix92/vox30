@@ -1,0 +1,1 @@
+cmd_security/built-in.o :=  /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o security/built-in.o security/commoncap.o security/min_addr.o security/device_cgroup.o 

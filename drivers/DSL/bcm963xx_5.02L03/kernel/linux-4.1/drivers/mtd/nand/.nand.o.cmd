@@ -1,0 +1,1 @@
+cmd_drivers/mtd/nand/nand.o := /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o drivers/mtd/nand/nand.o drivers/mtd/nand/nand_base.o drivers/mtd/nand/nand_bbt.o drivers/mtd/nand/nand_timings.o 

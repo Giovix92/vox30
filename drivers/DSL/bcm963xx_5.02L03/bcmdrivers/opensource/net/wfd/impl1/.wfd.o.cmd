@@ -1,0 +1,1 @@
+cmd_../../bcmdrivers/opensource/net/wfd/bcm963138/wfd.o := /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o ../../bcmdrivers/opensource/net/wfd/bcm963138/wfd.o ../../bcmdrivers/opensource/net/wfd/bcm963138/wfd_dev.o 

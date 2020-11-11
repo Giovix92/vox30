@@ -1,0 +1,11 @@
+eeName: beep
+eeVersion: 1.0
+pkgName: spTestSuite
+vendor: Broadcom Ltd.
+description: Service Platform Test Suite provides utilities to test SP functionalities
+version: 1.0
+pkg-dependency:
+app-name:      spMaster
+app-directory: ../../userspace/private/apps/spTestSuite
+app-name:      spRobot
+app-directory: ../../userspace/private/apps/spTestSuite

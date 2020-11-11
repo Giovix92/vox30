@@ -1,0 +1,1 @@
+cmd_drivers/mtd/maps/built-in.o :=  /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o drivers/mtd/maps/built-in.o drivers/mtd/maps/map_funcs.o drivers/mtd/maps/bcm963xx.o drivers/mtd/maps/bcm963xx_mtd.o 

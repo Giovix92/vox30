@@ -1,0 +1,1 @@
+cmd_drivers/usb/host/built-in.o :=  /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL    -r -o drivers/usb/host/built-in.o drivers/usb/host/pci-quirks.o drivers/usb/host/ehci-hcd.o drivers/usb/host/ehci-pci.o drivers/usb/host/ehci-platform.o drivers/usb/host/ohci-hcd.o drivers/usb/host/ohci-pci.o drivers/usb/host/ohci-platform.o 

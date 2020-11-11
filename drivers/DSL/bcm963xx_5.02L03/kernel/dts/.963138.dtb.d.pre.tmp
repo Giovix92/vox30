@@ -1,0 +1,6 @@
+963138.o: \
+ /home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/963138.dts \
+ /home/edward/370306/VOX30_SERCOMM_VFIT_370306/drivers/DSL/bcm963xx_5.02L03/kernel/dts/bcm_963xx_template.dtsi \
+ arch/arm/boot/dts/include/dt-bindings/soc/bcm963xx_dt_bindings.h \
+ arch/arm/boot/dts/include/dt-bindings/interrupt-controller/arm-gic.h \
+ arch/arm/boot/dts/include/dt-bindings/interrupt-controller/irq.h

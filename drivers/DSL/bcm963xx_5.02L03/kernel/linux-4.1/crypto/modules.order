@@ -1,0 +1,3 @@
+kernel/crypto/deflate.ko
+kernel/crypto/zlib.ko
+kernel/crypto/lzo.ko

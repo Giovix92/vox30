@@ -1,0 +1,7 @@
+<PUBLISH>
+@@23c23
+-BRCM_CHIP_REV="A0"
++BRCM_CHIP_REV="B0"
+@@227c227
+-BUILD_SATA=y
++# BUILD_SATA is not set

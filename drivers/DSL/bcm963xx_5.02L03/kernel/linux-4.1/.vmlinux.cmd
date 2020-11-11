@@ -1,0 +1,1 @@
+cmd_vmlinux := /bin/sh scripts/link-vmlinux.sh /opt/toolchains//crosstools-arm-gcc-5.3-linux-4.1-glibc-2.24-binutils-2.25/usr/bin/arm-linux-ld -EL  -p --no-undefined -X --pic-veneer --build-id -z max-page-size=0x8000 -Map vmlinux.map
